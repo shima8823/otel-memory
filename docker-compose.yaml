@@ -8,7 +8,8 @@ services:
     volumes:
       - ./otel-collector.yaml:/etc/otel-collector.yaml
     ports:
-      - 4317:4317
+      - 4317:4317 # OTLP gRPC
+      - 8888:8888 # Collector セルフテレメトリ
 
   prometheus:
     image: prom/prometheus:v3.7.3

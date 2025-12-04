@@ -2,7 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 scrape_configs:
-  - job_name: 'otel-collector'
+  # Collector セルフテレメトリ (otelcol_* メトリクス)
+  - job_name: "otel-collector-self"
     scrape_interval: 5s
     static_configs:
-      - targets: ['otel-collector:9090']
+      - targets: ["otel-collector:8888"]
+
+  # metrics パイプライン (exporter.prometheus) からのメトリクスを取得
+  - job_name: "otel-collector-pipeline"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["otel-collector:9090"]
