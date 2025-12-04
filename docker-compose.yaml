@@ -22,3 +22,13 @@ services:
     image: jaegertracing/all-in-one:1.60
     ports:
       - 16686:16686
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    ports:
+      - 3000:3000
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true # ログインを不要にする
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
