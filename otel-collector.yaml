@@ -7,6 +7,10 @@ receivers:
       grpc:
         endpoint: 0.0.0.0:4317
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256      # hard-limitをあえて低めにして発火させやすくする
+    spike_limit_mib: 64
 extensions:
   health_check: {}
 exporters:
