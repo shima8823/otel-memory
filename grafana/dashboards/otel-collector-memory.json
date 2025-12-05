@@ -692,6 +692,206 @@
       ],
       "title": "Processor: Refused / Dropped (memory_limiter 発火時に注目)",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
+      "id": 103,
+      "panels": [],
+      "title": "📉 Drop Rate (各コンポーネントのドロップ率)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Receiver がデータを拒否した割合。memory_limiter がバックプレッシャーをかけると上昇。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 48 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_receiver_refused_spans_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_receiver_accepted_spans_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_receiver_refused_spans_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Spans ({{receiver}})",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_receiver_refused_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_receiver_accepted_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_receiver_refused_metric_points_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Metrics ({{receiver}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Receiver: Drop Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Processor が処理中にドロップした割合。incoming と outgoing の差分から計算。memory_limiter 発火時に上昇。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 48 },
+      "id": 15,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "(rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m]) - rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\"}[1m])) / rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Items ({{processor}}/{{otel_signal}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Processor: Drop Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Exporter が送信に失敗した割合。下流（Jaeger等）が詰まると上昇。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "orange", "value": 0.05 },
+              { "color": "red", "value": 0.1 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 48 },
+      "id": 16,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_exporter_send_failed_spans_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_spans_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_spans_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Spans ({{exporter}})",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Metrics ({{exporter}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Exporter: Failure Rate",
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
