@@ -11,6 +11,12 @@ processors:
     check_interval: 1s
     limit_mib: 256      # hard-limitをあえて低めにして発火させやすくする
     spike_limit_mib: 64
+
+  # batch: メモリを溜める原因になる（意図的に大きく設定）
+  batch:
+    send_batch_size: 20000       # 大きなバッチ
+    send_batch_max_size: 50000
+    timeout: 10s                 # 長いタイムアウト（バッファが溜まりやすい）
 extensions:
   health_check: {}
 exporters:
@@ -18,9 +24,18 @@ exporters:
     endpoint: jaeger:4317
     tls:
       insecure: true
+    # sending_queue: メモリ高騰の原因になるキュー
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000   # 大きなキュー（メモリを食う）
   prometheus:
     endpoint: 0.0.0.0:9090
     namespace: testapp
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000   # 大きなキュー（メモリを食う）
   debug:
 
 service:
@@ -36,10 +51,10 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: []
+      processors: [memory_limiter, batch]  # batch追加
       exporters: [otlp, debug]
 
     metrics:
       receivers: [otlp]
-      processors: []
+      processors: [memory_limiter, batch]  # batch追加
       exporters: [prometheus, debug]
