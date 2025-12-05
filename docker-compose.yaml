@@ -6,7 +6,7 @@ services:
     image: otel/opentelemetry-collector-contrib:0.140.1
     command: ["--config=/etc/otel-collector.yaml"]
     volumes:
-      - ./otel-collector.yaml:/etc/otel-collector.yaml
+      - ./otel-collector/otel-collector.yaml:/etc/otel-collector.yaml
     ports:
       - 4317:4317 # OTLP gRPC
       - 8888:8888 # Collector セルフテレメトリ
@@ -14,7 +14,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.7.3
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml
     ports:
       - 9090:9090
 
