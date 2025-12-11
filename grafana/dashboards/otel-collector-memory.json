@@ -253,10 +253,13 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "orange", "value": 0.8 },
+              { "color": "red", "value": 1.0 }
             ]
           },
-          "unit": "s"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -273,12 +276,12 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "otelcol_process_cpu_seconds_total{job=\"otel-collector-self\"}",
+          "expr": "rate(otelcol_process_cpu_seconds_total{job=\"otel-collector-self\"}[1m])",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "CPU Time (total)",
+      "title": "CPU Usage Rate",
       "type": "stat"
     },
     {
@@ -549,7 +552,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
       "id": 11,
       "options": {
         "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -604,7 +607,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
       "id": 12,
       "options": {
         "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -658,7 +661,7 @@
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 39 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 47 },
       "id": 13,
       "options": {
         "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -688,6 +691,18 @@
           "expr": "rate(otelcol_processor_dropped_metric_points_total{job=\"otel-collector-self\"}[1m])",
           "legendFormat": "Dropped Metric Points ({{processor}})",
           "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_processor_refused_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Refused Log Records ({{processor}})",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_processor_dropped_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Dropped Log Records ({{processor}})",
+          "refId": "F"
         }
       ],
       "title": "Processor: Refused / Dropped (memory_limiter 発火時に注目)",
@@ -695,7 +710,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 55 },
       "id": 103,
       "panels": [],
       "title": "📉 Drop Rate (各コンポーネントのドロップ率)",
@@ -744,7 +759,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 48 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 56 },
       "id": 14,
       "options": {
         "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -762,6 +777,12 @@
           "expr": "rate(otelcol_receiver_refused_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_receiver_accepted_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_receiver_refused_metric_points_total{job=\"otel-collector-self\"}[1m]))",
           "legendFormat": "Metrics ({{receiver}})",
           "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_receiver_refused_log_records_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_receiver_accepted_log_records_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_receiver_refused_log_records_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Logs ({{receiver}})",
+          "refId": "C"
         }
       ],
       "title": "Receiver: Drop Rate",
@@ -810,7 +831,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 48 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 56 },
       "id": 15,
       "options": {
         "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -870,7 +891,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 48 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 56 },
       "id": 16,
       "options": {
         "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -888,9 +909,197 @@
           "expr": "rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]))",
           "legendFormat": "Metrics ({{exporter}})",
           "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_log_records_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Logs ({{exporter}})",
+          "refId": "C"
         }
       ],
       "title": "Exporter: Failure Rate",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 64 },
+      "id": 104,
+      "panels": [],
+      "title": "⚙️ Processor Throughput (incoming/outgoing items)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "Processor への入力と出力のレート。差分が大きいほどドロップが多い。シナリオ3, 5, 6で重要。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 65 },
+      "id": 19,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Incoming Items ({{processor}}/{{otel_signal}})",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Outgoing Items ({{processor}}/{{otel_signal}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Processor: Incoming vs Outgoing Items",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 73 },
+      "id": 105,
+      "panels": [],
+      "title": "🗑️ GC & Runtime Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "GC の実行回数とCPU使用率。シナリオ2（スパイク）で急増する。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 74 },
+      "id": 20,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(go_memstats_gc_count_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "GC Count Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "GC Count Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "GC に費やされたCPU時間の割合。高いほどGC負荷が大きい。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "orange", "value": 0.2 },
+              { "color": "red", "value": 0.3 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 74 },
+      "id": 21,
+      "options": {
+        "legend": { "calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "rate(go_memstats_gc_cpu_fraction{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "GC CPU Fraction",
+          "refId": "A"
+        }
+      ],
+      "title": "GC CPU Fraction",
       "type": "timeseries"
     }
   ],
