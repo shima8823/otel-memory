@@ -974,8 +974,8 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "opacity",
+            "fillOpacity": 10,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -1010,23 +1010,7 @@
           },
           "unit": "ops"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/(Dropped|Refused)/"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -1034,7 +1018,7 @@
         "x": 0,
         "y": 31
       },
-      "id": 13,
+      "id": 20,
       "options": {
         "legend": {
           "calcs": [
@@ -1057,8 +1041,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_processor_refused_spans_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Refused Spans ({{processor}})",
+          "expr": "rate(otelcol_processor_accepted_spans_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Accepted Spans ({{processor}})",
           "refId": "A"
         },
         {
@@ -1066,21 +1050,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_processor_refused_metric_points_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Refused Metric Points ({{processor}})",
+          "expr": "rate(otelcol_processor_refused_spans_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Refused Spans ({{processor}})",
           "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_processor_refused_log_records_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Refused Log Records ({{processor}})",
-          "refId": "C"
         }
       ],
-      "title": "Processor: Refused (memory_limiter 発火時に注目)",
+      "title": "Processor: Spans Rate",
       "type": "timeseries"
     },
     {
@@ -1088,7 +1063,6 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Processor への入力と出力のレート。差分が大きいほどドロップが多い。シナリオ3, 5, 6で重要。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1145,6 +1119,211 @@
         "w": 12,
         "x": 12,
         "y": 31
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_accepted_metric_points_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Accepted Metric Points ({{processor}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_refused_metric_points_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Refused Metric Points ({{processor}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Processor: Metric Points Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 39
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_accepted_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Accepted Log Records ({{processor}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_refused_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Refused Log Records ({{processor}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Processor: Log Records Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Processor への入力と出力のレート（補完的な情報）。差分が大きいほどドロップが多い。accepted/refused系では検出できない、メモリ以外の原因（エラー、フィルタリングなど）を発見するために使用。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 47
       },
       "id": 19,
       "options": {
@@ -1282,7 +1461,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "id": 12,
       "options": {
@@ -1408,7 +1587,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 39
       },
       "id": 15,
       "options": {
@@ -1433,9 +1612,27 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m]) - rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\"}[1m])) / rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Items ({{processor}}/{{otel_signal}})",
+          "expr": "rate(otelcol_processor_refused_spans_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_processor_accepted_spans_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_processor_refused_spans_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Spans ({{processor}})",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_refused_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_processor_accepted_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_processor_refused_metric_points_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Metrics ({{processor}})",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_refused_log_records_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_processor_accepted_log_records_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_processor_refused_log_records_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Logs ({{processor}})",
+          "refId": "C"
         }
       ],
       "title": "Processor: Drop Rate",
@@ -1447,7 +1644,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 71
       },
       "id": 103,
       "panels": [],
@@ -1514,7 +1711,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 56
+        "y": 72
       },
       "id": 9,
       "options": {
@@ -1616,7 +1813,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 56
+        "y": 72
       },
       "id": 10,
       "options": {
@@ -1718,7 +1915,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 64
+        "y": 80
       },
       "id": 18,
       "options": {
@@ -1937,7 +2134,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 72
+        "y": 88
       },
       "id": 16,
       "options": {
@@ -1994,7 +2191,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 88
+        "y": 104
       },
       "id": 105,
       "panels": [],
@@ -2062,7 +2259,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 89
+        "y": 105
       },
       "id": 20,
       "options": {
@@ -2170,7 +2367,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 89
+        "y": 105
       },
       "id": 21,
       "options": {
