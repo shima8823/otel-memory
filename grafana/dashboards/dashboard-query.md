@@ -229,28 +229,61 @@ Receiverセクションでは、Collectorが受信したデータのスループ
 
 Processorセクションでは、Processorが処理したデータのスループット、バッチ処理の状態、およびメモリ制限により拒否されたデータの割合を表示します。
 
-### 13. Processor: Refused (ID: 13)
+**重要**: メモリ高騰デバッグでは、**`accepted/refused`系メトリクスを主要指標として使用**し、`incoming/outgoing`系メトリクスは補完的な情報として使用します。
 
-**表示内容**: Processorが拒否したアイテムのレート（絶対値）
+- **`accepted/refused`系**: `memory_limiter`が明示的に拒否したデータを直接追跡。メモリ制限に達した際の直接的な証拠。**主要指標として使用**。
+- **`incoming/outgoing`系**: Processor全体の入出力を追跡。`refused`以外の要因（エラー、フィルタリング、バッチ処理の遅延など）も含む。**補完的な情報として使用**（メモリ以外の原因を発見するために）。
+
+### 20. Processor: Spans Rate (ID: 20)
+
+**表示内容**: Processorが受け入れた/拒否したスパンのレート（絶対値）
 
 **役割**: **メモリへの影響を評価するため、絶対値で表示**
 
 **クエリ**:
-- `rate(otelcol_processor_refused_spans_total{job="otel-collector-self"}[1m])`
-  - **説明**: memory_limiterが拒否したスパン数/秒
+- `rate(otelcol_processor_accepted_spans_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でProcessorが受け入れたスパン数/秒
 
+- `rate(otelcol_processor_refused_spans_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でProcessorが拒否したスパン数/秒（memory_limiter発火時）
+  - **重要**: **`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）
+
+**補完関係**: ID: 15（Processor: Drop Rate）と**補完関係**。ID: 15は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+**シナリオでの使用**:
+- **シナリオ3**: Refusedが常に0より大きい（キャパシティ不足）
+
+---
+
+### 21. Processor: Metric Points Rate (ID: 21)
+
+**表示内容**: Processorが受け入れた/拒否したメトリクスポイントのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_processor_accepted_metric_points_total{job="otel-collector-self"}[1m])`
 - `rate(otelcol_processor_refused_metric_points_total{job="otel-collector-self"}[1m])`
-  - **説明**: memory_limiterが拒否したメトリクスポイント数/秒
+
+**補完関係**: ID: 15（Processor: Drop Rate）と**補完関係**。ID: 15は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+---
+
+### 22. Processor: Log Records Rate (ID: 22)
+
+**表示内容**: Processorが受け入れた/拒否したログレコードのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_processor_accepted_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でProcessorが受け入れたログレコード数/秒
 
 - `rate(otelcol_processor_refused_log_records_total{job="otel-collector-self"}[1m])`
-  - **説明**: memory_limiterが拒否したログレコード数/秒
+  - **説明**: 1分間でProcessorが拒否したログレコード数/秒（memory_limiter発火時）
   - **重要**: **`refused`されたログはドロップされ、失われます**
 
-**重要度**: **memory_limiter発火時の最重要指標**
-
-**注意**: 
-- `otelcol_processor_dropped_*`メトリクスは現在のCollector設定では利用できません
-- **`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）
+**補完関係**: ID: 15（Processor: Drop Rate）と**補完関係**。ID: 15は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
 
 **シナリオでの使用**:
 - **シナリオ3**: Refusedが常に0より大きい（キャパシティ不足）
@@ -258,7 +291,31 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 ---
 
-### 19. Processor: Incoming vs Outgoing Items (ID: 19)
+### 15. Processor: Drop Rate (ID: 15)
+
+**表示内容**: Processorがデータを拒否した割合（0.0-1.0）
+
+**役割**: **相対的な影響度を評価するため、割合で表示**
+
+**クエリ**:
+- Spans: `rate(otelcol_processor_refused_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_processor_accepted_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_processor_refused_spans_total{job="otel-collector-self"}[1m]))`
+- Metrics: `rate(otelcol_processor_refused_metric_points_total{job="otel-collector-self"}[1m]) / (rate(otelcol_processor_accepted_metric_points_total{job="otel-collector-self"}[1m]) + rate(otelcol_processor_refused_metric_points_total{job="otel-collector-self"}[1m]))`
+- Logs: `rate(otelcol_processor_refused_log_records_total{job="otel-collector-self"}[1m]) / (rate(otelcol_processor_accepted_log_records_total{job="otel-collector-self"}[1m]) + rate(otelcol_processor_refused_log_records_total{job="otel-collector-self"}[1m]))`
+
+**説明**: 受け入れられたデータと拒否されたデータの合計に対する拒否率。**ゼロサムゲーム**: `accepted + refused = 正常に処理できた総数`。**`refused`されたデータはドロップされ、失われます**。
+
+**補完関係**: ID: 20（Processor: Spans Rate）、ID: 21（Processor: Metric Points Rate）、ID: 22（Processor: Log Records Rate）と**補完関係**。ID: 20/21/22は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
+- **絶対値が大きい** → メモリへの影響が大きい
+- **割合が大きい** → システムのキャパシティ不足を示す
+
+**閾値**: Receiver: Drop Rateと同じ
+
+**シナリオでの使用**:
+- **シナリオ3**: memory_limiter発火時に上昇
+
+---
+
+### 12. Batch Processor: Triggers & Cardinality (ID: 12)
 
 **表示内容**: Processorへの入力と出力のレート（絶対値）
 
@@ -271,16 +328,17 @@ Processorセクションでは、Processorが処理したデータのスルー�
 - `rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m])`
   - **説明**: Processorから出力されたアイテム数/秒（Spans、Metrics、Logsを含む）
 
-**重要度**: **シナリオ3, 5, 6で重要**
+**重要度**: **補完的な情報**。`accepted/refused`系を主要指標として使用し、このメトリクスは補完的に使用。
 
-**説明**: 入力と出力の差分が大きいほど、Processorでドロップされている。`otel.signal`ラベル（Grafanaでは`{{otel_signal}}`として表示）でtraces/metrics/logsを区別可能。
+**説明**: 入力と出力の差分が大きいほど、Processorでドロップされている。ただし、この差分には`refused`（メモリ制限による拒否）だけでなく、エラー、フィルタリング、バッチ処理の遅延なども含まれる。
 
-**補完関係**: ID: 15（Processor: Drop Rate）と**補完関係**。ID: 15は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+**使用方法**:
+- **`accepted/refused`系で`refused`が低いが、`incoming - outgoing`が大きい場合** → メモリ以外の要因（エラー、フィルタリングなど）を調査
+- **`accepted/refused`系で`refused`が高い場合** → メモリ制限が原因。このメトリクスは参考程度
 
 **シナリオでの使用**:
-- **シナリオ3**: 入力が出力を常に上回る（キャパシティ不足）
-- **シナリオ5**: 低スループットで高メモリ（巨大ペイロード）
-- **シナリオ6**: 徐々に差が開く（高カーディナリティ）
+- **シナリオ5**: 低スループットで高メモリ（巨大ペイロード） - `refused`が低くても`incoming - outgoing`が大きい場合
+- **シナリオ6**: 徐々に差が開く（高カーディナリティ） - `refused`が低くても`incoming - outgoing`が大きい場合
 
 ---
 
@@ -304,25 +362,6 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 ---
 
-### 15. Processor: Drop Rate (ID: 15)
-
-**表示内容**: Processorが処理中にドロップした割合（0.0-1.0）
-
-**役割**: **相対的な影響度を評価するため、割合で表示**
-
-**クエリ**:
-- `(rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m]) - rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m])) / rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])`
-
-**説明**: Processorへの入力レートと出力レートの差分からドロップ率を計算。`incoming - outgoing = ドロップされたアイテム数`。Spans、Metrics、Logsすべてを含みます。
-
-**補完関係**: ID: 19（Processor: Incoming vs Outgoing Items）と**補完関係**。ID: 19は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
-- **絶対値の差分が大きい** → メモリへの影響が大きい（Processor内で滞留）
-- **割合が大きい** → Processorのキャパシティ不足を示す
-
-**閾値**: Receiver: Drop Rateと同じ
-
-**シナリオでの使用**:
-- **シナリオ3**: memory_limiter発火時に上昇
 
 ---
 
