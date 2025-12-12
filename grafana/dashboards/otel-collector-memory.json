@@ -827,9 +827,120 @@
           "expr": "rate(otelcol_receiver_refused_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_receiver_accepted_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_receiver_refused_metric_points_total{job=\"otel-collector-self\"}[1m]))",
           "legendFormat": "Metrics ({{receiver}})",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_receiver_refused_log_records_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_receiver_accepted_log_records_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_receiver_refused_log_records_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Logs ({{receiver}})",
+          "refId": "C"
         }
       ],
       "title": "Receiver: Drop Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_receiver_accepted_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Accepted Log Records ({{receiver}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_receiver_refused_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Refused Log Records ({{receiver}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Receiver: Log Records Rate",
       "type": "timeseries"
     },
     {
@@ -958,6 +1069,15 @@
           "expr": "rate(otelcol_processor_refused_metric_points_total{job=\"otel-collector-self\"}[1m])",
           "legendFormat": "Refused Metric Points ({{processor}})",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_refused_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Refused Log Records ({{processor}})",
+          "refId": "C"
         }
       ],
       "title": "Processor: Refused (memory_limiter 発火時に注目)",
@@ -1520,6 +1640,108 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 64
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_sent_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Sent Log Records ({{exporter}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Failed Log Records ({{exporter}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Exporter: Log Records Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
             "fillOpacity": 20,
             "gradientMode": "opacity",
             "hideFrom": {
@@ -1562,7 +1784,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 64
+        "y": 72
       },
       "id": 11,
       "options": {
@@ -1716,6 +1938,15 @@
           "expr": "rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]))",
           "legendFormat": "Metrics ({{exporter}})",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_log_records_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "Logs ({{exporter}})",
+          "refId": "C"
         }
       ],
       "title": "Exporter: Failure Rate",
@@ -1727,7 +1958,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 80
+        "y": 88
       },
       "id": 105,
       "panels": [],
@@ -1795,7 +2026,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 81
+        "y": 89
       },
       "id": 20,
       "options": {
@@ -1903,7 +2134,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 81
+        "y": 89
       },
       "id": 21,
       "options": {

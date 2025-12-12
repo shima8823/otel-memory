@@ -135,6 +135,7 @@ Receiverセクションでは、Collectorが受信したデータのスループ
 - `rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[1m])`
   - **説明**: 1分間でパイプラインに拒否されたスパン数/秒（memory_limiter発火時）
   - **単位**: ops/sec
+  - **重要**: **`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）
 
 **なぜ絶対値が必要か**:
 - **メモリへの影響を直接評価**: 例: 10,000 spans/sec が refused なら、その分のメモリが解放されていない可能性がある
@@ -163,6 +164,30 @@ Receiverセクションでは、Collectorが受信したデータのスループ
 
 ---
 
+### 17. Receiver: Log Records Rate (ID: 17)
+
+**表示内容**: Receiverが受け入れた/拒否したログレコードのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_receiver_accepted_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でパイプラインに受け入れられたログレコード数/秒
+  - **単位**: ops/sec
+
+- `rate(otelcol_receiver_refused_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でパイプラインに拒否されたログレコード数/秒（memory_limiter発火時）
+  - **単位**: ops/sec
+  - **重要**: **`refused`されたログはドロップされ、失われます**。監査ログなど重要な情報が欠損する可能性があります。
+
+**補完関係**: ID: 14（Receiver: Drop Rate）と**補完関係**。ID: 14は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+**シナリオでの使用**:
+- **シナリオ3**: Refusedが常に0より大きい（キャパシティ不足）
+- **シナリオ9**: ログ大量送信時のメモリ影響を確認
+
+---
+
 ### 14. Receiver: Drop Rate (ID: 14)
 
 **表示内容**: Receiverがデータを拒否した割合（0.0-1.0）
@@ -172,8 +197,9 @@ Receiverセクションでは、Collectorが受信したデータのスループ
 **クエリ**:
 - Spans: `rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_receiver_accepted_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[1m]))`
 - Metrics: `rate(otelcol_receiver_refused_metric_points_total{job="otel-collector-self"}[1m]) / (rate(otelcol_receiver_accepted_metric_points_total{job="otel-collector-self"}[1m]) + rate(otelcol_receiver_refused_metric_points_total{job="otel-collector-self"}[1m]))`
+- Logs: `rate(otelcol_receiver_refused_log_records_total{job="otel-collector-self"}[1m]) / (rate(otelcol_receiver_accepted_log_records_total{job="otel-collector-self"}[1m]) + rate(otelcol_receiver_refused_log_records_total{job="otel-collector-self"}[1m]))`
 
-**注意**: ログ関連のメトリクスは利用できません
+**注意**: ログ関連のメトリクスは、実際にログを送信してから生成されます。
 
 **説明**: 受け入れられたデータと拒否されたデータの合計に対する拒否率。**ゼロサムゲーム**: `accepted + refused = 正常に受信できた総数`（`failed` は受信処理自体が失敗したものなので別カテゴリ）。**`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）。
 
@@ -182,7 +208,7 @@ Receiverセクションでは、Collectorが受信したデータのスループ
 - **閾値設定がしやすい**: 1%以上で警告、など
 - **メモリ制限の影響を直感的に理解**: システムのキャパシティ不足を示す
 
-**補完関係**: ID: 7（Receiver: Spans Rate）と**補完関係**。ID: 7は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
+**補完関係**: ID: 7（Receiver: Spans Rate）、ID: 8（Receiver: Metric Points Rate）、ID: 17（Receiver: Log Records Rate）と**補完関係**。ID: 7/8/17は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
 - **絶対値が大きい** → メモリへの影響が大きい
 - **割合が大きい** → システムのキャパシティ不足を示す
 
@@ -195,6 +221,7 @@ Receiverセクションでは、Collectorが受信したデータのスループ
 **シナリオでの使用**:
 - **シナリオ1**: memory_limiterがバックプレッシャーをかけると上昇
 - **シナリオ3**: キャパシティ不足で常に高い値
+- **シナリオ9**: ログ大量送信時のドロップ率を確認
 
 ---
 
@@ -215,15 +242,19 @@ Processorセクションでは、Processorが処理したデータのスルー�
 - `rate(otelcol_processor_refused_metric_points_total{job="otel-collector-self"}[1m])`
   - **説明**: memory_limiterが拒否したメトリクスポイント数/秒
 
+- `rate(otelcol_processor_refused_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: memory_limiterが拒否したログレコード数/秒
+  - **重要**: **`refused`されたログはドロップされ、失われます**
+
 **重要度**: **memory_limiter発火時の最重要指標**
 
 **注意**: 
 - `otelcol_processor_dropped_*`メトリクスは現在のCollector設定では利用できません
-- ログ関連のメトリクス（`otelcol_processor_refused_log_records_total`など）も利用できません
 - **`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）
 
 **シナリオでの使用**:
 - **シナリオ3**: Refusedが常に0より大きい（キャパシティ不足）
+- **シナリオ9**: ログ大量送信時のRefusedを確認
 
 ---
 
@@ -235,10 +266,10 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 **クエリ**:
 - `rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])`
-  - **説明**: Processorに入力されたアイテム数/秒
+  - **説明**: Processorに入力されたアイテム数/秒（Spans、Metrics、Logsを含む）
 
 - `rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m])`
-  - **説明**: Processorから出力されたアイテム数/秒
+  - **説明**: Processorから出力されたアイテム数/秒（Spans、Metrics、Logsを含む）
 
 **重要度**: **シナリオ3, 5, 6で重要**
 
@@ -255,15 +286,21 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 ### 12. Batch Processor: Triggers & Cardinality (ID: 12)
 
-**表示内容**: Exporterのキューサイズと容量
+**表示内容**: Batchプロセッサのトリガーとメタデータカーディナリティ
 
 **クエリ**:
-- `otelcol_exporter_queue_size{job="otel-collector-self"}`
-  - **説明**: 現在のキューサイズ（バッチ数）
-  - **重要度**: **シナリオ1, 7の最重要指標**。上限に張り付くとメモリ高騰
+- `rate(otelcol_processor_batch_batch_size_trigger_send_total{job="otel-collector-self"}[1m])`
+  - **説明**: バッチサイズが上限に達して送信がトリガーされた回数/秒
 
-- `otelcol_exporter_queue_capacity{job="otel-collector-self"}`
-  - **説明**: キューの最大容量（設定値）
+- `rate(otelcol_processor_batch_timeout_trigger_send_total{job="otel-collector-self"}[1m])`
+  - **説明**: タイムアウトによって送信がトリガーされた回数/秒
+
+- `otelcol_processor_batch_metadata_cardinality{job="otel-collector-self"}`
+  - **説明**: バッチプロセッサが処理している異なるメタデータ値の組み合わせ数
+  - **重要度**: カーディナリティが高いほど、メモリ使用量が増加する可能性
+
+**シナリオでの使用**:
+- **シナリオ10**: バッチサイズトリガーが頻繁に発生する（設定が不適切な場合）
 
 ---
 
@@ -276,7 +313,7 @@ Processorセクションでは、Processorが処理したデータのスルー�
 **クエリ**:
 - `(rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m]) - rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m])) / rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])`
 
-**説明**: Processorへの入力レートと出力レートの差分からドロップ率を計算。`incoming - outgoing = ドロップされたアイテム数`。
+**説明**: Processorへの入力レートと出力レートの差分からドロップ率を計算。`incoming - outgoing = ドロップされたアイテム数`。Spans、Metrics、Logsすべてを含みます。
 
 **補完関係**: ID: 19（Processor: Incoming vs Outgoing Items）と**補完関係**。ID: 19は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
 - **絶対値の差分が大きい** → メモリへの影響が大きい（Processor内で滞留）
@@ -328,6 +365,28 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 ---
 
+### 18. Exporter: Log Records Rate (ID: 18)
+
+**表示内容**: Exporterが送信した/失敗したログレコードのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_exporter_sent_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間で下流に正常に送信されたログレコード数/秒
+
+- `rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間で送信に失敗したログレコード数/秒（下流の障害時）
+
+**補完関係**: ID: 16（Exporter: Failure Rate）と**補完関係**。ID: 16は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+**シナリオでの使用**:
+- **シナリオ1**: Failedが100%になる（下流停止時）
+- **シナリオ7**: Failedが断続的に発生（ネットワーク不安定）
+- **シナリオ9**: ログ大量送信時の送信状況を確認
+
+---
+
 ### 11. Exporter Queue Size / Capacity (ID: 11)
 
 **表示内容**: Exporterのキューサイズと容量
@@ -359,7 +418,7 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 **説明**: 送信成功と失敗の合計に対する失敗率。**ゼロサムゲーム**: `sent + failed = 送信を試みた総数`。
 
-**補完関係**: ID: 9（Exporter: Spans Rate）、ID: 10（Exporter: Metric Points Rate）と**補完関係**。ID: 9/10は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
+**補完関係**: ID: 9（Exporter: Spans Rate）、ID: 10（Exporter: Metric Points Rate）、ID: 18（Exporter: Log Records Rate）と**補完関係**。ID: 9/10/18は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
 - **絶対値が大きい** → メモリへの影響が大きい（キューに滞留）
 - **割合が大きい** → 下流の障害やネットワーク問題を示す
 
@@ -368,39 +427,6 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 **シナリオでの使用**:
 - **シナリオ1**: 下流（Jaeger等）が詰まると上昇
 - **シナリオ7**: ネットワーク不安定時に断続的に上昇
-
-**注意**: ログ関連のメトリクス（`otelcol_receiver_accepted_log_records_total`、`otelcol_exporter_sent_log_records_total`など）は、現在のCollector設定では利用できません。ログパイプラインは設定されていますが、これらのメトリクスはPrometheusにエクスポートされていません。
-
----
-
-## Exporter (送信)
-
-Exporterセクションでは、Collectorが下流に送信したデータのスループット、キューサイズ、および送信失敗の割合を表示します。
-
-### 9. Exporter: Spans Rate (ID: 9)
-
-**表示内容**: Exporterが送信に失敗した割合（0.0-1.0）
-
-**役割**: **相対的な影響度を評価するため、割合で表示**
-
-**クエリ**:
-- Spans: `rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]))`
-- Metrics: `rate(otelcol_exporter_send_failed_metric_points_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_metric_points_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_metric_points_total{job="otel-collector-self"}[1m]))`
-- Logs: `rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_log_records_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m]))`
-
-**説明**: 送信成功と失敗の合計に対する失敗率。**ゼロサムゲーム**: `sent + failed = 送信を試みた総数`。
-
-**補完関係**: ID: 9（Exporter: Spans Rate）、ID: 10（Exporter: Metric Points Rate）と**補完関係**。ID: 9/10は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
-- **絶対値が大きい** → メモリへの影響が大きい（キューに滞留）
-- **割合が大きい** → 下流の障害やネットワーク問題を示す
-
-**閾値**: Receiver: Drop Rateと同じ
-
-**シナリオでの使用**:
-- **シナリオ1**: 下流（Jaeger等）が詰まると上昇
-- **シナリオ7**: ネットワーク不安定時に断続的に上昇
-
-**注意**: ログ関連のメトリクス（`otelcol_receiver_accepted_log_records_total`、`otelcol_exporter_sent_log_records_total`など）は、現在のCollector設定では利用できません。ログパイプラインは設定されていますが、これらのメトリクスはPrometheusにエクスポートされていません。
 
 ---
 
@@ -456,9 +482,7 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 - `job="otel-collector-self"`: Collectorのセルフテレメトリメトリクスを指定
 - `{{receiver}}`, `{{exporter}}`, `{{processor}}`: 各コンポーネント名が動的に展開される
 - `{{data_type}}`: `traces`, `metrics`, `logs` のいずれか（Exporter Queue関連）
-- `{{otel_signal}}`: `traces`, `metrics` のいずれか（Processor関連。Prometheusでは`otel.signal`として保存されるが、Grafanaでは`{{otel_signal}}`として参照可能）
-
-**注意**: ログ関連のメトリクスは現在のCollector設定では利用できません。ログパイプラインは設定されていますが、receiver/exporterのメトリクスはエクスポートされていません。
+- `{{otel_signal}}`: `traces`, `metrics`, `logs` のいずれか（Processor関連。Prometheusでは`otel.signal`として保存されるが、Grafanaでは`{{otel_signal}}`として参照可能）
 
 ### メトリクス名の命名規則
 - `otelcol_receiver_*`: Receiver関連
@@ -477,13 +501,13 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 |---------|--------------|---------|
 | 1. 下流停止 | Queue Size, Failure Rate | 11, 16 |
 | 2. スパイク | Heap上下動, GC Count | 1, 20 |
-| 3. キャパシティ不足 | Heap上限張り付き, Refused Spans | 1, 13 |
+| 3. キャパシティ不足 | Heap上限張り付き, Refused Spans/Metrics/Logs | 1, 13, 14 |
 | 4. メモリリーク | RSS右肩上がり, Heap一定 | 2, 4 |
 | 5. 巨大ペイロード | 低スループットで高メモリ | 1, 19 |
 | 6. 高カーディナリティ | Heap徐々に増加 | 1, 19 |
 | 7. ネットワーク不安定 | Queueノコギリ波 | 11 |
 | 8. CPU制限 | CPU 100% | 6 |
-| 9. ログ大量送信 | Queue Size (logs) | 11 |
+| 9. ログ大量送信 | Log Records Rate, Drop Rate | 17, 14, 16 |
 | 10. 設定ミス | Heapノコギリ波, Batch Size | 1, 12 |
 
 ---
@@ -503,18 +527,23 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 ### Receiver Metrics
 - `otelcol_receiver_accepted_spans_total`
 - `otelcol_receiver_accepted_metric_points_total`
+- `otelcol_receiver_accepted_log_records_total` ✅
 - `otelcol_receiver_refused_spans_total`
 - `otelcol_receiver_refused_metric_points_total`
+- `otelcol_receiver_refused_log_records_total` ✅
 - `otelcol_receiver_failed_spans_total`
 - `otelcol_receiver_failed_metric_points_total`
+- `otelcol_receiver_failed_log_records_total` ✅
 
 ### Processor Metrics
 - `otelcol_processor_accepted_spans_total`
 - `otelcol_processor_accepted_metric_points_total`
+- `otelcol_processor_accepted_log_records_total` ✅
 - `otelcol_processor_refused_spans_total`
 - `otelcol_processor_refused_metric_points_total`
-- `otelcol_processor_incoming_items_total`
-- `otelcol_processor_outgoing_items_total`
+- `otelcol_processor_refused_log_records_total` ✅
+- `otelcol_processor_incoming_items_total` (Spans、Metrics、Logsを含む)
+- `otelcol_processor_outgoing_items_total` (Spans、Metrics、Logsを含む)
 - `otelcol_processor_batch_batch_size_trigger_send_total`
 - `otelcol_processor_batch_timeout_trigger_send_total`
 - `otelcol_processor_batch_metadata_cardinality`
@@ -524,8 +553,10 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 ### Exporter Metrics
 - `otelcol_exporter_sent_spans_total`
 - `otelcol_exporter_sent_metric_points_total`
+- `otelcol_exporter_sent_log_records_total` ✅
 - `otelcol_exporter_send_failed_spans_total`
 - `otelcol_exporter_send_failed_metric_points_total`
+- `otelcol_exporter_send_failed_log_records_total` ✅
 - `otelcol_exporter_queue_size`
 - `otelcol_exporter_queue_capacity`
 - `otelcol_exporter_queue_batch_send_size_sum` (ヒストグラム)
@@ -533,13 +564,8 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 ### 利用できないメトリクス
 以下のメトリクスは現在のCollector設定では利用できません:
-- `otelcol_receiver_accepted_log_records_total`
-- `otelcol_receiver_refused_log_records_total`
-- `otelcol_exporter_sent_log_records_total`
-- `otelcol_exporter_send_failed_log_records_total`
-- `otelcol_processor_refused_log_records_total`
 - `otelcol_processor_dropped_*` (すべてのデータタイプ)
-- `go_memstats_*` (Goランタイムメトリクス)
+- `go_memstats_*` (Goランタイムメトリクス - 設定により利用可能な場合あり)
 
 ---
 
