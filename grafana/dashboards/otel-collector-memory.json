@@ -1169,8 +1169,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Incoming Items ({{processor}}/{{otel_signal}})",
+          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"traces\"}[1m])",
+          "legendFormat": "Incoming Traces ({{processor}})",
           "refId": "A"
         },
         {
@@ -1178,9 +1178,45 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Outgoing Items ({{processor}}/{{otel_signal}})",
+          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"traces\"}[1m])",
+          "legendFormat": "Outgoing Traces ({{processor}})",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"metrics\"}[1m])",
+          "legendFormat": "Incoming Metrics ({{processor}})",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"metrics\"}[1m])",
+          "legendFormat": "Outgoing Metrics ({{processor}})",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"logs\"}[1m])",
+          "legendFormat": "Incoming Logs ({{processor}})",
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"logs\"}[1m])",
+          "legendFormat": "Outgoing Logs ({{processor}})",
+          "refId": "F"
         }
       ],
       "title": "Processor: Incoming vs Outgoing Items",
