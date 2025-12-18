@@ -805,7 +805,7 @@
           "showLegend": true
         },
         "tooltip": {
-          "mode": "multi",
+          "mode": "multi",      
           "sort": "desc"
         }
       },
@@ -1267,7 +1267,103 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Processor への入力と出力のレート（補完的な情報）。差分が大きいほどドロップが多い。accepted/refused系では検出できない、メモリ以外の原因（エラー、フィルタリングなど）を発見するために使用。",
+      "description": "通過率(Out/In)の時系列。フィルタ/サンプル系は低くて正常な場合がある点に留意。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 63
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (processor, \"otel.signal\") (rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\"}[1m])) / clamp_min(sum by (processor, \"otel.signal\") (rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m])), 1)",
+          "legendFormat": "Out/In {{processor}}/{{otel.signal}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Processor: Out/In Ratio (per signal)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "目減り量(In-Out)の時系列。フィルタ等で意図的に減らす場合もあるため要文脈確認。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1322,14 +1418,14 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
+        "x": 12,
         "y": 63
       },
-      "id": 19,
+      "id": 28,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
+            "min",
             "max",
             "last"
           ],
@@ -1348,57 +1444,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"traces\"}[1m])",
-          "legendFormat": "Incoming Traces ({{processor}})",
+          "expr": "sum by (processor, \"otel.signal\") (rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\"}[1m])) - sum by (processor, \"otel.signal\") (rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\"}[1m]))",
+          "legendFormat": "In-Out {{processor}}/{{otel.signal}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"traces\"}[1m])",
-          "legendFormat": "Outgoing Traces ({{processor}})",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"metrics\"}[1m])",
-          "legendFormat": "Incoming Metrics ({{processor}})",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"metrics\"}[1m])",
-          "legendFormat": "Outgoing Metrics ({{processor}})",
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_processor_incoming_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"logs\"}[1m])",
-          "legendFormat": "Incoming Logs ({{processor}})",
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_processor_outgoing_items_total{job=\"otel-collector-self\",\"otel.signal\"=\"logs\"}[1m])",
-          "legendFormat": "Outgoing Logs ({{processor}})",
-          "refId": "F"
         }
       ],
-      "title": "Processor: Incoming vs Outgoing Items",
+      "title": "Processor: Net Reduction (per signal)",
       "type": "timeseries"
     },
     {
@@ -1554,7 +1605,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 47
       },
       "id": 24,
       "options": {
@@ -1740,7 +1791,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 63
+        "y": 55
       },
       "id": 26,
       "options": {

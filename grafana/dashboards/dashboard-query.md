@@ -429,6 +429,50 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 ---
 
+### 27. Processor: Out/In Ratio (ID: 27)
+
+**表示内容**: Processorを通過したアイテムの割合（0.0-1.0）
+
+**役割**: **トラフィックが「どこで」詰まっているかを特定する**
+
+**クエリ**:
+- `sum by (processor, "otel.signal") (rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m])) / clamp_min(sum by (processor, "otel.signal") (rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])), 1)`
+  - **説明**: 入力アイテム数に対する出力アイテム数の比率
+  - **clamp_min**: トラフィックが0の際のゼロ除算（NaN）を防ぐための処理
+
+**重要度**: **デバッグ時の位置特定に有用**
+
+**見方**:
+- **1.0付近**: データが加工されずに素通りしている
+- **1.0より大幅に低い**: そのProcessorでデータが「滞留」または「フィルタリング/サンプリング」されている
+- **1.0より高い**: Processor内でデータが増幅（複製や分割）されている
+
+**注意**: `filter` や `probabilistic_sampler` などのProcessorは、意図的に1.0未満になるのが正常動作です。
+
+---
+
+### 28. Processor: Net Reduction (ID: 28)
+
+**表示内容**: Processorで失われた/削減されたアイテムの絶対量
+
+**役割**: **滞留・消失による「メモリへのインパクト」を評価する**
+
+**クエリ**:
+- `sum by (processor, "otel.signal") (rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])) - sum by (processor, "otel.signal") (rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m]))`
+  - **説明**: 入力アイテム数と出力アイテム数の差分
+
+**重要度**: **メモリ高騰の規模を把握するために重要**
+
+**見方**:
+- **値がプラスに大きい**: そのProcessorで大量のデータが失われているか、内部に溜まっている
+- **Ratio(ID:27)と併用**: Ratioが低くてもこの値（絶対量）が小さければ、メモリへの影響は軽微と判断できる
+
+**シナリオでの使用**:
+- **シナリオ3**: メモリ制限によりデータが大量にドロップされている場合、ここが大きな正の値を示す
+- **シナリオ5**: 巨大なペイロードがProcessorで処理しきれず滞留している場合
+
+---
+
 
 ---
 
@@ -607,14 +651,14 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 |---------|--------------|---------|
 | 1. 下流停止 | Queue Size, Failure Rate | 11, 16 |
 | 2. スパイク | Heap上下動, GC Count | 1, 20 |
-| 3. キャパシティ不足 | Heap上限張り付き, Refused Spans/Metrics/Logs | 1, 13, 14 |
+| 3. キャパシティ不足 | Heap上限張り付き, Refused Items, Net Reduction | 1, 20-22, 28 |
 | 4. メモリリーク | RSS右肩上がり, Heap一定 | 2, 4 |
-| 5. 巨大ペイロード | 低スループットで高メモリ | 1, 19 |
-| 6. 高カーディナリティ | Heap徐々に増加 | 1, 19 |
+| 5. 巨大ペイロード | 低スループットで高メモリ, Net Reduction | 1, 28 |
+| 6. 高カーディナリティ | Heap徐々に増加, Metadata Cardinality | 1, 25 |
 | 7. ネットワーク不安定 | Queueノコギリ波 | 11 |
 | 8. CPU制限 | CPU 100% | 6 |
 | 9. ログ大量送信 | Log Records Rate, Drop Rate | 17, 14, 16 |
-| 10. 設定ミス | Heapノコギリ波, Batch Size | 1, 12 |
+| 10. 設定ミス | Heapノコギリ波, Batch Size, Ratio | 1, 23, 27 |
 
 ---
 
