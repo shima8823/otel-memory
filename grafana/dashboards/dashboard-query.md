@@ -8,7 +8,6 @@
 2. [Receiver (受信)](#receiver-受信)
 3. [Processor (処理)](#processor-処理)
 4. [Exporter (送信)](#exporter-送信)
-5. [GC & Runtime Metrics](#gc--runtime-metrics)
 
 ---
 
@@ -596,49 +595,6 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 ---
 
-## GC & Runtime Metrics
-
-### 20. GC Count Rate (ID: 20)
-
-**表示内容**: GC（ガベージコレクション）の実行回数/秒
-
-**クエリ**:
-- `rate(go_memstats_gc_count_total{job="otel-collector-self"}[1m])`
-  - **説明**: 1分間で実行されたGC回数のレート
-  - **単位**: ops/sec
-
-**重要度**: **シナリオ2（スパイク）で重要**
-
-**説明**: GC回数が急増すると、メモリ確保と解放が頻発していることを示す。
-
-**シナリオでの使用**:
-- **シナリオ2**: スパイク時に急増する（メモリ確保と解放が頻発）
-
-**注意**: このメトリクスはGoランタイムのメトリクスエンドポイントが公開されている場合のみ利用可能です。データが存在しない場合はパネルにエラーが表示されます。
-
----
-
-### 21. GC CPU Fraction (ID: 21)
-
-**表示内容**: GCに費やされたCPU時間の割合
-
-**クエリ**:
-- `rate(go_memstats_gc_cpu_fraction{job="otel-collector-self"}[1m])`
-  - **説明**: GC処理に使われたCPU時間の割合（0.0-1.0）
-  - **単位**: percentunit
-
-**閾値**:
-- 🟢 Green: < 10%
-- 🟡 Yellow: ≥ 10%
-- 🟠 Orange: ≥ 20%
-- 🔴 Red: ≥ 30%
-
-**説明**: 高いほどGC負荷が大きく、アプリケーション処理に使えるCPU時間が少ない。
-
-**注意**: このメトリクスはGoランタイムのメトリクスエンドポイントが公開されている場合のみ利用可能です。
-
----
-
 ## クエリの共通パターン
 
 ### レート計算
@@ -655,7 +611,7 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 - `otelcol_processor_*`: Processor関連
 - `otelcol_exporter_*`: Exporter関連
 - `otelcol_process_*`: プロセス全体のメトリクス
-- `go_memstats_*`: Goランタイムのメトリクス（利用可能な場合）
+- `otelcol_process_runtime_*`: Goランタイム関連のメトリクス（Heap/GC等）
 
 ---
 
@@ -666,7 +622,7 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 | シナリオ | 主要メトリクス | パネルID |
 |---------|--------------|---------|
 | 1. 下流停止 | Queue Usage, Send Failure Rate, Queue Enqueue Failed | 11, 16, 29 |
-| 2. スパイク | Heap上下動, GC Count | 1, 20 |
+| 2. スパイク | Heap上下動 | 1 |
 | 3. キャパシティ不足 | Heap上限張り付き, Refused Items, Net Reduction | 1, 20-22, 28 |
 | 4. メモリリーク | RSS右肩上がり, Heap一定 | 2, 4 |
 | 5. 巨大ペイロード | 低スループットで高メモリ, Net Reduction | 1, 28 |
@@ -734,7 +690,6 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 ### 利用できないメトリクス
 以下のメトリクスは現在のCollector設定では利用できません:
 - `otelcol_processor_dropped_*` (すべてのデータタイプ)
-- `go_memstats_*` (Goランタイムメトリクス - 設定により利用可能な場合あり)
 
 ---
 
