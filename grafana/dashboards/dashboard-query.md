@@ -12,6 +12,27 @@
 
 ---
 
+## パネル一覧と役割
+
+| ID | パネル名 | 役割 |
+|----|----------|------|
+| 1 | Collector Heap Memory | Heapメモリの推移と memory_limiter の閾値監視。 |
+| 2 | Collector Sys / RSS Memory | RSS（物理メモリ）の監視とメモリリークの検知。 |
+| 9 | Exporter: Spans Rate | スパンごとの詳細な送信成功/失敗レート。 |
+| 10 | Exporter: Metric Points Rate | メトリクスごとの詳細な送信成功/失敗レート。 |
+| 18 | Exporter: Log Records Rate | ログごとの詳細な送信成功/失敗レート。 |
+| 29 | Exporter: Queue Enqueue Failed | キュー満杯による内部ドロップ（全信号）。 |
+| 16 | Exporter: Send Failure Rate | Exporter の送信失敗率（外部要因）。 |
+| 11 | Exporter Queue Usage | 送信キューの使用率（バッファリング負荷の検知）。 |
+| 23 | Batch Processor: Average Batch Size | バッチ処理後の平均サイズ。 |
+| 24 | Batch Processor: 95th Percentile Batch Size | バッチ処理後のサイズ分布。 |
+| 25 | Batch Processor: Metadata Cardinality | メタデータのカーディナリティ数。 |
+| 26 | Batch Processor: Size Trigger vs Timeout Trigger | バッチ放出のトリガー要因の割合。 |
+| 27 | Processor: Out/In Ratio (per signal) | Processor 前後のデータ量比率（ボトルネック検知）。 |
+| 28 | Processor: Net Reduction (per signal) | Processor で削減されたデータ量（メモリ負荷への影響）。 |
+
+---
+
 ## Collector Memory Overview
 
 ### 1. Collector Heap Memory (ID: 1)
@@ -478,105 +499,100 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 ## Exporter (送信)
 
-Exporterセクションでは、Collectorが下流に送信したデータのスループット、キューサイズ、および送信失敗の割合を表示します。
+Exporterセクションでは、Collectorが下流に送信したデータのスループット、キューサイズ、および送信失敗の割合を表示します。ReceiverやProcessorと同様に、各信号（Spans, Metrics, Logs）ごとに成功と失敗を並べて表示し、どこでデータが失われているかを明確にします。
 
 ### 9. Exporter: Spans Rate (ID: 9)
 
-**表示内容**: Exporterが送信した/失敗したスパンのレート（絶対値）
+**表示内容**: Exporterが送信に成功/失敗したスパンのレート（絶対値）
 
-**役割**: **メモリへの影響を評価するため、絶対値で表示**
+**役割**: **送信先（外部）との通信状態を評価します。** `sent` と `send_failed` を比較することで、外部要因（ネットワークや認証エラー）による損失を把握します。
 
 **クエリ**:
 - `rate(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[1m])`
-  - **説明**: 1分間で下流に正常に送信されたスパン数/秒
-
+  - **説明**: 送信先に正常に送信されたスパン数/秒
 - `rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m])`
-  - **説明**: 1分間で送信に失敗したスパン数/秒（下流の障害時）
-
-**補完関係**: ID: 16（Exporter: Failure Rate）と**補完関係**。ID: 16は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
-
-**シナリオでの使用**:
-- **シナリオ1**: Failedが100%になる（Jaeger停止時）
-- **シナリオ7**: Failedが断続的に発生（ネットワーク不安定）
+  - **説明**: 送信を試みたが、ネットワークエラーや送信先の拒否（413 Payload Too Large 等）により失敗したスパン数/秒
 
 ---
 
 ### 10. Exporter: Metric Points Rate (ID: 10)
 
-**表示内容**: Exporterが送信した/失敗したメトリクスポイントのレート（絶対値）
+**表示内容**: Exporterが送信に成功/失敗したメトリクスポイントのレート（絶対値）
 
-**役割**: **メモリへの影響を評価するため、絶対値で表示**
+**役割**: Spans Rate と同様、メトリクスの送信成功率を把握します。
 
 **クエリ**:
 - `rate(otelcol_exporter_sent_metric_points_total{job="otel-collector-self"}[1m])`
 - `rate(otelcol_exporter_send_failed_metric_points_total{job="otel-collector-self"}[1m])`
 
-**補完関係**: ID: 16（Exporter: Failure Rate）と**補完関係**。ID: 16は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
-
 ---
 
 ### 18. Exporter: Log Records Rate (ID: 18)
 
-**表示内容**: Exporterが送信した/失敗したログレコードのレート（絶対値）
+**表示内容**: Exporterが送信に成功/失敗したログレコードのレート（絶対値）
 
-**役割**: **メモリへの影響を評価するため、絶対値で表示**
+**役割**: ログの送信成功率を把握します。
 
 **クエリ**:
 - `rate(otelcol_exporter_sent_log_records_total{job="otel-collector-self"}[1m])`
-  - **説明**: 1分間で下流に正常に送信されたログレコード数/秒
-
 - `rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m])`
-  - **説明**: 1分間で送信に失敗したログレコード数/秒（下流の障害時）
-
-**補完関係**: ID: 16（Exporter: Failure Rate）と**補完関係**。ID: 16は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
-
-**シナリオでの使用**:
-- **シナリオ1**: Failedが100%になる（下流停止時）
-- **シナリオ7**: Failedが断続的に発生（ネットワーク不安定）
-- **シナリオ9**: ログ大量送信時の送信状況を確認
 
 ---
 
-### 11. Exporter Queue Size / Capacity (ID: 11)
+### 29. Exporter: Queue Enqueue Failed (ID: 29)
 
-**表示内容**: Exporterのキューサイズと容量
+**表示内容**: 送信キューが一杯のため、投入できずにドロップされたアイテムのレート（絶対値）
+
+**役割**: **内部的なバックプレッシャーの深刻度を評価します。** 全信号（Spans, Metrics, Logs）を 1 つのパネルに表示し、どのデータタイプが最も詰まっているかを特定します。
 
 **クエリ**:
-- `otelcol_exporter_queue_size{job="otel-collector-self"}`
-  - **説明**: 現在のキューサイズ（バッチ数）
-  - **重要度**: **シナリオ1, 7の最重要指標**。上限に張り付くとメモリ高騰
+- `rate(otelcol_exporter_enqueue_failed_spans_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_exporter_enqueue_failed_metric_points_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_exporter_enqueue_failed_log_records_total{job="otel-collector-self"}[1m])`
 
-- `otelcol_exporter_queue_capacity{job="otel-collector-self"}`
-  - **説明**: キューの最大容量（設定値）
-
-**シナリオでの使用**:
-- **シナリオ1**: Queue Sizeが急激に上昇し、Capacity上限に張り付く
-- **シナリオ7**: Queue Sizeがノコギリ波状になる（pause/unpauseの影響）
+**重要度**: メモリ高騰時に `Queue Usage` (ID: 11) が 100% に張り付いている場合、このパネルでドロップが発生し始めます。これは Collector の限界を示しています。
 
 ---
 
-### 16. Exporter: Failure Rate (ID: 16)
+### 16. Exporter: Send Failure Rate (ID: 16)
 
-**表示内容**: Exporterが送信に失敗した割合（0.0-1.0）
+**表示内容**: Exporterにおける送信失敗率（0.0-1.0）
 
-**役割**: **相対的な影響度を評価するため、割合で表示**
+**役割**: **外部要因による通信障害の割合を評価します。**
 
 **クエリ**:
-- Spans: `rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]))`
-- Metrics: `rate(otelcol_exporter_send_failed_metric_points_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_metric_points_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_metric_points_total{job="otel-collector-self"}[1m]))`
-- Logs: `rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_log_records_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m]))`
+- `rate(otelcol_exporter_send_failed_spans_total[1m]) / (rate(otelcol_exporter_sent_spans_total[1m]) + rate(otelcol_exporter_send_failed_spans_total[1m]))`
+  - **意味**: 下流への送信を試みたうち、失敗した割合。**外部要因（ネットワーク、認証、下流ダウン）** または **バッチサイズが大きすぎて送信先が拒否** している可能性を示す。
 
-**説明**: 送信成功と失敗の合計に対する失敗率。**ゼロサムゲーム**: `sent + failed = 送信を試みた総数`。
+**補完関係**: ID: 9, 10, 18（絶対値）でドロップの実数を確認し、この ID: 16 で「トラフィック全体のうちどれだけの割合が失敗しているか」という健全性を確認します。
 
-**補完関係**: ID: 9（Exporter: Spans Rate）、ID: 10（Exporter: Metric Points Rate）、ID: 18（Exporter: Log Records Rate）と**補完関係**。ID: 9/10/18は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
-- **絶対値が大きい** → メモリへの影響が大きい（キューに滞留）
-- **割合が大きい** → 下流の障害やネットワーク問題を示す
+**閾値**:
+- 🟢 Green: < 1%
+- 🟡 Yellow: ≥ 1%
+- 🟠 Orange: ≥ 5%
+- 🔴 Red: ≥ 10%
 
-**閾値**: Receiver: Drop Rateと同じ
+---
+
+### 11. Exporter Queue Usage (ID: 11)
+
+**表示内容**: Exporterの送信キューの使用率（0.0-1.0）
+
+**役割**: **メモリ高騰の直接原因（バッファリング）を把握する**
+
+**クエリ**:
+- `otelcol_exporter_queue_size{job="otel-collector-self"} / otelcol_exporter_queue_capacity{job="otel-collector-self"}`
+  - **説明**: キュー容量に対する現在の使用量の割合。1.0（100%）に近づくほど、メモリ消費が最大化し、データのドロップ（enqueue_failed）が発生しやすくなる。
+
+**閾値**:
+- 🟢 Green: < 50%
+- 🟡 Yellow: ≥ 50%
+- 🟠 Orange: ≥ 80%
+- 🔴 Red: ≥ 95%
 
 **シナリオでの使用**:
-- **シナリオ1**: 下流（Jaeger等）が詰まると上昇
-- **シナリオ7**: ネットワーク不安定時に断続的に上昇
+- **シナリオ1**: 下流停止によりキューが急激に溜まり、100%に張り付く。
+- **シナリオ7**: ネットワーク不安定時に使用率がノコギリ波状に変動する。
 
 ---
 
@@ -649,13 +665,13 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 | シナリオ | 主要メトリクス | パネルID |
 |---------|--------------|---------|
-| 1. 下流停止 | Queue Size, Failure Rate | 11, 16 |
+| 1. 下流停止 | Queue Usage, Send Failure Rate, Queue Enqueue Failed | 11, 16, 29 |
 | 2. スパイク | Heap上下動, GC Count | 1, 20 |
 | 3. キャパシティ不足 | Heap上限張り付き, Refused Items, Net Reduction | 1, 20-22, 28 |
 | 4. メモリリーク | RSS右肩上がり, Heap一定 | 2, 4 |
 | 5. 巨大ペイロード | 低スループットで高メモリ, Net Reduction | 1, 28 |
 | 6. 高カーディナリティ | Heap徐々に増加, Metadata Cardinality | 1, 25 |
-| 7. ネットワーク不安定 | Queueノコギリ波 | 11 |
+| 7. ネットワーク不安定 | Queue Usage, Send Fail Rate | 11, 16 |
 | 8. CPU制限 | CPU 100% | 6 |
 | 9. ログ大量送信 | Log Records Rate, Drop Rate | 17, 14, 16 |
 | 10. 設定ミス | Heapノコギリ波, Batch Size, Ratio | 1, 23, 27 |
@@ -707,6 +723,9 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 - `otelcol_exporter_send_failed_spans_total`
 - `otelcol_exporter_send_failed_metric_points_total`
 - `otelcol_exporter_send_failed_log_records_total` ✅
+- `otelcol_exporter_enqueue_failed_spans_total` ✅
+- `otelcol_exporter_enqueue_failed_metric_points_total` ✅
+- `otelcol_exporter_enqueue_failed_log_records_total` ✅
 - `otelcol_exporter_queue_size`
 - `otelcol_exporter_queue_capacity`
 - `otelcol_exporter_queue_batch_send_size_sum` (ヒストグラム)

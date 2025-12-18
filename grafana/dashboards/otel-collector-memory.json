@@ -2126,11 +2126,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 72
       },
-      "id": 18,
+      "id": 9,
       "options": {
         "legend": {
           "calcs": [
@@ -2155,8 +2155,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_exporter_sent_log_records_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Sent Log Records ({{exporter}})",
+          "expr": "rate(otelcol_exporter_sent_spans_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Sent Spans ({{exporter}})",
           "refId": "A"
         },
         {
@@ -2164,12 +2164,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Failed Log Records ({{exporter}})",
+          "expr": "rate(otelcol_exporter_send_failed_spans_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Send Failed Spans ({{exporter}})",
           "refId": "B"
         }
       ],
-      "title": "Exporter: Log Records Rate",
+      "title": "Exporter: Spans Rate",
       "type": "timeseries"
     },
     {
@@ -2232,8 +2232,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 72
       },
       "id": 10,
@@ -2271,7 +2271,7 @@
             "uid": "${datasource}"
           },
           "expr": "rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Failed Metric Points ({{exporter}})",
+          "legendFormat": "Send Failed Metric Points ({{exporter}})",
           "refId": "B"
         }
       ],
@@ -2283,11 +2283,233 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Exporter が送信に失敗した割合。下流（Jaeger等）が詰まると上昇。",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 72
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_sent_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Sent Log Records ({{exporter}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Send Failed Log Records ({{exporter}})",
+          "refId": "B"
+        }
+      ],
+      "title": "Exporter: Log Records Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "キューがいっぱいで投入できずにドロップされたアイテムのレート。内部的なバックプレッシャーの証拠。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 80
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "last"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_enqueue_failed_spans_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Enqueue Failed Spans ({{exporter}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_enqueue_failed_metric_points_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Enqueue Failed Metrics ({{exporter}})",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(otelcol_exporter_enqueue_failed_log_records_total{job=\"otel-collector-self\"}[1m])",
+          "legendFormat": "Enqueue Failed Logs ({{exporter}})",
+          "refId": "C"
+        }
+      ],
+      "title": "Exporter: Queue Enqueue Failed (Absolute)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Exporter が送信を試みたアイテムのうち、外部要因（NW障害/認証エラー/送信先ダウン等）で失敗した割合。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2354,7 +2576,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
+        "x": 12,
         "y": 80
       },
       "id": 16,
@@ -2383,7 +2605,7 @@
             "uid": "${datasource}"
           },
           "expr": "rate(otelcol_exporter_send_failed_spans_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_spans_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_spans_total{job=\"otel-collector-self\"}[1m]))",
-          "legendFormat": "Spans ({{exporter}})",
+          "legendFormat": "Send Fail Spans ({{exporter}})",
           "refId": "A"
         },
         {
@@ -2392,7 +2614,7 @@
             "uid": "${datasource}"
           },
           "expr": "rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_metric_points_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_metric_points_total{job=\"otel-collector-self\"}[1m]))",
-          "legendFormat": "Metrics ({{exporter}})",
+          "legendFormat": "Send Fail Metrics ({{exporter}})",
           "refId": "B"
         },
         {
@@ -2401,11 +2623,11 @@
             "uid": "${datasource}"
           },
           "expr": "rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m]) / (rate(otelcol_exporter_sent_log_records_total{job=\"otel-collector-self\"}[1m]) + rate(otelcol_exporter_send_failed_log_records_total{job=\"otel-collector-self\"}[1m]))",
-          "legendFormat": "Logs ({{exporter}})",
+          "legendFormat": "Send Fail Logs ({{exporter}})",
           "refId": "C"
         }
       ],
-      "title": "Exporter: Failure Rate",
+      "title": "Exporter: Send Failure Rate",
       "type": "timeseries"
     },
     {
@@ -2416,113 +2638,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "ops"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 80
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max",
-            "last"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_exporter_sent_spans_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Sent Spans ({{exporter}})",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "rate(otelcol_exporter_send_failed_spans_total{job=\"otel-collector-self\"}[1m])",
-          "legendFormat": "Failed Spans ({{exporter}})",
-          "refId": "B"
-        }
-      ],
-      "title": "Exporter: Spans Rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2555,7 +2671,7 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "line+area"
             }
           },
           "mappings": [],
@@ -2565,10 +2681,22 @@
               {
                 "color": "green",
                 "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.95
               }
             ]
           },
-          "unit": "short"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -2603,21 +2731,12 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "otelcol_exporter_queue_size{job=\"otel-collector-self\"}",
-          "legendFormat": "Queue Size ({{exporter}}/{{data_type}})",
+          "expr": "otelcol_exporter_queue_size{job=\"otel-collector-self\"} / otelcol_exporter_queue_capacity{job=\"otel-collector-self\"}",
+          "legendFormat": "Queue Usage ({{exporter}}/{{data_type}})",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "otelcol_exporter_queue_capacity{job=\"otel-collector-self\"}",
-          "legendFormat": "Queue Capacity ({{exporter}}/{{data_type}})",
-          "refId": "B"
         }
       ],
-      "title": "Exporter Queue Size / Capacity",
+      "title": "Exporter Queue Usage",
       "type": "timeseries"
     },
     {
