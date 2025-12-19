@@ -1,7 +1,10 @@
 # OTel Collector Memory 負荷テスト環境
 # =====================================
 
-.PHONY: help build up down restart logs load-burst load-sustained load-spike load-rampup load-stop clean
+.PHONY: help build up down restart logs status clean
+.PHONY: load-burst load-sustained load-spike load-rampup load-light load-stop
+.PHONY: scenario-1 scenario-2 scenario-3 scenario-4 scenario-5 scenario-6 scenario-7 scenario-8 scenario-9 scenario-10
+.PHONY: tgen-traces tgen-metrics tgen-logs tgen-burst tgen-sustained tgen-all tgen-help
 
 # デフォルトターゲット
 help:
