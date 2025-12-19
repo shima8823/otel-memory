@@ -271,3 +271,19 @@ check-memory:
 metrics:
 	curl -s http://localhost:8888/metrics | grep -E "^otelcol_" | cut -d'{' -f1 | sort -u
 
+# Jaeger操作（シナリオ用）
+jaeger-stop:
+	docker compose stop jaeger
+	@echo "✅ Jaeger stopped"
+
+jaeger-start:
+	docker compose start jaeger
+	@echo "✅ Jaeger started"
+
+jaeger-pause:
+	docker compose pause jaeger
+	@echo "✅ Jaeger paused"
+
+jaeger-unpause:
+	docker compose unpause jaeger
+	@echo "✅ Jaeger unpaused"
