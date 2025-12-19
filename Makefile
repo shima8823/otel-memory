@@ -27,6 +27,13 @@ help:
 	@echo "  load-light      - 軽い負荷 (動作確認用)"
 	@echo "  load-stop       - 実行中の loadgen を停止"
 	@echo ""
+	@echo "=== 負荷テスト (telemetrygen) ==="
+	@echo "  tgen-traces     - traces を生成"
+	@echo "  tgen-metrics    - metrics を生成"
+	@echo "  tgen-logs       - logs を生成"
+	@echo "  tgen-burst      - 高負荷 traces (memory_limiter 発火用)"
+	@echo "  tgen-all        - traces + metrics + logs を同時生成"
+	@echo ""
 	@echo "=== URL ==="
 	@echo "  Grafana:    http://localhost:3000"
 	@echo "  Prometheus: http://localhost:9090"
@@ -146,6 +153,91 @@ load-light: build
 load-stop:
 	-pkill -f "loadgen" 2>/dev/null || true
 	@echo "✅ loadgen stopped"
+
+# =====================================
+# 負荷テスト (telemetrygen)
+# =====================================
+# 公式ツール: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/cmd/telemetrygen
+
+TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
+TGEN := docker run --rm --network host $(TELEMETRYGEN_IMAGE)
+
+# traces: 基本的なトレース生成
+tgen-traces:
+	$(TGEN) traces \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 100 \
+		--duration 60s \
+		--workers 1
+
+# metrics: 基本的なメトリクス生成
+tgen-metrics:
+	$(TGEN) metrics \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 100 \
+		--duration 60s \
+		--workers 1
+
+# logs: 基本的なログ生成
+tgen-logs:
+	$(TGEN) logs \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 100 \
+		--duration 60s \
+		--workers 1
+
+# burst: 高負荷トレース生成（memory_limiter 発火用）
+tgen-burst:
+	$(TGEN) traces \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 10000 \
+		--duration 120s \
+		--workers 10 \
+		--span-duration 100ms \
+		--child-spans 5 \
+		--otlp-attributes 'load_test="burst"'
+
+# sustained: 一定レートでのトレース生成
+tgen-sustained:
+	$(TGEN) traces \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 5000 \
+		--duration 180s \
+		--workers 5 \
+		--child-spans 3 \
+		--otlp-attributes 'load_test="sustained"'
+
+# all: traces + metrics + logs を同時に生成（バックグラウンド実行）
+tgen-all:
+	@echo "Starting telemetrygen (traces + metrics + logs)..."
+	@$(TGEN) traces \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 1000 \
+		--duration 60s \
+		--workers 2 &
+	@$(TGEN) metrics \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 500 \
+		--duration 60s \
+		--workers 2 &
+	@$(TGEN) logs \
+		--otlp-endpoint $(ENDPOINT) \
+		--otlp-insecure \
+		--rate 500 \
+		--duration 60s \
+		--workers 2 &
+	@echo "✅ telemetrygen started in background"
+
+# telemetrygen のヘルプ表示
+tgen-help:
+	$(TGEN) traces --help
 
 # =====================================
 # 開発用
