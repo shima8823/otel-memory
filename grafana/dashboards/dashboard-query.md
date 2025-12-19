@@ -13,22 +13,34 @@
 
 ## パネル一覧と役割
 
-| ID | パネル名 | 役割 |
-|----|----------|------|
-| 1 | Collector Heap Memory | Heapメモリの推移と memory_limiter の閾値監視。 |
-| 2 | Collector Sys / RSS Memory | RSS（物理メモリ）の監視とメモリリークの検知。 |
-| 9 | Exporter: Spans Rate | スパンごとの詳細な送信成功/失敗レート。 |
-| 10 | Exporter: Metric Points Rate | メトリクスごとの詳細な送信成功/失敗レート。 |
-| 18 | Exporter: Log Records Rate | ログごとの詳細な送信成功/失敗レート。 |
-| 29 | Exporter: Queue Enqueue Failed | キュー満杯による内部ドロップ（全信号）。 |
-| 16 | Exporter: Send Failure Rate | Exporter の送信失敗率（外部要因）。 |
-| 11 | Exporter Queue Usage | 送信キューの使用率（バッファリング負荷の検知）。 |
-| 23 | Batch Processor: Average Batch Size | バッチ処理後の平均サイズ。 |
-| 24 | Batch Processor: 95th Percentile Batch Size | バッチ処理後のサイズ分布。 |
-| 25 | Batch Processor: Metadata Cardinality | メタデータのカーディナリティ数。 |
-| 26 | Batch Processor: Size Trigger vs Timeout Trigger | バッチ放出のトリガー要因の割合。 |
-| 27 | Processor: Out/In Ratio (per signal) | Processor 前後のデータ量比率（ボトルネック検知）。 |
-| 28 | Processor: Net Reduction (per signal) | Processor で削減されたデータ量（メモリ負荷への影響）。 |
+| ID | パネル名                                         | 役割                                                 |
+|:---|:-------------------------------------------------|:-----------------------------------------------------|
+| 1  | Collector Heap Memory                            | Heapメモリの推移と memory_limiter の閾値監視。       |
+| 2  | Collector Sys / RSS Memory                       | RSS（物理メモリ）の監視とメモリリークの検知。        |
+| 3  | Current Heap Alloc                               | 現在のヒープ割り当て量（Stat）。                     |
+| 4  | Current RSS Memory                               | 現在の物理メモリ使用量（Stat）。                     |
+| 5  | Uptime                                           | Collector の稼働時間。                               |
+| 6  | CPU Usage Rate                                   | CPU 使用率（0.0 - 1.0）。                            |
+| 7  | Receiver: Spans Rate                             | 受信したスパンの成功/拒否レート。                    |
+| 8  | Receiver: Metric Points Rate                     | 受信したメトリクスの成功/拒否レート。                |
+| 17 | Receiver: Log Records Rate                       | 受信したログの成功/拒否レート。                      |
+| 14 | Receiver: Drop Rate                              | Receiver でのデータ拒否率（バックプレッシャー検知）。 |
+| 20 | Processor: Spans Rate                            | Processor で受け入れた/拒否したスパンのレート。      |
+| 21 | Processor: Metric Points Rate                    | Processor で受け入れた/拒否したメトリクスのレート。  |
+| 22 | Processor: Log Records Rate                      | Processor で受け入れた/拒否したログのレート。        |
+| 15 | Processor: Drop Rate                             | Processor でのデータ拒否率（制限発火の証拠）。       |
+| 23 | Batch Processor: Average Batch Size              | バッチ処理後の平均サイズ。                           |
+| 24 | Batch Processor: 95th Percentile Batch Size      | バッチ処理後のサイズ分布。                           |
+| 25 | Batch Processor: Metadata Cardinality            | メタデータのカーディナリティ数。                     |
+| 26 | Batch Processor: Size Trigger vs Timeout Trigger | バッチ放出のトリガー要因の割合。                     |
+| 27 | Processor: Out/In Ratio (per signal)             | Processor 前後のデータ量比率（ボトルネック検知）。   |
+| 28 | Processor: Net Reduction (per signal)            | Processor で削減されたデータ量（メモリ負荷への影響）。|
+| 9  | Exporter: Spans Rate                             | 送信したスパンの成功/失敗レート。                    |
+| 10 | Exporter: Metric Points Rate                     | 送信したメトリクスの成功/失敗レート。                |
+| 18 | Exporter: Log Records Rate                       | 送信したログの成功/失敗レート。                      |
+| 29 | Exporter: Queue Enqueue Failed (Absolute)        | キュー満杯による内部ドロップ（全信号）。             |
+| 16 | Exporter: Send Failure Rate                      | Exporter の送信失敗率（外部要因）。                  |
+| 11 | Exporter Queue Usage                             | 送信キューの使用率（バッファリング負荷の検知）。     |
 
 ---
 
@@ -335,26 +347,6 @@ Processorセクションでは、Processorが処理したデータのスルー�
 
 ---
 
-### 12. Batch Processor: Triggers & Cardinality (ID: 12)
-
-**表示内容**: Batchプロセッサのトリガーとメタデータカーディナリティ
-
-**クエリ**:
-- `rate(otelcol_processor_batch_batch_size_trigger_send_total{job="otel-collector-self"}[1m])`
-  - **説明**: バッチサイズが上限に達して送信がトリガーされた回数/秒
-
-- `rate(otelcol_processor_batch_timeout_trigger_send_total{job="otel-collector-self"}[1m])`
-  - **説明**: タイムアウトによって送信がトリガーされた回数/秒
-
-- `otelcol_processor_batch_metadata_cardinality{job="otel-collector-self"}`
-  - **説明**: バッチプロセッサが処理している異なるメタデータ値の組み合わせ数
-  - **重要度**: カーディナリティが高いほど、メモリ使用量が増加する可能性
-
-**シナリオでの使用**:
-- **シナリオ10**: バッチサイズトリガーが頻繁に発生する（設定が不適切な場合）
-
----
-
 ### 23. Batch Processor: Average Batch Size (ID: 23)
 
 **表示内容**: 実際に送信されたバッチの平均サイズ
@@ -538,7 +530,7 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 ---
 
-### 29. Exporter: Queue Enqueue Failed (ID: 29)
+### 29. Exporter: Queue Enqueue Failed (Absolute) (ID: 29)
 
 **表示内容**: 送信キューが一杯のため、投入できずにドロップされたアイテムのレート（絶対値）
 
@@ -560,7 +552,7 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 **役割**: **外部要因による通信障害の割合を評価します。**
 
 **クエリ**:
-- `rate(otelcol_exporter_send_failed_spans_total[1m]) / (rate(otelcol_exporter_sent_spans_total[1m]) + rate(otelcol_exporter_send_failed_spans_total[1m]))`
+- `rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]))`
   - **意味**: 下流への送信を試みたうち、失敗した割合。**外部要因（ネットワーク、認証、下流ダウン）** または **バッチサイズが大きすぎて送信先が拒否** している可能性を示す。
 
 **補完関係**: ID: 9, 10, 18（絶対値）でドロップの実数を確認し、この ID: 16 で「トラフィック全体のうちどれだけの割合が失敗しているか」という健全性を確認します。
@@ -597,9 +589,6 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 
 ## クエリの共通パターン
 
-### レート計算
-多くのクエリで `rate(...[1m])` を使用しています。これは1分間の移動平均レートを計算します。
-
 ### ラベル
 - `job="otel-collector-self"`: Collectorのセルフテレメトリメトリクスを指定
 - `{{receiver}}`, `{{exporter}}`, `{{processor}}`: 各コンポーネント名が動的に展開される
@@ -631,65 +620,6 @@ Exporterセクションでは、Collectorが下流に送信したデータのス
 | 8. CPU制限 | CPU 100% | 6 |
 | 9. ログ大量送信 | Log Records Rate, Drop Rate | 17, 14, 16 |
 | 10. 設定ミス | Heapノコギリ波, Batch Size, Ratio | 1, 23, 27 |
-
----
-
-## 実際に利用可能なメトリクス一覧
-
-現在のPrometheusで実際に利用可能なメトリクス（2024年12月時点）:
-
-### Process Metrics
-- `otelcol_process_cpu_seconds_total`
-- `otelcol_process_memory_rss_bytes`
-- `otelcol_process_runtime_heap_alloc_bytes`
-- `otelcol_process_runtime_total_alloc_bytes_total`
-- `otelcol_process_runtime_total_sys_memory_bytes`
-- `otelcol_process_uptime_seconds_total`
-
-### Receiver Metrics
-- `otelcol_receiver_accepted_spans_total`
-- `otelcol_receiver_accepted_metric_points_total`
-- `otelcol_receiver_accepted_log_records_total` ✅
-- `otelcol_receiver_refused_spans_total`
-- `otelcol_receiver_refused_metric_points_total`
-- `otelcol_receiver_refused_log_records_total` ✅
-- `otelcol_receiver_failed_spans_total`
-- `otelcol_receiver_failed_metric_points_total`
-- `otelcol_receiver_failed_log_records_total` ✅
-
-### Processor Metrics
-- `otelcol_processor_accepted_spans_total`
-- `otelcol_processor_accepted_metric_points_total`
-- `otelcol_processor_accepted_log_records_total` ✅
-- `otelcol_processor_refused_spans_total`
-- `otelcol_processor_refused_metric_points_total`
-- `otelcol_processor_refused_log_records_total` ✅
-- `otelcol_processor_incoming_items_total` (Spans、Metrics、Logsを含む)
-- `otelcol_processor_outgoing_items_total` (Spans、Metrics、Logsを含む)
-- `otelcol_processor_batch_batch_size_trigger_send_total`
-- `otelcol_processor_batch_timeout_trigger_send_total`
-- `otelcol_processor_batch_metadata_cardinality`
-- `otelcol_processor_batch_batch_send_size_sum` (ヒストグラム)
-- `otelcol_processor_batch_batch_send_size_count` (ヒストグラム)
-
-### Exporter Metrics
-- `otelcol_exporter_sent_spans_total`
-- `otelcol_exporter_sent_metric_points_total`
-- `otelcol_exporter_sent_log_records_total` ✅
-- `otelcol_exporter_send_failed_spans_total`
-- `otelcol_exporter_send_failed_metric_points_total`
-- `otelcol_exporter_send_failed_log_records_total` ✅
-- `otelcol_exporter_enqueue_failed_spans_total` ✅
-- `otelcol_exporter_enqueue_failed_metric_points_total` ✅
-- `otelcol_exporter_enqueue_failed_log_records_total` ✅
-- `otelcol_exporter_queue_size`
-- `otelcol_exporter_queue_capacity`
-- `otelcol_exporter_queue_batch_send_size_sum` (ヒストグラム)
-- `otelcol_exporter_queue_batch_send_size_count` (ヒストグラム)
-
-### 利用できないメトリクス
-以下のメトリクスは現在のCollector設定では利用できません:
-- `otelcol_processor_dropped_*` (すべてのデータタイプ)
 
 ---
 
