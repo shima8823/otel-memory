@@ -25,6 +25,7 @@ help:
 	@echo "  load-spike      - spike シナリオ (通常↔スパイクを交互)"
 	@echo "  load-rampup     - rampup シナリオ (徐々に負荷増加)"
 	@echo "  load-light      - 軽い負荷 (動作確認用)"
+	@echo "  load-logs       - ログ送信テスト"
 	@echo "  load-stop       - 実行中の loadgen を停止"
 	@echo ""
 	@echo "=== 負荷テスト (telemetrygen) ==="
@@ -148,6 +149,19 @@ load-light: build
 		-attr-size 32 \
 		-attr-count 5 \
 		-depth 3
+
+# logs: ログ送信テスト
+load-logs: build
+	$(LOADGEN) \
+		-endpoint $(ENDPOINT) \
+		-scenario sustained \
+		-duration 60s \
+		-rate 2000 \
+		-workers 5 \
+		-attr-size 128 \
+		-attr-count 10 \
+		-depth 3 \
+		-logs
 
 # 負荷テスト停止
 load-stop:
