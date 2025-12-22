@@ -1,0 +1,69 @@
+# シナリオ3: メモリリーク（またはProcessorのバグ）検出
+# メモリリミットを多めに設定、疑わしいProcessorを追加
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1024     # リーク検知用に多めに設定（通常の4倍）
+    spike_limit_mib: 256
+
+  # 疑わしいProcessor: groupbyattrs（カーディナリティを増やしてメモリ消費を誘発）
+  groupbyattrs:
+    keys: ["user.id", "request.id", "session.id", "trace.id", "span.id"]
+
+  # batch: 通常サイズ
+  batch:
+    send_batch_size: 8192
+    send_batch_max_size: 16384
+    timeout: 10s
+extensions:
+  health_check: {}
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    # sending_queue: 通常サイズ
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000
+  debug:
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, groupbyattrs, batch]  # groupbyattrs追加
+      exporters: [otlp, debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]

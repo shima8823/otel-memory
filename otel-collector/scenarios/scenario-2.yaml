@@ -1,0 +1,65 @@
+# シナリオ2: 慢性的な入力過多（キャパシティ不足）
+# メモリリミットを厳しく、バッチサイズを小さくしてスループットを下げる設定
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 64             # 厳しく制限（通常の1/4）
+    spike_limit_mib: 32       # スパイク制限も厳しく
+
+  # batch: スループットを意図的に下げる
+  batch:
+    send_batch_size: 512      # 非常に小さく（通常の1/20）
+    send_batch_max_size: 1024
+    timeout: 1s               # タイムアウトも短く
+extensions:
+  health_check: {}
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    # sending_queue: 通常サイズ
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 1000         # 小さめに設定
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 1000         # 小さめに設定
+  debug:
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]

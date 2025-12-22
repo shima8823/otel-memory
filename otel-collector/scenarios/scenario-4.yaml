@@ -1,0 +1,69 @@
+# シナリオ4: Attributes爆発（High Cardinality）
+# groupbytrace processorを追加、高カーディナリティを意図的に発生させる設定
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256      # 通常サイズ
+    spike_limit_mib: 64
+
+  # 高カーディナリティを発生させるProcessor
+  groupbytrace:
+    # 設定なし（デフォルトでtrace.idでグループ化）
+
+  # batch: メモリ消費を増やすために大きく設定
+  batch:
+    send_batch_size: 16384     # 大きく設定（通常の2倍）
+    send_batch_max_size: 32768
+    timeout: 30s               # 長めに設定
+extensions:
+  health_check: {}
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    # sending_queue: 通常サイズ
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000
+  debug:
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, groupbytrace, batch]  # groupbytrace追加
+      exporters: [otlp, debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]

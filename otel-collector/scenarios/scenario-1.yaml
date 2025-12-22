@@ -1,0 +1,69 @@
+# シナリオ1: 下流（バックエンド）の遅延・停止
+# Queueを極限まで大きくして溜まりやすくする設定
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  # batch: メモリを溜める原因になる（意図的に大きく設定）
+  batch:
+    send_batch_size: 1000       # やや小さめに
+    send_batch_max_size: 2000
+    timeout: 1s
+extensions:
+  health_check: {}
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    # sending_queue: メモリ高騰の原因になるキュー（極限設定）
+    sending_queue:
+      enabled: true
+      num_consumers: 1           # Consumerを減らして詰まりやすく
+      queue_size: 500          # 極限まで大きく（通常の5倍）
+    retry_on_failure:
+      enabled: true
+      initial_interval: 10s      # リトライ間隔を長く（バックオフを効かせる）
+      max_interval: 60s
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+    sending_queue:
+      enabled: true
+      num_consumers: 1           # Consumerを減らして詰まりやすく
+      queue_size: 500          # 極限まで大きく
+  debug:
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]  # batch追加
+      exporters: [otlp, debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]  # batch追加
+      exporters: [prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]  # batch追加
+      exporters: [otlp, debug]
