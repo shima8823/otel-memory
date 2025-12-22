@@ -22,6 +22,10 @@ help:
 	@echo "  build           - loadgen をビルド"
 	@echo "  clean           - ビルド成果物を削除"
 	@echo ""
+	@echo "=== 設定管理 ==="
+	@echo "  reset-config    - 設定ファイルをデフォルトに戻す"
+	@echo "  show-config     - 現在の設定ファイルの内容を表示"
+	@echo ""
 	@echo "=== シナリオ別負荷テスト (scenario.md 参照) ==="
 	@echo "  scenario-1      - 下流停止（Jaeger停止 + load-sustained）"
 	@echo "  scenario-2      - スパイク（通常↔高負荷を交互）"
@@ -99,10 +103,9 @@ clean:
 	@echo "✅ Cleaned"
 
 # =====================================
-# 負荷テスト
+# 共通パラメータ
 # =====================================
 
-# 共通パラメータ
 LOADGEN := ./loadgen/loadgen
 ENDPOINT := localhost:4317
 
@@ -116,6 +119,11 @@ scenario-1: build
 	@echo "========================================"
 	@echo "シナリオ1: 下流（バックエンド）の遅延・停止"
 	@echo "========================================"
+	@echo "📌 設定ファイルを切り替えています..."
+	@cp otel-collector/scenarios/scenario-1.yaml otel-collector/otel-collector.yaml
+	@docker compose restart otel-collector
+	@echo "✅ 設定ファイル適用完了（Queue Size: 50000, Consumer: 1）"
+	@echo ""
 	@echo "📌 手順:"
 	@echo "  1. このターミナルで負荷が開始されます"
 	@echo "  2. 別ターミナルで実行: docker compose stop jaeger"
@@ -126,7 +134,7 @@ scenario-1: build
 		-endpoint $(ENDPOINT) \
 		-scenario sustained \
 		-duration 180s \
-		-rate 5000 \
+		-rate 20000 \
 		-workers 10 \
 		-attr-size 64 \
 		-attr-count 10 \
@@ -154,6 +162,11 @@ scenario-3: build
 	@echo "========================================"
 	@echo "シナリオ3: 慢性的な入力過多（キャパシティ不足）"
 	@echo "========================================"
+	@echo "📌 設定ファイルを切り替えています..."
+	@cp otel-collector/scenarios/scenario-3.yaml otel-collector/otel-collector.yaml
+	@docker compose restart otel-collector
+	@echo "✅ 設定ファイル適用完了（Memory Limit: 64MiB, Batch Size: 512）"
+	@echo ""
 	@echo "📌 memory_limiter の limit_mib に到達するまで全力送信"
 	@echo "========================================"
 	$(LOADGEN) \
@@ -170,6 +183,11 @@ scenario-4: build
 	@echo "========================================"
 	@echo "シナリオ4: メモリリーク（またはProcessorのバグ）検出"
 	@echo "========================================"
+	@echo "📌 設定ファイルを切り替えています..."
+	@cp otel-collector/scenarios/scenario-4.yaml otel-collector/otel-collector.yaml
+	@docker compose restart otel-collector
+	@echo "✅ 設定ファイル適用完了（Memory Limit: 1024MiB, groupbyattrs Processor追加）"
+	@echo ""
 	@echo "📌 10分間の安定負荷でRSSの推移を観察"
 	@echo "   RSS が右肩上がりなら要調査"
 	@echo "========================================"
@@ -206,8 +224,13 @@ scenario-6: build
 	@echo "========================================"
 	@echo "シナリオ6: Attributes爆発（High Cardinality）"
 	@echo "========================================"
+	@echo "📌 設定ファイルを切り替えています..."
+	@cp otel-collector/scenarios/scenario-6.yaml otel-collector/otel-collector.yaml
+	@docker compose restart otel-collector
+	@echo "✅ 設定ファイル適用完了（groupbytrace Processor追加, Batch Size: 16384）"
+	@echo ""
 	@echo "📌 各スパンにユニークなUUIDを含む属性を付与"
-	@echo "   groupbyattrs等のステートフルProcessorで効果大"
+	@echo "   groupbytrace Processorで効果大"
 	@echo "========================================"
 	$(LOADGEN) \
 		-endpoint $(ENDPOINT) \
@@ -483,6 +506,23 @@ tgen-all:
 # telemetrygen のヘルプ表示
 tgen-help:
 	$(TGEN) traces --help
+
+# =====================================
+# 設定管理
+# =====================================
+
+# 設定ファイルのリセット（デフォルトに戻す）
+reset-config:
+	@echo "📌 設定ファイルをデフォルトに戻しています..."
+	@cp otel-collector/otel-collector.yaml.backup otel-collector/otel-collector.yaml
+	@docker compose restart otel-collector
+	@echo "✅ 設定ファイルリセット完了"
+
+# 現在の設定ファイルを確認
+show-config:
+	@echo "=== Current Configuration ==="
+	@head -20 otel-collector/otel-collector.yaml
+	@echo "..."
 
 # =====================================
 # 開発用
