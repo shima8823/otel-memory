@@ -113,100 +113,66 @@ ENDPOINT := localhost:4317
 # 重要シナリオテスト (scenario.md 参照)
 # =====================================
 
-# シナリオ1: 下流停止
-scenario-1: build
+# 共通のシナリオ実行マクロ
+# $(1): シナリオ番号, $(2): メッセージ, $(3): loadgen の引数
+define run_scenario
 	@echo "========================================"
-	@echo "シナリオ1: 下流（バックエンド）の遅延・停止"
+	@echo "シナリオ $(1): $(2)"
 	@echo "========================================"
-	@echo "📌 設定ファイルを切り替えています..."
-	@cp otel-collector/scenarios/scenario-1.yaml otel-collector/otel-collector.yaml
+	@echo "📌 シナリオ用設定を適用中..."
+	@cp otel-collector/scenarios/scenario-$(1).yaml otel-collector/otel-collector.yaml
 	@docker compose restart otel-collector
 	@echo "✅ 設定ファイル適用完了"
 	@echo ""
-	@echo "📌 手順:"
-	@echo "  1. このターミナルで負荷が開始されます"
-	@echo "  2. 別ターミナルで実行: docker compose stop jaeger"
-	@echo "  3. Grafana で Queue Usage 100% を観察"
-	@echo "========================================"
-	@sleep 3
-	$(LOADGEN) \
-		-endpoint $(ENDPOINT) \
-		-scenario sustained \
-		-duration 180s \
-		-rate 20000 \
-		-workers 10 \
-		-attr-size 64 \
-		-attr-count 10 \
-		-depth 3
+	@# 負荷テスト実行後、必ず設定を復元する
+	@($(3)) ; \
+	EXIT_CODE=$$? ; \
+	echo "" ; \
+	echo "📌 設定をベストプラクティスに復元中..." ; \
+	git restore otel-collector/otel-collector.yaml ; \
+	docker compose restart otel-collector ; \
+	echo "✅ 設定の復元完了" ; \
+	exit $$EXIT_CODE
+endef
+
+# シナリオ1: 下流停止
+scenario-1: build
+	$(call run_scenario,1,下流（バックエンド）の遅延・停止,\
+		echo "📌 手順:" ;\
+		echo "  1. このターミナルで負荷が開始されます" ;\
+		echo "  2. 別ターミナルで実行: make jaeger-stop" ;\
+		echo "  3. Grafana で Queue Usage 100% を観察" ;\
+		echo "========================================" ;\
+		sleep 3 ;\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 180s -rate 20000 -workers 10 -attr-size 64 -attr-count 10 -depth 3 \
+	)
 
 # シナリオ2: キャパシティ不足
 scenario-2: build
-	@echo "========================================"
-	@echo "シナリオ2: 慢性的な入力過多（キャパシティ不足）"
-	@echo "========================================"
-	@echo "📌 設定ファイルを切り替えています..."
-	@cp otel-collector/scenarios/scenario-2.yaml otel-collector/otel-collector.yaml
-	@docker compose restart otel-collector
-	@echo "✅ 設定ファイル適用完了"
-	@echo ""
-	@echo "📌 memory_limiter の limit_mib に到達するまで全力送信"
-	@echo "========================================"
-	@sleep 3
-	$(LOADGEN) \
-		-endpoint $(ENDPOINT) \
-		-scenario burst \
-		-duration 180s \
-		-workers 50 \
-		-attr-size 128 \
-		-attr-count 15 \
-		-depth 8
+	$(call run_scenario,2,慢性的な入力過多（キャパシティ不足）,\
+		echo "📌 memory_limiter の limit_mib に到達するまで全力送信" ;\
+		echo "========================================" ;\
+		sleep 3 ;\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario burst -duration 180s -workers 50 -attr-size 128 -attr-count 15 -depth 8 \
+	)
 
 # シナリオ3: メモリリーク検出
 scenario-3: build
-	@echo "========================================"
-	@echo "シナリオ3: メモリリーク（またはProcessorのバグ）検出"
-	@echo "========================================"
-	@echo "📌 設定ファイルを切り替えています..."
-	@cp otel-collector/scenarios/scenario-3.yaml otel-collector/otel-collector.yaml
-	@docker compose restart otel-collector
-	@echo "✅ 設定ファイル適用完了"
-	@echo ""
-	@echo "📌 10分間の安定負荷でRSSの推移を観察"
-	@echo "========================================"
-	@sleep 3
-	$(LOADGEN) \
-		-endpoint $(ENDPOINT) \
-		-scenario sustained \
-		-duration 600s \
-		-rate 3000 \
-		-workers 10 \
-		-attr-size 64 \
-		-attr-count 10 \
-		-depth 3
+	$(call run_scenario,3,メモリリーク（またはProcessorのバグ）検出,\
+		echo "📌 10分間の安定負荷でRSSの推移を観察" ;\
+		echo "========================================" ;\
+		sleep 3 ;\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 600s -rate 3000 -workers 10 -attr-size 64 -attr-count 10 -depth 3 \
+	)
 
 # シナリオ4: 高カーディナリティ
 scenario-4: build
-	@echo "========================================"
-	@echo "シナリオ4: Attributes爆発（High Cardinality）"
-	@echo "========================================"
-	@echo "📌 設定ファイルを切り替えています..."
-	@cp otel-collector/scenarios/scenario-4.yaml otel-collector/otel-collector.yaml
-	@docker compose restart otel-collector
-	@echo "✅ 設定ファイル適用完了"
-	@echo ""
-	@echo "📌 各スパンにユニークなUUIDを含む属性を付与"
-	@echo "========================================"
-	@sleep 3
-	$(LOADGEN) \
-		-endpoint $(ENDPOINT) \
-		-scenario sustained \
-		-duration 180s \
-		-rate 5000 \
-		-workers 10 \
-		-attr-size 64 \
-		-attr-count 15 \
-		-depth 3 \
-		-high-cardinality
+	$(call run_scenario,4,Attributes爆発（High Cardinality）,\
+		echo "📌 各スパンにユニークなUUIDを含む属性を付与" ;\
+		echo "========================================" ;\
+		sleep 3 ;\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 180s -rate 5000 -workers 10 -attr-size 64 -attr-count 15 -depth 3 -high-cardinality \
+	)
 
 # =====================================
 # 基本負荷テスト (loadgen)
@@ -270,9 +236,9 @@ tgen-help:
 # =====================================
 
 reset-config:
-	@cp otel-collector/otel-collector.yaml.backup otel-collector/otel-collector.yaml
+	@git restore otel-collector/otel-collector.yaml
 	@docker compose restart otel-collector
-	@echo "✅ Config reset to default"
+	@echo "✅ Config restored to best-practice (Git HEAD) and Collector restarted"
 
 show-config:
 	@cat otel-collector/otel-collector.yaml
