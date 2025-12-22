@@ -15,11 +15,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	otellog "go.opentelemetry.io/otel/log"
+	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/metric"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -31,19 +36,22 @@ import (
 
 // Config は負荷テストの設定
 type Config struct {
-	Endpoint       string
-	Scenario       string
-	Duration       time.Duration
-	WorkerCount    int
-	SpansPerSecond int
-	SpanDepth      int
-	AttributeSize  int  // 属性値の文字列長（メモリ消費に影響）
-	AttributeCount int  // 属性の数
-	MetricsEnabled bool // メトリクスも送るか
+	Endpoint        string
+	Scenario        string
+	Duration        time.Duration
+	WorkerCount     int
+	SpansPerSecond  int
+	SpanDepth       int
+	AttributeSize   int  // 属性値の文字列長（メモリ消費に影響）
+	AttributeCount  int  // 属性の数
+	MetricsEnabled  bool // メトリクスも送るか
+	LogsEnabled     bool // ログも送るか
+	HighCardinality bool // 高カーディナリティ属性を使うか（シナリオ6用）
 }
 
 var (
 	totalSpans atomic.Int64
+	totalLogs  atomic.Int64
 )
 
 func main() {
@@ -51,15 +59,17 @@ func main() {
 
 	log.Printf("========================================")
 	log.Printf("Loadgen starting...")
-	log.Printf("  Endpoint:        %s", cfg.Endpoint)
-	log.Printf("  Scenario:        %s", cfg.Scenario)
-	log.Printf("  Duration:        %s", cfg.Duration)
-	log.Printf("  Workers:         %d", cfg.WorkerCount)
-	log.Printf("  Spans/sec:       %d", cfg.SpansPerSecond)
-	log.Printf("  Span Depth:      %d", cfg.SpanDepth)
-	log.Printf("  Attribute Size:  %d bytes", cfg.AttributeSize)
-	log.Printf("  Attribute Count: %d", cfg.AttributeCount)
-	log.Printf("  Metrics:         %v", cfg.MetricsEnabled)
+	log.Printf("  Endpoint:         %s", cfg.Endpoint)
+	log.Printf("  Scenario:         %s", cfg.Scenario)
+	log.Printf("  Duration:         %s", cfg.Duration)
+	log.Printf("  Workers:          %d", cfg.WorkerCount)
+	log.Printf("  Spans/sec:        %d", cfg.SpansPerSecond)
+	log.Printf("  Span Depth:       %d", cfg.SpanDepth)
+	log.Printf("  Attribute Size:   %d bytes", cfg.AttributeSize)
+	log.Printf("  Attribute Count:  %d", cfg.AttributeCount)
+	log.Printf("  Metrics:          %v", cfg.MetricsEnabled)
+	log.Printf("  Logs:             %v", cfg.LogsEnabled)
+	log.Printf("  High Cardinality: %v", cfg.HighCardinality)
 	log.Printf("========================================")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -114,18 +124,41 @@ func main() {
 		}()
 	}
 
+	// Logger Provider 初期化（オプション）
+	var loggerProvider *sdklog.LoggerProvider
+	if cfg.LogsEnabled {
+		loggerProvider, err = initLoggerProvider(ctx, res, conn)
+		if err != nil {
+			log.Fatalf("Failed to init logger provider: %v", err)
+		}
+		defer func() {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer shutdownCancel()
+			if err := loggerProvider.Shutdown(shutdownCtx); err != nil {
+				log.Printf("Error shutting down logger provider: %v", err)
+			}
+		}()
+	}
+
 	tracer := otel.Tracer("loadgen")
 	var meter metric.Meter
 	if cfg.MetricsEnabled {
 		meter = otel.Meter("loadgen")
 	}
+	var logger otellog.Logger
+	if cfg.LogsEnabled {
+		logger = global.GetLoggerProvider().Logger("loadgen")
+	}
 
 	// シナリオ実行
-	runScenario(ctx, cfg, tracer, meter)
+	runScenario(ctx, cfg, tracer, meter, logger)
 
 	log.Printf("========================================")
 	log.Printf("Loadgen finished")
 	log.Printf("  Total spans sent: %d", totalSpans.Load())
+	if cfg.LogsEnabled {
+		log.Printf("  Total logs sent:  %d", totalLogs.Load())
+	}
 	log.Printf("========================================")
 }
 
@@ -141,6 +174,8 @@ func parseFlags() Config {
 	flag.IntVar(&cfg.AttributeSize, "attr-size", 256, "Size of each attribute value in bytes")
 	flag.IntVar(&cfg.AttributeCount, "attr-count", 10, "Number of attributes per span")
 	flag.BoolVar(&cfg.MetricsEnabled, "metrics", true, "Enable metrics generation")
+	flag.BoolVar(&cfg.LogsEnabled, "logs", false, "Enable logs generation")
+	flag.BoolVar(&cfg.HighCardinality, "high-cardinality", false, "Use high cardinality attributes (UUID per span)")
 
 	flag.Parse()
 	return cfg
@@ -185,23 +220,45 @@ func initMeterProvider(ctx context.Context, res *resource.Resource, conn *grpc.C
 	return mp, nil
 }
 
-func runScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter) {
+func initLoggerProvider(ctx context.Context, res *resource.Resource, conn *grpc.ClientConn) (*sdklog.LoggerProvider, error) {
+	exporter, err := otlploggrpc.New(ctx, otlploggrpc.WithGRPCConn(conn))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create log exporter: %w", err)
+	}
+
+	// BatchProcessor for logs
+	batchProcessor := sdklog.NewBatchProcessor(exporter,
+		sdklog.WithMaxQueueSize(4096),
+		sdklog.WithExportMaxBatchSize(32),
+		sdklog.WithExportInterval(50*time.Millisecond),
+	)
+
+	lp := sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(batchProcessor),
+	)
+	global.SetLoggerProvider(lp)
+
+	return lp, nil
+}
+
+func runScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter, logger otellog.Logger) {
 	switch cfg.Scenario {
 	case "burst":
-		runBurstScenario(ctx, cfg, tracer, meter)
+		runBurstScenario(ctx, cfg, tracer, meter, logger)
 	case "sustained":
-		runSustainedScenario(ctx, cfg, tracer, meter)
+		runSustainedScenario(ctx, cfg, tracer, meter, logger)
 	case "spike":
-		runSpikeScenario(ctx, cfg, tracer, meter)
+		runSpikeScenario(ctx, cfg, tracer, meter, logger)
 	case "rampup":
-		runRampupScenario(ctx, cfg, tracer, meter)
+		runRampupScenario(ctx, cfg, tracer, meter, logger)
 	default:
 		log.Fatalf("Unknown scenario: %s", cfg.Scenario)
 	}
 }
 
 // burst: 可能な限り速くスパンを送り続ける（rate制限なし）
-func runBurstScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter) {
+func runBurstScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter, logger otellog.Logger) {
 	log.Println("[BURST] Starting burst mode - sending as fast as possible")
 
 	deadline := time.Now().Add(cfg.Duration)
@@ -216,20 +273,20 @@ func runBurstScenario(ctx context.Context, cfg Config, tracer trace.Tracer, mete
 				case <-ctx.Done():
 					return
 				default:
-					generateTrace(ctx, tracer, meter, cfg, workerID)
+					generateTrace(ctx, tracer, meter, logger, cfg, workerID)
 				}
 			}
 		}(i)
 	}
 
 	// 進捗レポート
-	go reportProgress(ctx, deadline)
+	go reportProgress(ctx, deadline, cfg.LogsEnabled)
 
 	wg.Wait()
 }
 
 // sustained: 指定レートで継続的に送り続ける
-func runSustainedScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter) {
+func runSustainedScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter, logger otellog.Logger) {
 	log.Printf("[SUSTAINED] Target rate: %d spans/sec for %s", cfg.SpansPerSecond, cfg.Duration)
 
 	deadline := time.Now().Add(cfg.Duration)
@@ -254,19 +311,19 @@ func runSustainedScenario(ctx context.Context, cfg Config, tracer trace.Tracer, 
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					generateTrace(ctx, tracer, meter, cfg, workerID)
+					generateTrace(ctx, tracer, meter, logger, cfg, workerID)
 				}
 			}
 		}(i)
 	}
 
-	go reportProgress(ctx, deadline)
+	go reportProgress(ctx, deadline, cfg.LogsEnabled)
 
 	wg.Wait()
 }
 
 // spike: 通常負荷 → スパイク → 通常負荷 を繰り返す
-func runSpikeScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter) {
+func runSpikeScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter, logger otellog.Logger) {
 	log.Println("[SPIKE] Alternating between normal and spike load")
 
 	deadline := time.Now().Add(cfg.Duration)
@@ -320,19 +377,19 @@ func runSpikeScenario(ctx context.Context, cfg Config, tracer trace.Tracer, mete
 					}
 					interval := time.Second / time.Duration(ratePerWorker)
 					time.Sleep(interval)
-					generateTrace(ctx, tracer, meter, cfg, workerID)
+					generateTrace(ctx, tracer, meter, logger, cfg, workerID)
 				}
 			}
 		}(i)
 	}
 
-	go reportProgress(ctx, deadline)
+	go reportProgress(ctx, deadline, cfg.LogsEnabled)
 
 	wg.Wait()
 }
 
 // rampup: 徐々に負荷を上げていく
-func runRampupScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter) {
+func runRampupScenario(ctx context.Context, cfg Config, tracer trace.Tracer, meter metric.Meter, logger otellog.Logger) {
 	log.Println("[RAMPUP] Gradually increasing load")
 
 	deadline := time.Now().Add(cfg.Duration)
@@ -382,21 +439,21 @@ func runRampupScenario(ctx context.Context, cfg Config, tracer trace.Tracer, met
 					}
 					interval := time.Second / time.Duration(ratePerWorker)
 					time.Sleep(interval)
-					generateTrace(ctx, tracer, meter, cfg, workerID)
+					generateTrace(ctx, tracer, meter, logger, cfg, workerID)
 				}
 			}
 		}(i)
 	}
 
-	go reportProgress(ctx, deadline)
+	go reportProgress(ctx, deadline, cfg.LogsEnabled)
 
 	wg.Wait()
 }
 
 // generateTrace はネストされたスパンを生成
-func generateTrace(ctx context.Context, tracer trace.Tracer, meter metric.Meter, cfg Config, workerID int) {
+func generateTrace(ctx context.Context, tracer trace.Tracer, meter metric.Meter, logger otellog.Logger, cfg Config, workerID int) {
 	// 大きな属性を生成（メモリ消費用）
-	attrs := generateAttributes(cfg.AttributeCount, cfg.AttributeSize, workerID)
+	attrs := generateAttributes(cfg.AttributeCount, cfg.AttributeSize, workerID, cfg.HighCardinality)
 
 	// ルートスパン
 	ctx, rootSpan := tracer.Start(ctx, fmt.Sprintf("worker-%d-root", workerID),
@@ -415,6 +472,11 @@ func generateTrace(ctx context.Context, tracer trace.Tracer, meter metric.Meter,
 		counter.Add(ctx, 1, metric.WithAttributes(
 			attribute.Int("worker_id", workerID),
 		))
+	}
+
+	// ログも送る
+	if logger != nil {
+		generateLog(ctx, logger, cfg, workerID, attrs)
 	}
 }
 
@@ -435,27 +497,57 @@ func generateNestedSpans(ctx context.Context, tracer trace.Tracer, cfg Config, w
 }
 
 // generateAttributes は大きな属性を生成する
-func generateAttributes(count, size int, workerID int) []attribute.KeyValue {
+func generateAttributes(count, size int, workerID int, highCardinality bool) []attribute.KeyValue {
 	attrs := make([]attribute.KeyValue, count)
 
 	// 大きな文字列を生成
 	bigValue := strings.Repeat("x", size)
 
 	for i := 0; i < count; i++ {
+		var value string
+		if highCardinality {
+			// 高カーディナリティ: 毎回ユニークなUUIDを含める
+			value = fmt.Sprintf("%s_worker%d_attr%d_%s", bigValue, workerID, i, uuid.New().String())
+		} else {
+			value = fmt.Sprintf("%s_worker%d_attr%d_%d", bigValue, workerID, i, rand.Int())
+		}
 		attrs[i] = attribute.String(
 			fmt.Sprintf("attr_%d", i),
-			fmt.Sprintf("%s_worker%d_attr%d_%d", bigValue, workerID, i, rand.Int()),
+			value,
 		)
 	}
 
 	return attrs
 }
 
-func reportProgress(ctx context.Context, deadline time.Time) {
+// generateLog は OTel ログを生成する
+func generateLog(ctx context.Context, logger otellog.Logger, cfg Config, workerID int, attrs []attribute.KeyValue) {
+	// 大きなログメッセージを生成
+	logBody := strings.Repeat("Log message content. ", cfg.AttributeSize/20+1)
+
+	// otellog.KeyValue に変換
+	logAttrs := make([]otellog.KeyValue, len(attrs))
+	for i, attr := range attrs {
+		logAttrs[i] = otellog.String(string(attr.Key), attr.Value.AsString())
+	}
+
+	// ログレコードを作成
+	record := otellog.Record{}
+	record.SetTimestamp(time.Now())
+	record.SetBody(otellog.StringValue(fmt.Sprintf("[Worker-%d] %s", workerID, logBody)))
+	record.SetSeverity(otellog.SeverityInfo)
+	record.AddAttributes(logAttrs...)
+
+	logger.Emit(ctx, record)
+	totalLogs.Add(1)
+}
+
+func reportProgress(ctx context.Context, deadline time.Time, logsEnabled bool) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	lastCount := int64(0)
+	lastSpanCount := int64(0)
+	lastLogCount := int64(0)
 
 	for {
 		select {
@@ -465,11 +557,20 @@ func reportProgress(ctx context.Context, deadline time.Time) {
 			if time.Now().After(deadline) {
 				return
 			}
-			current := totalSpans.Load()
-			rate := (current - lastCount) / 5
+			currentSpans := totalSpans.Load()
+			spanRate := (currentSpans - lastSpanCount) / 5
 			remaining := time.Until(deadline).Round(time.Second)
-			log.Printf("[PROGRESS] Spans: %d (rate: %d/sec), Remaining: %s", current, rate, remaining)
-			lastCount = current
+
+			if logsEnabled {
+				currentLogs := totalLogs.Load()
+				logRate := (currentLogs - lastLogCount) / 5
+				log.Printf("[PROGRESS] Spans: %d (%d/sec), Logs: %d (%d/sec), Remaining: %s",
+					currentSpans, spanRate, currentLogs, logRate, remaining)
+				lastLogCount = currentLogs
+			} else {
+				log.Printf("[PROGRESS] Spans: %d (rate: %d/sec), Remaining: %s", currentSpans, spanRate, remaining)
+			}
+			lastSpanCount = currentSpans
 		}
 	}
 }
