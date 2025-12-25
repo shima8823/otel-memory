@@ -7,13 +7,17 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
-  # 1. memory_limiter: プロセッサの先頭に配置。メモリ不足によるクラッシュを防止
+  # memory_limiter
+  # https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md#best-practices
+  # best practices
   memory_limiter:
     check_interval: 1s
-    limit_percentage: 75
-    spike_limit_percentage: 15
+    limit_percentage: 80
+    spike_limit_percentage: 20
 
-  # 2. batch: ネットワーク効率とスループットの向上。適度なバッチサイズとタイムアウト
+  # batch
+  # https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
+  # default settings
   batch:
     send_batch_size: 8192
     timeout: 200ms
@@ -23,9 +27,10 @@ exporters:
     endpoint: jaeger:4317
     tls:
       insecure: true
-    # sending_queue: メモリとスループットのバランス。キューサイズを適切に制限
+    # sending_queue
+    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md#best-practices
+    # default settings
     sending_queue:
-      enabled: true
       num_consumers: 10
       queue_size: 1000
     retry_on_failure:
