@@ -10,6 +10,10 @@ services:
     ports:
       - 4317:4317 # OTLP gRPC
       - 8888:8888 # Collector セルフテレメトリ
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   prometheus:
     image: prom/prometheus:v3.7.3
