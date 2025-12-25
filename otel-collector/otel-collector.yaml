@@ -28,7 +28,7 @@ exporters:
     tls:
       insecure: true
     # sending_queue
-    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md#best-practices
+    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md#sending-queue
     # default settings
     sending_queue:
       num_consumers: 10
