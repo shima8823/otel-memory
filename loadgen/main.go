@@ -174,7 +174,7 @@ func parseFlags() Config {
 	flag.IntVar(&cfg.AttributeSize, "attr-size", 256, "Size of each attribute value in bytes")
 	flag.IntVar(&cfg.AttributeCount, "attr-count", 10, "Number of attributes per span")
 	flag.BoolVar(&cfg.MetricsEnabled, "metrics", true, "Enable metrics generation")
-	flag.BoolVar(&cfg.LogsEnabled, "logs", false, "Enable logs generation")
+	flag.BoolVar(&cfg.LogsEnabled, "logs", true, "Enable logs generation")
 	flag.BoolVar(&cfg.HighCardinality, "high-cardinality", false, "Use high cardinality attributes (UUID per span)")
 
 	flag.Parse()
