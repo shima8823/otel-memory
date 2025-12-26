@@ -3,7 +3,7 @@
 
 .PHONY: help build up down restart logs status clean
 .PHONY: load-burst load-sustained load-spike load-rampup load-light load-stop
-.PHONY: scenario-1 scenario-2 scenario-3 scenario-4 reset-config show-config
+.PHONY: scenario-1 scenario-2 scenario-3a scenario-3b reset-config show-config
 .PHONY: tgen-traces tgen-metrics tgen-logs tgen-burst tgen-sustained tgen-all tgen-help
 
 # デフォルトターゲット
@@ -29,8 +29,8 @@ help:
 	@echo "=== 重要シナリオテスト (scenario.md 参照) ==="
 	@echo "  scenario-1      - [1] 下流停止 (1:負荷開始 -> 2:別ターミナルで jaeger-stop)"
 	@echo "  scenario-2      - [2] キャパシティ不足（慢性的なデータドロップ）"
-	@echo "  scenario-3      - [3] メモリリーク（RSS 右肩上がり）"
-	@echo "  scenario-4      - [4] 高カーディナリティ（属性爆発）"
+	@echo "  scenario-3a     - [3a] groupbyattrs 正常系（ベースライン）"
+	@echo "  scenario-3b     - [3b] groupbyattrs 異常系（高カーディナリティ爆発）"
 	@echo ""
 	@echo "=== 基本負荷テスト (loadgen) ==="
 	@echo "  load-burst      - burst シナリオ (最大速度で送信)"
@@ -78,7 +78,7 @@ restart:
 	docker compose restart
 
 restart-collector:
-	docker compose restart otel-collector
+	$(RESTART_COLLECTOR)
 	@echo "✅ Collector restarted"
 
 logs:
@@ -113,65 +113,83 @@ ENDPOINT := localhost:4317
 # 重要シナリオテスト (scenario.md 参照)
 # =====================================
 
+# Collector再起動（WSL + Docker Desktop環境でのマウント問題回避）
+RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
+
+# ベース
+BASE_SCENARIO := sustained
+# Trace > Metrics > Logsなので、Traceのみ
+# === loadgenパラメータ ===
+# 1スパン: 128 bytes × 8属性 = 1KB
+# 1トレース: 1KB × (depth+1) = 4KB （root + 3子スパン）
+# rate 12,000 spans/sec → 12MB/sec 流入
+BASE_PARAMS := -workers 10 -attr-size 128 -attr-count 8 -depth 3 \
+	-metrics=false -logs=false
+
 # 共通のシナリオ実行マクロ
-# $(1): シナリオ番号, $(2): メッセージ, $(3): loadgen の引数
+# $(1): シナリオ番号, $(2): メッセージ, $(3): loadgenコマンド
 define run_scenario
 	@echo "========================================"
 	@echo "シナリオ $(1): $(2)"
 	@echo "========================================"
 	@echo "📌 シナリオ用設定を適用中..."
 	@cp otel-collector/scenarios/scenario-$(1).yaml otel-collector/otel-collector.yaml
-	@docker compose restart otel-collector
+	@$(RESTART_COLLECTOR)
 	@echo "✅ 設定ファイル適用完了"
 	@echo ""
 	@# 負荷テスト実行後、必ず設定を復元する
-	@($(3)) ; \
+	@($(3) $(BASE_PARAMS)) ; \
 	EXIT_CODE=$$? ; \
 	echo "" ; \
 	echo "📌 設定をベストプラクティスに復元中..." ; \
 	git restore otel-collector/otel-collector.yaml ; \
-	docker compose restart otel-collector ; \
+	$(RESTART_COLLECTOR) ; \
 	echo "✅ 設定の復元完了" ; \
 	exit $$EXIT_CODE
 endef
 
-# シナリオ1: 下流停止
+# 下流停止シナリオ用マクロ（Jaeger自動停止/復旧付き）
+# $(1): シナリオ番号, $(2): メッセージ, $(3): loadgenコマンド（BASE_PARAMS除く）
+# $(4): Jaeger停止までの待機秒, $(5): 停止中の観察秒
+define run_scenario_downstream
+	@echo "========================================"
+	@echo "シナリオ $(1): $(2)"
+	@echo "========================================"
+	@cp otel-collector/scenarios/scenario-$(1).yaml otel-collector/otel-collector.yaml
+	@$(RESTART_COLLECTOR)
+	@echo "✅ 設定適用完了"
+	@$(3) $(BASE_PARAMS) & PID=$$!; \
+	echo "⏳ $(4)秒後にJaeger停止..."; sleep $(4); \
+	echo "🛑 Jaeger停止"; docker compose stop jaeger; \
+	echo "⏳ $(5)秒間観察..."; sleep $(5); \
+	echo "🔄 Jaeger復旧"; docker compose start jaeger; \
+	wait $$PID 2>/dev/null || true; \
+	git restore otel-collector/otel-collector.yaml; \
+	$(RESTART_COLLECTOR); \
+	echo "✅ シナリオ完了"
+endef
+
 scenario-1: build
-	$(call run_scenario,1,下流（バックエンド）の遅延・停止,\
-		echo "📌 手順:" ;\
-		echo "  1. このターミナルで負荷が開始されます" ;\
-		echo "  2. 別ターミナルで実行: make jaeger-stop" ;\
-		echo "  3. Grafana で Queue Usage 100% を観察" ;\
-		echo "========================================" ;\
-		sleep 3 ;\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 180s -rate 20000 -workers 10 -attr-size 64 -attr-count 10 -depth 3 \
-	)
+	$(call run_scenario_downstream,1,下流停止,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
+		-duration 180s -rate 12000,30,60)
 
-# シナリオ2: キャパシティ不足
 scenario-2: build
-	$(call run_scenario,2,慢性的な入力過多（キャパシティ不足）,\
-		echo "📌 memory_limiter の limit_mib に到達するまで全力送信" ;\
-		echo "========================================" ;\
-		sleep 3 ;\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario burst -duration 180s -workers 50 -attr-size 128 -attr-count 15 -depth 8 \
+	$(call run_scenario,2,キャパシティ不足,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
+		-duration 180s -rate 35000 \
 	)
 
-# シナリオ3: メモリリーク検出
-scenario-3: build
-	$(call run_scenario,3,メモリリーク（またはProcessorのバグ）検出,\
-		echo "📌 10分間の安定負荷でRSSの推移を観察" ;\
-		echo "========================================" ;\
-		sleep 3 ;\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 600s -rate 3000 -workers 10 -attr-size 64 -attr-count 10 -depth 3 \
+scenario-3a: build
+	$(call run_scenario,3,groupbyattrs正常系,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
+		-duration 300s -rate 8000 \
 	)
 
-# シナリオ4: 高カーディナリティ
-scenario-4: build
-	$(call run_scenario,4,Attributes爆発（High Cardinality）,\
-		echo "📌 各スパンにユニークなUUIDを含む属性を付与" ;\
-		echo "========================================" ;\
-		sleep 3 ;\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 180s -rate 5000 -workers 10 -attr-size 64 -attr-count 15 -depth 3 -high-cardinality \
+scenario-3b: build
+	$(call run_scenario,3,groupbyattrs高カーディナリティ,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
+		-duration 300s -rate 8000 -high-cardinality \
 	)
 
 # =====================================
