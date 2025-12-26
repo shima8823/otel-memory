@@ -18,7 +18,7 @@ processors:
   # groupbyattrs
   # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/groupbyattrsprocessor
   groupbyattrs:
-    keys: ["user.id", "request.id", "session.id", "trace.id", "span.id"]
+    keys: ["attr_0", "attr_1", "attr_2"]
 
   # batch
   # https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
