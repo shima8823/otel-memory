@@ -24,7 +24,8 @@ processors:
   # https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
   # default settings
   batch:
-    send_batch_size: 8192
+    send_batch_size: 2000
+    send_batch_max_size: 4000
     timeout: 200ms
 
 exporters:
@@ -36,8 +37,9 @@ exporters:
     # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md#sending-queue
     # default settings
     sending_queue:
-      num_consumers: 10
-      queue_size: 1000
+      enabled: true
+      num_consumers: 1
+      queue_size: 500
     retry_on_failure:
       enabled: true
 
