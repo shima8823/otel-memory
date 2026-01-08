@@ -3,7 +3,7 @@
 
 .PHONY: help build up down restart logs status clean
 .PHONY: load-burst load-sustained load-spike load-rampup load-light load-stop
-.PHONY: scenario-1 scenario-2 scenario-3a scenario-3b reset-config show-config
+.PHONY: scenario-1 scenario-2 scenario-3a scenario-3b scenario-4 reset-config show-config
 .PHONY: tgen-traces tgen-metrics tgen-logs tgen-burst tgen-sustained tgen-all tgen-help
 .PHONY: export-metrics
 
@@ -32,6 +32,7 @@ help:
 	@echo "  scenario-2      - [2] キャパシティ不足（慢性的なデータドロップ）"
 	@echo "  scenario-3a     - [3a] groupbyattrs 正常系（ベースライン）"
 	@echo "  scenario-3b     - [3b] groupbyattrs 異常系（高カーディナリティ爆発）"
+	@echo "  scenario-4      - [4] batchバースト処理（スパイク負荷の耐性）"
 	@echo ""
 	@echo "=== 基本負荷テスト (loadgen) ==="
 	@echo "  load-burst      - burst シナリオ (最大速度で送信)"
@@ -192,6 +193,12 @@ scenario-3b: build
 	$(call run_scenario,3,groupbyattrs高カーディナリティ,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
 		-duration 300s -rate 8000 -high-cardinality \
+	)
+
+scenario-4: build
+	$(call run_scenario,4,batchバースト処理,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario spike \
+		-duration 180s -rate 15000 \
 	)
 
 # =====================================
