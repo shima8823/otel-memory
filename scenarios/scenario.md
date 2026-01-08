@@ -90,14 +90,23 @@ Collector の処理能力（CPU/Network）の限界を超えるデータが常�
 1. `make scenario-3b` を実行し、5分間観察。
 
 **診断のシグネチャ (Grafana)**:
-- **Heap Memory**: 時間とともに右肩上がりに増加。
-- **GC 後の挙動**: GCが走ってもメモリが元の水準まで戻らない。
-- **memory_limiter発火**: 最終的に `otelcol_receiver_refused_spans_total` が増加。
+- **Heap Memory**: 時間とともに右肩上がりに増加。GC後も戻らない。
+- **スループット**: 段階的に低下（5,500 → 4,400 → 2,800 → 150 spans/sec）
+- **memory_limiter発火**: **60秒後**に初回発火、以降も継続的に発火。
+- **Refused Spans**: memory_limiter発火後から増加開始。
+- **最終的に OOM Kill**: Collector が512MB制限に到達してクラッシュ。
+
+**定量的な指標（実測値）**:
+- memory_limiter初回発火: **60秒後**
+- 平均スループット: target 8,000 の **59.6%** (4,768 spans/sec)
+- Collector状態: **OOM Kill** (295秒後)
+- 下流（Jaeger）への影響: **6.07 GB** メモリ使用
 
 **3aと3bの比較ポイント**:
 - Collector設定は同一（`groupbyattrs` の keys も同じ）
 - 違いは `-high-cardinality` フラグのみ（loadgenの属性値がUUID付きになる）
 - 高カーディナリティ属性の影響を定量的に観察できる
+- **重要**: 下流のバックエンド（Jaeger）にも影響が波及する
 
 ---
 
@@ -106,6 +115,7 @@ Collector の処理能力（CPU/Network）の限界を超えるデータが常�
 - グループ化キーから高カーディナリティ属性（ID、ハッシュ等）を除外。
 - `memory_limiter` をステートフルprocessorの **前** に配置。
 - 本番投入前に、実際のデータのカーディナリティを確認。
+- **重要**: 下流のバックエンド（Jaeger）にも影響が波及する
 
 ---
 
