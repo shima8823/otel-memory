@@ -5,6 +5,7 @@
 .PHONY: load-burst load-sustained load-spike load-rampup load-light load-stop
 .PHONY: scenario-1 scenario-2 scenario-3a scenario-3b reset-config show-config
 .PHONY: tgen-traces tgen-metrics tgen-logs tgen-burst tgen-sustained tgen-all tgen-help
+.PHONY: export-metrics
 
 # デフォルトターゲット
 help:
@@ -51,6 +52,7 @@ help:
 	@echo "=== ユーティリティ ==="
 	@echo "  check-memory    - 現在のメモリ消費量とRefusedを確認"
 	@echo "  metrics         - Collector の内部メトリクス一覧を表示"
+	@echo "  export-metrics  - Grafanaダッシュボードのメトリクスをエクスポート"
 	@echo "  jaeger-stop     - Jaeger を停止"
 	@echo "  jaeger-start    - Jaeger を起動"
 	@echo ""
@@ -279,3 +281,27 @@ jaeger-stop:
 
 jaeger-start:
 	docker compose start jaeger
+
+# =====================================
+# メトリクスエクスポート
+# =====================================
+
+# GrafanaダッシュボードのメトリクスをLLM/人間向けにエクスポート
+# 使用例:
+#   make export-metrics                    # デフォルト: 直近15分、60秒間隔
+#   make export-metrics DURATION=60        # 直近60分
+#   make export-metrics STEP=30            # 30秒間隔
+#   make export-metrics OUTPUT=my_export   # 出力先を変更
+DURATION ?= 15
+STEP ?= 60
+OUTPUT ?= metrics_export
+
+export-metrics:
+	@echo "=== Grafana メトリクスエクスポート ==="
+	python3 scripts/export_grafana_metrics.py --duration $(DURATION) --step $(STEP) --output $(OUTPUT)
+	@echo ""
+	@echo "✅ エクスポート完了: $(OUTPUT)/"
+
+clean-metrics:
+	rm -rf metrics_export
+	@echo "✅ メトリクスエクスポートディレクトリ削除完了"
