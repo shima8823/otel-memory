@@ -20,3 +20,5 @@ notes/
 
 # Build binary
 loadgen/loadgen
+
+metrics_export/
