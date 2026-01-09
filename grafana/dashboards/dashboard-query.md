@@ -1,0 +1,542 @@
+# Grafana ダッシュボード クエリドキュメント
+
+このドキュメントは、`otel-collector-memory.json` ダッシュボードの各パネルで使用されているPrometheusクエリと、そのクエリが何を表示しているかを説明します。
+
+## 目次
+
+1. [Collector Memory Overview](#collector-memory-overview)
+2. [Receiver (受信)](#receiver-受信)
+3. [Processor (処理)](#processor-処理)
+4. [Exporter (送信)](#exporter-送信)
+
+---
+
+## パネル一覧と役割
+
+| ID | パネル名                                         | 役割                                                 |
+|:---|:-------------------------------------------------|:-----------------------------------------------------|
+| 1  | Collector Heap Memory                            | Heapメモリの推移と memory_limiter の閾値監視。       |
+| 2  | Collector Sys / RSS Memory                       | RSS（物理メモリ）の監視とメモリリークの検知。        |
+| 3  | Current Heap Alloc                               | 現在のヒープ割り当て量（Stat）。                     |
+| 4  | Current RSS Memory                               | 現在の物理メモリ使用量（Stat）。                     |
+| 5  | Uptime                                           | Collector の稼働時間。                               |
+| 6  | CPU Usage Rate                                   | CPU 使用率（0.0 - 1.0）。                            |
+| 7  | Receiver: Spans Rate                             | 受信したスパンの成功/拒否レート。                    |
+| 8  | Receiver: Metric Points Rate                     | 受信したメトリクスの成功/拒否レート。                |
+| 9  | Receiver: Log Records Rate                       | 受信したログの成功/拒否レート。                      |
+| 10 | Receiver: Drop Rate                              | Receiver でのデータ拒否率（バックプレッシャー検知）。 |
+| 11 | Processor: Out/In Ratio (per signal)             | Processor 前後のデータ量比率（ボトルネック検知）。   |
+| 12 | Processor: Net Reduction (per signal)            | Processor で削減されたデータ量（メモリ負荷への影響）。|
+| 13 | Batch Processor: Average Batch Size              | バッチ処理後の平均サイズ。                           |
+| 14 | Batch Processor: 95th Percentile Batch Size      | バッチ処理後のサイズ分布。                           |
+| 15 | Batch Processor: Metadata Cardinality            | メタデータのカーディナリティ数。                     |
+| 16 | Batch Processor: Size Trigger vs Timeout Trigger | バッチ放出のトリガー要因の割合。                     |
+| 17 | Exporter: Spans Rate                             | 送信したスパンの成功/失敗レート。                    |
+| 18 | Exporter: Metric Points Rate                     | 送信したメトリクスの成功/失敗レート。                |
+| 19 | Exporter: Log Records Rate                       | 送信したログの成功/失敗レート。                      |
+| 20 | Exporter: Queue Enqueue Failed (Absolute)        | キュー満杯による内部ドロップ（全信号）。             |
+| 21 | Exporter: Send Failure Rate                      | Exporter の送信失敗率（外部要因）。                  |
+| 22 | Exporter Queue Usage                             | 送信キューの使用率（バッファリング負荷の検知）。     |
+
+---
+
+## Collector Memory Overview
+
+### 1. Collector Heap Memory (ID: 1)
+
+**表示内容**: Collectorのヒープメモリ使用量の推移
+
+**クエリ**:
+- `otelcol_process_runtime_heap_alloc_bytes{job="otel-collector-self"}`
+  - **説明**: Goランタイムが現在割り当てているヒープメモリのバイト数（瞬時値）
+  - **単位**: bytes
+  - **重要度**: メモリ高騰の主要指標。`memory_limiter`の`limit_mib`と比較して監視
+
+- `otelcol_process_runtime_total_alloc_bytes_total{job="otel-collector-self"}`
+  - **説明**: Collector起動時からの累積ヒープ割り当てバイト数（カウンター）
+  - **単位**: bytes
+  - **重要度**: メモリ割り当ての総量を把握。右肩上がりが続く場合はメモリリークの可能性
+
+**シナリオでの使用**:
+- **シナリオ3**: `limit_mib`付近に張り付く
+- **シナリオ4**: 一定で変化なし（RSSと乖離が開く場合はメモリリーク）
+- **シナリオ10**: ノコギリ波状に大きく変動（バッチ処理の影響）
+
+---
+
+### 2. Collector Sys / RSS Memory (ID: 2)
+
+**表示内容**: OSから割り当てられたメモリと物理メモリ使用量
+
+**クエリ**:
+- `otelcol_process_runtime_total_sys_memory_bytes{job="otel-collector-self"}`
+  - **説明**: OSから取得した総メモリバイト数（Goランタイムが管理するメモリ領域）
+  - **単位**: bytes
+  - **重要度**: Goランタイムのメモリ管理領域のサイズ
+
+- `otelcol_process_memory_rss_bytes{job="otel-collector-self"}`
+  - **説明**: 物理メモリ（Resident Set Size）のバイト数
+  - **単位**: bytes
+  - **重要度**: **メモリリーク検出の最重要指標**。Heapと乖離が開く場合はメモリリークの可能性
+
+**シナリオでの使用**:
+- **シナリオ4**: RSSが右肩上がりに増加（Heapは一定）→ メモリリークのシグネチャ
+
+---
+
+### 3. Current Heap Alloc (ID: 3)
+
+**表示内容**: 現在のヒープ割り当て量（Statパネル）
+
+**クエリ**:
+- `otelcol_process_runtime_heap_alloc_bytes{job="otel-collector-self"}`
+
+**閾値**:
+- 🟢 Green: < 128MB
+- 🟡 Yellow: ≥ 128MB
+- 🟠 Orange: ≥ 256MB
+- 🔴 Red: ≥ 512MB
+
+---
+
+### 4. Current RSS Memory (ID: 4)
+
+**表示内容**: 現在のRSSメモリ使用量（Statパネル）
+
+**クエリ**:
+- `otelcol_process_memory_rss_bytes{job="otel-collector-self"}`
+
+**閾値**:
+- 🟢 Green: < 256MB
+- 🟡 Yellow: ≥ 256MB
+- 🟠 Orange: ≥ 512MB
+- 🔴 Red: ≥ 1GB
+
+---
+
+### 5. Uptime (ID: 5)
+
+**表示内容**: Collectorの稼働時間
+
+**クエリ**:
+- `otelcol_process_uptime_seconds_total{job="otel-collector-self"}`
+
+**用途**: メモリリーク検出時に、どのくらいの時間稼働しているかを確認
+
+---
+
+### 6. CPU Usage Rate (ID: 6)
+
+**表示内容**: CPU使用率（0.0-1.0の範囲）
+
+**クエリ**:
+- `rate(otelcol_process_cpu_seconds_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間のCPU使用時間のレート（CPU使用率）
+  - **単位**: percentunit (0.0 = 0%, 1.0 = 100%)
+
+**閾値**:
+- 🟢 Green: < 50%
+- 🟡 Yellow: ≥ 50%
+- 🟠 Orange: ≥ 80%
+- 🔴 Red: ≥ 100%
+
+**シナリオでの使用**:
+- **シナリオ8**: CPU制限下で100%に張り付く
+
+---
+
+## Receiver (受信)
+
+Receiverセクションでは、Collectorが受信したデータのスループットと、メモリ制限により拒否されたデータの割合を表示します。
+
+### 7. Receiver: Spans Rate (ID: 7)
+
+**表示内容**: Receiverが受け入れた/拒否したスパンのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_receiver_accepted_spans_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でパイプラインに受け入れられたスパン数/秒
+  - **単位**: ops/sec
+
+- `rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でパイプラインに拒否されたスパン数/秒（memory_limiter発火時）
+  - **単位**: ops/sec
+  - **重要**: **`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）
+
+**なぜ絶対値が必要か**:
+- **メモリへの影響を直接評価**: 例: 10,000 spans/sec が refused なら、その分のメモリが解放されていない可能性がある
+- **トレンドの変化が視覚的に分かる**: accepted が減り、refused が増える様子が明確
+- **ゼロサムの関係が明確**: `accepted + refused = 正常に受信できた総数`（`failed` は別カテゴリ）
+
+**補完関係**: ID: 14（Receiver: Drop Rate）と**補完関係**。ID: 14は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+**シナリオでの使用**:
+- **シナリオ1**: Refusedが急増（下流停止時）
+- **シナリオ3**: Refusedが常に0より大きい（キャパシティ不足）
+
+---
+
+### 8. Receiver: Metric Points Rate (ID: 8)
+
+**表示内容**: Receiverが受け入れた/拒否したメトリクスポイントのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_receiver_accepted_metric_points_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_receiver_refused_metric_points_total{job="otel-collector-self"}[1m])`
+
+**補完関係**: ID: 14（Receiver: Drop Rate）と**補完関係**。ID: 14は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+---
+
+### 9. Receiver: Log Records Rate (ID: 9)
+
+**表示内容**: Receiverが受け入れた/拒否したログレコードのレート（絶対値）
+
+**役割**: **メモリへの影響を評価するため、絶対値で表示**
+
+**クエリ**:
+- `rate(otelcol_receiver_accepted_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でパイプラインに受け入れられたログレコード数/秒
+  - **単位**: ops/sec
+
+- `rate(otelcol_receiver_refused_log_records_total{job="otel-collector-self"}[1m])`
+  - **説明**: 1分間でパイプラインに拒否されたログレコード数/秒（memory_limiter発火時）
+  - **単位**: ops/sec
+  - **重要**: **`refused`されたログはドロップされ、失われます**。監査ログなど重要な情報が欠損する可能性があります。
+
+**補完関係**: ID: 10（Receiver: Drop Rate）と**補完関係**。ID: 10は割合を表示し、相対的な影響度を評価する。メモリデバッグでは両方の視点が必要。
+
+**シナリオでの使用**:
+- **シナリオ3**: Refusedが常に0より大きい（キャパシティ不足）
+- **シナリオ9**: ログ大量送信時のメモリ影響を確認
+
+---
+
+### 10. Receiver: Drop Rate (ID: 10)
+
+**表示内容**: Receiverがデータを拒否した割合（0.0-1.0）
+
+**役割**: **相対的な影響度を評価するため、割合で表示**
+
+**クエリ**:
+- Spans: `rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_receiver_accepted_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[1m]))`
+- Metrics: `rate(otelcol_receiver_refused_metric_points_total{job="otel-collector-self"}[1m]) / (rate(otelcol_receiver_accepted_metric_points_total{job="otel-collector-self"}[1m]) + rate(otelcol_receiver_refused_metric_points_total{job="otel-collector-self"}[1m]))`
+- Logs: `rate(otelcol_receiver_refused_log_records_total{job="otel-collector-self"}[1m]) / (rate(otelcol_receiver_accepted_log_records_total{job="otel-collector-self"}[1m]) + rate(otelcol_receiver_refused_log_records_total{job="otel-collector-self"}[1m]))`
+
+**注意**: ログ関連のメトリクスは、実際にログを送信してから生成されます。
+
+**説明**: 受け入れられたデータと拒否されたデータの合計に対する拒否率。**ゼロサムゲーム**: `accepted + refused = 正常に受信できた総数`（`failed` は受信処理自体が失敗したものなので別カテゴリ）。**`refused`されたデータはドロップされ、失われます**（キューに入れられることも、次のバッチに回されることもありません）。
+
+**なぜ割合が必要か**:
+- **相対的な影響度が分かる**: 10%拒否されている、など
+- **閾値設定がしやすい**: 1%以上で警告、など
+- **メモリ制限の影響を直感的に理解**: システムのキャパシティ不足を示す
+
+**補完関係**: ID: 7（Receiver: Spans Rate）、ID: 8（Receiver: Metric Points Rate）、ID: 9（Receiver: Log Records Rate）と**補完関係**。ID: 7/8/9は絶対値を表示し、メモリへの影響を直接評価する。メモリデバッグでは両方の視点が必要:
+- **絶対値が大きい** → メモリへの影響が大きい
+- **割合が大きい** → システムのキャパシティ不足を示す
+
+**閾値**:
+- 🟢 Green: < 1%
+- 🟡 Yellow: ≥ 1%
+- 🟠 Orange: ≥ 5%
+- 🔴 Red: ≥ 10%
+
+**シナリオでの使用**:
+- **シナリオ1**: memory_limiterがバックプレッシャーをかけると上昇
+- **シナリオ3**: キャパシティ不足で常に高い値
+- **シナリオ9**: ログ大量送信時のドロップ率を確認
+
+---
+
+## Processor (処理)
+
+Processorセクションでは、Processorが処理したデータのスループット、バッチ処理の状態、およびデータ増減の割合を表示します。
+
+**重要**: OpenTelemetry Collector の新しいテレメトリ仕様に基づき、Processor での `accepted/refused` メトリクスは非推奨となりました。現在は `incoming/outgoing` メトリクスを使用して、Processor 前後のデータ流量を監視し、フィルタリングや滞留による影響を評価します。
+
+### 11. Processor: Out/In Ratio (per signal) (ID: 11)
+
+**表示内容**: Processorを通過したアイテムの割合（0.0-1.0）
+
+**役割**: **トラフィックが「どこで」詰まっているかを特定する**
+
+**クエリ**:
+- `sum by (processor, "otel.signal") (rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m])) / clamp_min(sum by (processor, "otel.signal") (rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])), 1)`
+  - **説明**: 入力アイテム数に対する出力アイテム数の比率
+  - **clamp_min**: トラフィックが0の際のゼロ除算（NaN）を防ぐための処理
+
+**重要度**: **デバッグ時の位置特定に有用**
+
+**見方**:
+- **1.0付近**: データが加工されずに素通りしている
+- **1.0より大幅に低い**: そのProcessorでデータが「滞留」または「フィルタリング/サンプリング」されている
+- **1.0より高い**: Processor内でデータが増幅（複製や分割）されている
+
+**注意**: `filter` や `probabilistic_sampler` などのProcessorは、意図的に1.0未満になるのが正常動作です。
+
+---
+
+### 12. Processor: Net Reduction (per signal) (ID: 12)
+
+**表示内容**: Processorで失われた/削減されたアイテムの絶対量
+
+**役割**: **滞留・消失による「メモリへのインパクト」を評価する**
+
+**クエリ**:
+- `sum by (processor, "otel.signal") (rate(otelcol_processor_incoming_items_total{job="otel-collector-self"}[1m])) - sum by (processor, "otel.signal") (rate(otelcol_processor_outgoing_items_total{job="otel-collector-self"}[1m]))`
+  - **説明**: 入力アイテム数と出力アイテム数の差分
+
+**重要度**: **メモリ高騰の規模を把握するために重要**
+
+**見方**:
+- **値がプラスに大きい**: そのProcessorで大量のデータが失われているか、内部に溜まっている
+- **Ratio(ID:11)と併用**: Ratioが低くてもこの値（絶対量）が小さければ、メモリへの影響は軽微と判断できる
+
+**シナリオでの使用**:
+- **シナリオ3**: メモリ制限によりデータが大量にドロップされている場合、ここが大きな正の値を示す
+- **シナリオ5**: 巨大なペイロードがProcessorで処理しきれず滞留している場合
+
+---
+
+### 13. Batch Processor: Average Batch Size (ID: 13)
+
+**表示内容**: 実際に送信されたバッチの平均サイズ
+
+**役割**: **メモリ高騰デバッグの最重要指標**
+
+**クエリ**:
+- `rate(otelcol_processor_batch_batch_send_size_sum{job="otel-collector-self"}[1m]) / rate(otelcol_processor_batch_batch_send_size_count{job="otel-collector-self"}[1m])`
+  - **説明**: 実際に送信されたバッチの平均サイズ（アイテム数）
+  - **単位**: アイテム数
+
+**重要度**: **メモリ高騰デバッグにおいて最重要**
+
+**使用方法**:
+- **設定値（`send_batch_size`）と比較**: 平均バッチサイズが設定値に近い → バッチが満たされてから送信（正常）
+- **平均バッチサイズが設定値より小さい**: タイムアウトで送信（低スループット、メモリへの影響は小さい）
+- **平均バッチサイズが設定値より大きい**: `send_batch_max_size`に達している可能性（メモリ消費が大きい）
+- **平均バッチサイズが設定値より大幅に大きい**: 設定ミス（シナリオ10）
+
+**シナリオでの使用**:
+- **シナリオ10**: 設定ミスで巨大なバッチサイズがメモリ高騰の原因になっている場合、平均バッチサイズが異常に大きい値を示す
+
+---
+
+### 14. Batch Processor: 95th Percentile Batch Size (ID: 14)
+
+**表示内容**: 実際に送信されたバッチの95パーセンタイルサイズ
+
+**役割**: **スパイク時のメモリ消費を把握**
+
+**クエリ**:
+- `histogram_quantile(0.95, rate(otelcol_processor_batch_batch_send_size_bucket{job="otel-collector-self"}[1m]))`
+  - **説明**: 実際に送信されたバッチの95パーセンタイルサイズ（アイテム数）
+  - **単位**: アイテム数
+
+**重要度**: **平均バッチサイズの補完指標**
+
+**使用方法**:
+- **平均は低くても95パーセンタイルが高い場合**: 間欠的なメモリ高騰の原因になる可能性
+- **平均と95パーセンタイルの差が大きい**: バッチサイズの変動が大きく、メモリ使用量が不安定
+
+**シナリオでの使用**:
+- **シナリオ2**: スパイク時に95パーセンタイルが急上昇する
+- **シナリオ10**: 設定ミスで95パーセンタイルが異常に大きい値を示す
+
+---
+
+### 15. Batch Processor: Metadata Cardinality (ID: 15)
+
+**表示内容**: バッチプロセッサが処理している異なるメタデータ値の組み合わせ数
+
+**役割**: **高カーディナリティによるメモリ消費を把握**
+
+**クエリ**:
+- `otelcol_processor_batch_metadata_cardinality{job="otel-collector-self"}`
+  - **説明**: バッチプロセッサが処理している異なるメタデータ値の組み合わせ数
+  - **単位**: 組み合わせ数
+
+**重要度**: **シナリオ6（高カーディナリティ）で重要**
+
+**使用方法**:
+- **カーディナリティが高い**: 異なるメタデータの組み合わせが多いほど、バッチが分割され、メモリ使用量が増加する
+- **カーディナリティが右肩上がり**: メモリリークの可能性（メタデータが蓄積されている）
+
+**シナリオでの使用**:
+- **シナリオ6**: 高カーディナリティでメモリが徐々に増加する場合、カーディナリティが高い値を示す
+
+---
+
+### 16. Batch Processor: Size Trigger vs Timeout Trigger (ID: 16)
+
+**表示内容**: バッチサイズトリガーとタイムアウトトリガーのレート
+
+**役割**: **バッチ送信のトリガー原因を把握**
+
+**クエリ**:
+- `rate(otelcol_processor_batch_batch_size_trigger_send_total{job="otel-collector-self"}[1m])`
+  - **説明**: バッチサイズが上限に達して送信がトリガーされた回数/秒
+
+- `rate(otelcol_processor_batch_timeout_trigger_send_total{job="otel-collector-self"}[1m])`
+  - **説明**: タイムアウトによって送信がトリガーされた回数/秒
+
+**重要度**: **補完的な情報**
+
+**使用方法**:
+- **バッチサイズトリガーが多い**: バッチサイズが大きすぎる可能性（メモリ消費が大きい）
+- **タイムアウトトリガーが多い**: バッチが満たされる前にタイムアウト（低スループット、メモリへの影響は小さい）
+- **両方のトリガーがバランス良く発生**: 正常な動作
+
+**シナリオでの使用**:
+- **シナリオ10**: 設定ミスでバッチサイズトリガーが頻繁に発生する
+
+---
+
+
+---
+
+## Exporter (送信)
+
+Exporterセクションでは、Collectorが下流に送信したデータのスループット、キューサイズ、および送信失敗の割合を表示します。ReceiverやProcessorと同様に、各信号（Spans, Metrics, Logs）ごとに成功と失敗を並べて表示し、どこでデータが失われているかを明確にします。
+
+### 17. Exporter: Spans Rate (ID: 17)
+
+**表示内容**: Exporterが送信に成功/失敗したスパンのレート（絶対値）
+
+**役割**: **送信先（外部）との通信状態を評価します。** `sent` と `send_failed` を比較することで、外部要因（ネットワークや認証エラー）による損失を把握します。
+
+**クエリ**:
+- `rate(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[1m])`
+  - **説明**: 送信先に正常に送信されたスパン数/秒
+- `rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m])`
+  - **説明**: 送信を試みたが、ネットワークエラーや送信先の拒否（413 Payload Too Large 等）により失敗したスパン数/秒
+
+---
+
+### 18. Exporter: Metric Points Rate (ID: 18)
+
+**表示内容**: Exporterが送信に成功/失敗したメトリクスポイントのレート（絶対値）
+
+**役割**: Spans Rate と同様、メトリクスの送信成功率を把握します。
+
+**クエリ**:
+- `rate(otelcol_exporter_sent_metric_points_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_exporter_send_failed_metric_points_total{job="otel-collector-self"}[1m])`
+
+---
+
+### 19. Exporter: Log Records Rate (ID: 19)
+
+**表示内容**: Exporterが送信に成功/失敗したログレコードのレート（絶対値）
+
+**役割**: ログの送信成功率を把握します。
+
+**クエリ**:
+- `rate(otelcol_exporter_sent_log_records_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_exporter_send_failed_log_records_total{job="otel-collector-self"}[1m])`
+
+---
+
+### 20. Exporter: Queue Enqueue Failed (Absolute) (ID: 20)
+
+**表示内容**: 送信キューが一杯のため、投入できずにドロップされたアイテムのレート（絶対値）
+
+**役割**: **内部的なバックプレッシャーの深刻度を評価します。** 全信号（Spans, Metrics, Logs）を 1 つのパネルに表示し、どのデータタイプが最も詰まっているかを特定します。
+
+**クエリ**:
+- `rate(otelcol_exporter_enqueue_failed_spans_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_exporter_enqueue_failed_metric_points_total{job="otel-collector-self"}[1m])`
+- `rate(otelcol_exporter_enqueue_failed_log_records_total{job="otel-collector-self"}[1m])`
+
+**重要度**: メモリ高騰時に `Queue Usage` (ID: 22) が 100% に張り付いている場合、このパネルでドロップが発生し始めます。これは Collector の限界を示しています。
+
+---
+
+### 21. Exporter: Send Failure Rate (ID: 21)
+
+**表示内容**: Exporterにおける送信失敗率（0.0-1.0）
+
+**役割**: **外部要因による通信障害の割合を評価します。**
+
+**クエリ**:
+- `rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]) / (rate(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[1m]) + rate(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[1m]))`
+  - **意味**: 下流への送信を試みたうち、失敗した割合。**外部要因（ネットワーク、認証、下流ダウン）** または **バッチサイズが大きすぎて送信先が拒否** している可能性を示す。
+
+**補完関係**: ID: 17, 18, 19（絶対値）でドロップの実数を確認し、この ID: 21 で「トラフィック全体のうちどれだけの割合が失敗しているか」という健全性を確認します。
+
+**閾値**:
+- 🟢 Green: < 1%
+- 🟡 Yellow: ≥ 1%
+- 🟠 Orange: ≥ 5%
+- 🔴 Red: ≥ 10%
+
+---
+
+### 22. Exporter Queue Usage (ID: 22)
+
+**表示内容**: Exporterの送信キューの使用率（0.0-1.0）
+
+**役割**: **メモリ高騰の直接原因（バッファリング）を把握する**
+
+**クエリ**:
+- `otelcol_exporter_queue_size{job="otel-collector-self"} / otelcol_exporter_queue_capacity{job="otel-collector-self"}`
+  - **説明**: キュー容量に対する現在の使用量の割合。1.0（100%）に近づくほど、メモリ消費が最大化し、データのドロップ（enqueue_failed）が発生しやすくなる。
+
+**閾値**:
+- 🟢 Green: < 50%
+- 🟡 Yellow: ≥ 50%
+- 🟠 Orange: ≥ 80%
+- 🔴 Red: ≥ 95%
+
+**シナリオでの使用**:
+- **シナリオ1**: 下流停止によりキューが急激に溜まり、100%に張り付く。
+- **シナリオ7**: ネットワーク不安定時に使用率がノコギリ波状に変動する。
+
+---
+
+## クエリの共通パターン
+
+### ラベル
+- `job="otel-collector-self"`: Collectorのセルフテレメトリメトリクスを指定
+- `{{receiver}}`, `{{exporter}}`, `{{processor}}`: 各コンポーネント名が動的に展開される
+- `{{data_type}}`: `traces`, `metrics`, `logs` のいずれか（Exporter Queue関連）
+- `{{otel_signal}}`: `traces`, `metrics`, `logs` のいずれか（Processor関連。Prometheusでは`otel.signal`として保存されるが、Grafanaでは`{{otel_signal}}`として参照可能）
+
+### メトリクス名の命名規則
+- `otelcol_receiver_*`: Receiver関連
+- `otelcol_processor_*`: Processor関連
+- `otelcol_exporter_*`: Exporter関連
+- `otelcol_process_*`: プロセス全体のメトリクス
+- `otelcol_process_runtime_*`: Goランタイム関連のメトリクス（Heap/GC等）
+
+---
+
+## シナリオ別の主要メトリクス
+
+各シナリオで特に注目すべきメトリクスをまとめます。
+
+| シナリオ | 主要メトリクス | パネルID |
+|---------|--------------|---------|
+| 1. 下流停止 | Queue Usage, Send Failure Rate, Queue Enqueue Failed | 22, 21, 20 |
+| 2. スパイク | Heap上下動 | 1 |
+| 3. キャパシティ不足 | Heap上限張り付き, Net Reduction | 1, 12 |
+| 4. メモリリーク | RSS右肩上がり, Heap一定 | 2, 4 |
+| 5. 巨大ペイロード | 低スループットで高メモリ, Net Reduction | 1, 12 |
+| 6. 高カーディナリティ | Heap徐々に増加, Metadata Cardinality | 1, 15 |
+| 7. ネットワーク不安定 | Queue Usage, Send Fail Rate | 22, 21 |
+| 8. CPU制限 | CPU 100% | 6 |
+| 9. ログ大量送信 | Log Records Rate, Drop Rate | 9, 19, 10, 21 |
+| 10. 設定ミス | Heapノコギリ波, Batch Size, Ratio | 1, 13, 11 |
+
+---
+
+## 参考リンク
+
+- [OpenTelemetry Collector Internal Telemetry](https://opentelemetry.io/docs/collector/internal-telemetry/)
+- [Prometheus Query Language (PromQL)](https://prometheus.io/docs/prometheus/latest/querying/basics/)
+- [scenario.md](../scenario.md) - 各シナリオの詳細説明

@@ -58,3 +58,8 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch]  # batch追加
       exporters: [prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]  # batch追加
+      exporters: [otlp, debug]
