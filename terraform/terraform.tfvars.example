@@ -1,0 +1,76 @@
+# Terraform変数設定ファイルの例
+# 使用方法: このファイルをコピーして terraform.tfvars として保存し、値を編集してください
+#   cp terraform.tfvars.example terraform.tfvars
+
+# ====================
+# 必須設定
+# ====================
+
+# GCPプロジェクトID（必須）
+project_id = "your-gcp-project-id"
+
+# Gitリポジトリ URL
+# 実際のリポジトリURLに変更してください
+# プライベートリポジトリの場合は、VMにデプロイキーを設定するか、
+# 手動でコードをアップロードしてください
+git_repo_url = "https://github.com/your-username/otel-memory.git"
+
+# ====================
+# 地域・ゾーン設定
+# ====================
+
+region = "asia-northeast1"
+zone = "asia-northeast1-a"
+
+# ====================
+# VMインスタンス設定
+# ====================
+
+instance_name = "otel-collector-debug"
+machine_type = "e2-medium"
+boot_disk_size = 10
+
+# ====================
+# セキュリティ設定
+# ====================
+
+# SSH接続を許可するIPアドレス範囲（CIDR）
+# セキュリティのため、自分のIPアドレスに絞ることを推奨
+# 例: ["203.0.113.0/32"]  # 特定のIPのみ
+# 例: ["0.0.0.0/0"]       # すべてのIPを許可（テスト用）
+allowed_ssh_ips = ["0.0.0.0/0"]
+
+# Web UI（Grafana, Prometheus, Jaeger）へのアクセスを許可するIP範囲
+# 例: ["203.0.113.0/32"]  # 特定のIPのみ
+# 例: ["0.0.0.0/0"]       # すべてのIPを許可（テスト用）
+allowed_web_ips = ["0.0.0.0/0"]
+
+# OTLP gRPC（ポート4317）へのアクセスを許可するIP範囲
+# 外部からテレメトリを送信しない場合は、制限しても問題ありません
+allowed_otlp_ips = ["0.0.0.0/0"]
+
+# ====================
+# SSH公開鍵設定（オプション）
+# ====================
+
+# SSH公開鍵（オプション）
+# 設定しない場合は、gcloud compute sshコマンドで接続してください
+# 例: ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
+ssh_public_key = ""
+
+# SSH接続ユーザー名
+ssh_user = "ubuntu"
+
+# ====================
+# カスタマイズ例
+# ====================
+
+# より大きなVMを使用する場合:
+# machine_type = "e2-standard-4"
+
+# 特定のIPからのみアクセスを許可する場合:
+# allowed_ssh_ips = ["YOUR_IP_ADDRESS/32"]
+# allowed_web_ips = ["YOUR_IP_ADDRESS/32"]
+
+# 複数のIP範囲を許可する場合:
+# allowed_ssh_ips = ["203.0.113.0/32", "198.51.100.0/24"]
