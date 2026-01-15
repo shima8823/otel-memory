@@ -1,6 +1,6 @@
 #!/bin/bash
-# Startup script for OpenTelemetry Collector debug environment
-# This script runs on VM boot and sets up the complete environment
+# Startup script for Collector VM
+# This script runs on VM boot and sets up OTel Collector, Prometheus, Grafana, Jaeger
 
 set -e
 
@@ -11,7 +11,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
-log "=== Starting VM setup for OpenTelemetry Collector debug environment ==="
+log "=== Starting Collector VM setup ==="
 
 # 1. システムアップデート
 log "Step 1: System update"
@@ -65,37 +65,14 @@ else
     log "Docker Compose already installed"
 fi
 
-# 5. Goインストール（loadgenビルド用）
-log "Step 5: Installing Go"
-if ! command -v go &> /dev/null; then
-    GO_VERSION="1.23.4"
-    log "Installing Go version: $GO_VERSION"
-    cd /tmp
-    wget -q "https://go.dev/dl/go$${GO_VERSION}.linux-amd64.tar.gz" >> "$LOG_FILE" 2>&1
-    tar -C /usr/local -xzf "go$${GO_VERSION}.linux-amd64.tar.gz"
-    rm "go$${GO_VERSION}.linux-amd64.tar.gz"
-    
-    # 環境変数設定
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> /home/ubuntu/.bashrc
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> /home/ubuntu/.profile
-    
-    # Go modulesディレクトリ設定
-    mkdir -p /home/ubuntu/go
-    chown -R ubuntu:ubuntu /home/ubuntu/go
-    
-    log "Go installed successfully"
-else
-    log "Go already installed"
-fi
-
-# 6. Pythonパッケージインストール（メトリクスエクスポート用）
-log "Step 6: Installing Python packages"
+# 5. Pythonパッケージインストール（メトリクスエクスポート用）
+log "Step 5: Installing Python packages"
 pip3 install --upgrade pip >> "$LOG_FILE" 2>&1
 pip3 install requests >> "$LOG_FILE" 2>&1
 log "Python packages installed successfully"
 
-# 7. プロジェクトコードのクローン
-log "Step 7: Cloning project repository"
+# 6. プロジェクトコードのクローン
+log "Step 6: Cloning project repository"
 cd /home/ubuntu
 
 # 既存ディレクトリがあれば削除
@@ -123,35 +100,49 @@ fi
 chown -R ubuntu:ubuntu otel-memory
 log "Project code setup completed"
 
-# 8. Docker imagesのプリプル（オプション、時間短縮のため）
-log "Step 8: Pre-pulling Docker images"
+# 7. Docker imagesのプリプル（時間短縮のため）
+log "Step 7: Pre-pulling Docker images"
 cd /home/ubuntu/otel-memory
 if [ -f "docker-compose.yaml" ]; then
     sudo -u ubuntu docker-compose pull >> "$LOG_FILE" 2>&1 || log "WARNING: Could not pre-pull images"
 fi
 
-# 9. 準備完了メッセージ
-log "Step 9: Creating setup status file"
+# 8. 準備完了メッセージ
+log "Step 8: Creating setup status file"
+
+EXTERNAL_IP=$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H "Metadata-Flavor: Google")
+INTERNAL_IP=$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/ip -H "Metadata-Flavor: Google")
+
 cat > /home/ubuntu/setup_status.txt <<EOF
-=== OpenTelemetry Collector Debug Environment ===
+=== Collector VM Setup Complete ===
 Setup completed at: $(date)
 
 Status: READY
 
+Network Info:
+- External IP: $EXTERNAL_IP
+- Internal IP: $INTERNAL_IP (Loadgen VMからの接続先)
+- OTLP Endpoint: $INTERNAL_IP:4317
+
 Quick Start:
 1. cd ~/otel-memory
-2. make up          # Start all services
-3. make scenario-1  # Run scenario 1
+2. make up          # Start all services (OTel Collector, Prometheus, Grafana, Jaeger)
 
-Web UIs:
-- Grafana:    http://$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H "Metadata-Flavor: Google"):3000
-- Prometheus: http://$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H "Metadata-Flavor: Google"):9090
-- Jaeger:     http://$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H "Metadata-Flavor: Google"):16686
+Web UIs (access from browser):
+- Grafana:    http://$EXTERNAL_IP:3000
+- Prometheus: http://$EXTERNAL_IP:9090
+- Jaeger:     http://$EXTERNAL_IP:16686
+- Collector Metrics: http://$EXTERNAL_IP:8888/metrics
+
+Services in docker-compose:
+- otel-collector: Receives OTLP data on port 4317
+- prometheus:     Scrapes and stores metrics
+- grafana:        Visualizes metrics
+- jaeger:         Stores and visualizes traces
 
 Installed versions:
 - Docker: $(docker --version)
 - Docker Compose: $(docker-compose --version)
-- Go: $(go version 2>/dev/null || echo "Not found in current shell")
 - Python3: $(python3 --version)
 
 For more information, see ~/otel-memory/README.md
@@ -159,15 +150,17 @@ EOF
 
 chown ubuntu:ubuntu /home/ubuntu/setup_status.txt
 
-log "=== VM setup completed successfully ==="
+log "=== Collector VM setup completed successfully ==="
 log "Users can now SSH and run: cat ~/setup_status.txt"
 
-# 10. 最終確認
+# 9. 最終確認
 log "Final check - listing installed tools:"
 log "Docker: $(docker --version)"
 log "Docker Compose: $(docker-compose --version)"
 log "Git: $(git --version)"
 log "Python3: $(python3 --version)"
 log "Make: $(make --version | head -1)"
+log "Internal IP: $INTERNAL_IP"
+log "External IP: $EXTERNAL_IP"
 
 exit 0

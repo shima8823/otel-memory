@@ -4,35 +4,81 @@
 
 ## 概要
 
-このTerraform設定は以下を自動的にプロビジョニングします：
+このTerraform設定は**2インスタンス構成**で、負荷生成と収集・可視化を分離しています。これにより、正確な負荷試験結果を得ることができます。
 
-- **GCE VMインスタンス**（e2-medium: 2vCPU, 4GB RAM）
-- **ファイアウォールルール**（SSH、Grafana、Prometheus、Jaeger、OTLP）
-- **スタートアップスクリプト**（Docker、Docker Compose、Go、プロジェクトコードの自動セットアップ）
+### アーキテクチャ
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         GCP VPC (default)                       │
+│                                                                 │
+│  ┌─────────────────────┐      ┌─────────────────────────────┐  │
+│  │    Loadgen VM       │      │       Collector VM          │  │
+│  │    (e2-small)       │      │       (e2-medium)           │  │
+│  │                     │      │                             │  │
+│  │  ┌───────────────┐  │      │  ┌───────────────────────┐  │  │
+│  │  │   loadgen     │──┼──────┼─▶│   OTel Collector      │  │  │
+│  │  │   binary      │  │ 4317 │  │   (port 4317)         │  │  │
+│  │  └───────────────┘  │(内部)│  └───────────┬───────────┘  │  │
+│  │                     │      │              │              │  │
+│  └─────────────────────┘      │  ┌───────────▼───────────┐  │  │
+│                               │  │     Prometheus        │  │  │
+│                               │  │     (port 9090)       │  │  │
+│                               │  └───────────┬───────────┘  │  │
+│                               │              │              │  │
+│                               │  ┌───────────▼───────────┐  │  │
+│                               │  │      Grafana          │  │  │
+│                               │  │     (port 3000)       │  │  │
+│                               │  └───────────────────────┘  │  │
+│                               │                             │  │
+│                               │  ┌───────────────────────┐  │  │
+│                               │  │       Jaeger          │  │  │
+│                               │  │     (port 16686)      │  │  │
+│                               │  └───────────────────────┘  │  │
+│                               └─────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ 外部アクセス
+                                        ▼
+                               ┌─────────────────┐
+                               │   User Browser  │
+                               │  :3000 :9090    │
+                               │  :16686         │
+                               └─────────────────┘
+```
+
+### 構成
+
+| VM | マシンタイプ | 役割 |
+|----|------------|------|
+| **Collector VM** | e2-medium (2vCPU, 4GB) | OTel Collector, Prometheus, Grafana, Jaeger |
+| **Loadgen VM** | e2-small (2vCPU, 2GB) | loadgen バイナリ実行 |
+
+### なぜ2インスタンス構成なのか？
+
+- **測定の正確性**: loadgenのリソース消費がCollectorの測定に影響しない
+- **リアルなネットワーク条件**: 内部IP経由の通信で、実環境に近い条件をテスト
+- **ボトルネックの明確化**: Collectorの問題なのかloadgenの問題なのか切り分け可能
 
 ## 前提条件
 
 ### ローカル環境
 
-1. **Terraform**（v1.5以降）
+1. **Terraform**（v1.14以降）
    ```bash
-   # インストール確認
    terraform version
    ```
 
 2. **gcloud CLI**
    ```bash
-   # インストール確認
    gcloud version
-   
-   # 認証設定
    gcloud auth application-default login
    ```
 
 3. **GCPプロジェクト**
    - GCPプロジェクトが作成済み
    - 請求先アカウントが有効
-   - 必要なAPI（Compute Engine API）が有効化済み
+   - Compute Engine APIが有効化済み
 
 ## クイックスタート
 
@@ -43,328 +89,203 @@ cd terraform
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-`terraform.tfvars`を編集して、以下の必須項目を設定：
+`terraform.tfvars`を編集：
 
 ```hcl
 project_id   = "your-gcp-project-id"
 git_repo_url = "https://github.com/your-username/otel-memory.git"
 ```
 
-**重要**: `git_repo_url`は実際のリポジトリURLに変更してください。プライベートリポジトリの場合は、後述の「プライベートリポジトリの対応」を参照してください。
-
-### 2. Terraformの初期化
+### 2. Terraformの初期化と実行
 
 ```bash
 terraform init
-```
-
-### 3. 実行計画の確認
-
-```bash
 terraform plan
-```
-
-作成されるリソースを確認します：
-- 1つのGCE VMインスタンス
-- 4つのファイアウォールルール（SSH、Web UI、OTLP、Collector Metrics）
-
-### 4. リソースの作成
-
-```bash
 terraform apply
 ```
 
-プロンプトで `yes` と入力して実行を確認します。
+**所要時間**: 約5-7分（2つのVMをセットアップ）
 
-**所要時間**: 約3-5分
-
-### 5. 出力値の確認
+### 3. 出力値の確認
 
 ```bash
 terraform output
 ```
 
-以下の情報が表示されます：
-- VM外部IPアドレス
-- SSH接続コマンド
-- Grafana、Prometheus、JaegerのURL
+主な出力：
+- Collector/Loadgen VMの内部IP
+- gcloud SSH接続コマンド
+- loadgen実行コマンド例
 
-### 6. VMへの接続
-
-#### 方法1: gcloudコマンド（推奨）
+### 4. Collector VMでサービス起動
 
 ```bash
-# outputに表示されたコマンドをコピー＆ペースト
-gcloud compute ssh otel-collector-debug --zone=asia-northeast1-a --project=your-project-id
-```
+# Collector VMにSSH接続（gcloudコマンドを使用）
+gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=<PROJECT_ID>
 
-#### 方法2: 直接SSH
-
-```bash
-# outputに表示されたIPアドレスを使用
-ssh ubuntu@<EXTERNAL_IP>
-```
-
-**注意**: `gcloud compute ssh`で接続すると、GCPが自動的にローカルのユーザー名でVM上にユーザーを作成します。一方、スタートアップスクリプトは`ubuntu`ユーザーのホームディレクトリ（`/home/ubuntu`）にファイルを作成します。
-
-プロジェクトファイルが見つからない場合は、以下を確認してください：
-
-```bash
-# ubuntuユーザーのホームディレクトリを確認
-ls -la /home/ubuntu/
-
-# ubuntuユーザーに切り替える
+# ubuntuユーザーに切り替え（スタートアップスクリプトはubuntuユーザーで実行）
 sudo su - ubuntu
 
-# または直接パスを指定
-cd /home/ubuntu/otel-memory
-```
-
-### 7. セットアップ状態の確認
-
-VM接続後：
-
-```bash
-# セットアップ完了確認（ubuntuユーザーのホームディレクトリ）
-cat /home/ubuntu/setup_status.txt
-# または、ubuntuユーザーに切り替えた場合
-sudo su - ubuntu
+# セットアップ確認
 cat ~/setup_status.txt
 
-# ツールのバージョン確認
-docker --version
-docker-compose --version
-go version
-```
-
-### 8. サービスの起動とシナリオ実行
-
-```bash
-# プロジェクトディレクトリへ移動（ubuntuユーザーのホームディレクトリ）
-cd /home/ubuntu/otel-memory
-# または、ubuntuユーザーに切り替えた場合
-sudo su - ubuntu
-cd ~/otel-memory
-
 # サービス起動
+cd ~/otel-memory
 make up
 
-# ブラウザでダッシュボード確認
-# - Grafana: http://<VM_IP>:3000
-# - Prometheus: http://<VM_IP>:9090
-# - Jaeger: http://<VM_IP>:16686
-
-# シナリオ実行
-make scenario-1
-
-# メトリクスエクスポート
-make export-metrics DURATION=15 STEP=60 OUTPUT=scenario1_results
+# 動作確認
+docker-compose ps
 ```
 
-### 9. 結果のダウンロード
+**ヒント**: `terraform output collector_gcloud_ssh_command` で正確なSSHコマンドを確認できます。
 
-ローカルマシンから（別ターミナル）：
+### 5. Loadgen VMで負荷テスト実行
 
 ```bash
-scp -r ubuntu@<VM_IP>:~/otel-memory/scenario1_results ./
+# Loadgen VMにSSH接続（別ターミナル）
+gcloud compute ssh otel-loadgen --zone=asia-northeast1-a --project=<PROJECT_ID>
+
+# ubuntuユーザーに切り替え
+sudo su - ubuntu
+
+# セットアップ確認
+cat ~/setup_status.txt
+
+# loadgen実行（Collector VMの内部IPに送信）
+cd ~/otel-memory/loadgen
+./loadgen -endpoint <COLLECTOR_INTERNAL_IP>:4317 -scenario sustained -duration 60s
 ```
 
-### 10. リソースの削除（実験完了後）
+**ヒント**: `terraform output loadgen_command_example` でコマンド例を確認できます。
+
+### 6. Web UIでモニタリング（SSHポートフォワーディング）
+
+外部IPを設定していないため、SSHトンネル経由でWeb UIにアクセスします。
+
+```bash
+# ローカルマシンで実行（Grafana, Prometheus, Jaegerへのトンネル）
+gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=<PROJECT_ID> \
+  -- -L 3000:localhost:3000 -L 9090:localhost:9090 -L 16686:localhost:16686
+```
+
+ブラウザで以下にアクセス：
+- **Grafana**: `http://<COLLECTOR_EXTERNAL_IP>:3000`
+- **Prometheus**: `http://<COLLECTOR_EXTERNAL_IP>:9090`
+- **Jaeger**: `http://<COLLECTOR_EXTERNAL_IP>:16686`
+
+### 7. リソースの削除
 
 ```bash
 terraform destroy
 ```
 
-プロンプトで `yes` と入力して削除を確認します。
-
 **重要**: 削除を忘れるとコストが継続的に発生します。
+
+## loadgenシナリオ
+
+| シナリオ | 説明 |
+|---------|------|
+| `burst` | 可能な限り高速に送信（レート制限なし） |
+| `sustained` | 指定レートで継続的に送信（デフォルト） |
+| `spike` | 通常負荷とスパイクを交互に繰り返し |
+| `rampup` | 徐々に負荷を上げていく |
+
+### loadgenオプション
+
+```bash
+./loadgen \
+  -endpoint <COLLECTOR_IP>:4317 \
+  -scenario sustained \
+  -duration 60s \
+  -workers 10 \
+  -rate 1000 \
+  -depth 5 \
+  -attr-size 256 \
+  -attr-count 10 \
+  -metrics true
+```
 
 ## 設定のカスタマイズ
 
 ### VMスペックの変更
 
-より大きなVMが必要な場合、`terraform.tfvars`で変更：
+`terraform.tfvars`で変更：
 
 ```hcl
-machine_type = "e2-standard-4"  # 4vCPU, 16GB RAM
+# より大きなCollector VM（高負荷テスト用）
+collector_machine_type = "e2-standard-4"  # 4vCPU, 16GB RAM
+
+# より大きなLoadgen VM
+loadgen_machine_type = "e2-medium"  # 2vCPU, 4GB RAM
 ```
 
-### セキュリティの強化
-
-特定のIPアドレスからのみアクセスを許可：
+### セキュリティについて
 
 ```hcl
-allowed_ssh_ips = ["203.0.113.0/32"]  # 自分のIPアドレス
-allowed_web_ips = ["203.0.113.0/32"]  # 自分のIPアドレス
+# 特定のIPからのみアクセスを許可
+allowed_ssh_ips = ["YOUR_IP_ADDRESS/32"]
+allowed_web_ips = ["YOUR_IP_ADDRESS/32"]
 ```
 
 自分のIPアドレスを確認：
 
-```bash
-curl ifconfig.me
-```
+IAP経由のSSHには適切なIAM権限が必要です：
+- `roles/compute.instanceAdmin.v1`
+- `roles/iap.tunnelResourceAccessor`
 
-### リージョン/ゾーンの変更
+## ネットワーク構成
 
-```hcl
-region = "us-central1"
-zone   = "us-central1-a"
-```
-
-## プライベートリポジトリの対応
-
-### 方法1: デプロイキーの使用（推奨）
-
-1. GitHubでデプロイキーを生成
-2. startup-script.shを修正してSSHキーを設定
-3. `git_repo_url`をSSH形式に変更
-
-```hcl
-git_repo_url = "git@github.com:your-username/otel-memory.git"
-```
-
-### 方法2: 手動アップロード
-
-1. `git_repo_url`はプレースホルダーのまま
-2. VM起動後、手動でコードをアップロード：
-
-```bash
-# ローカルからVMへアップロード
-scp -r ./otel-memory ubuntu@<VM_IP>:~/
-```
+- **Loadgen → Collector**: 内部IP経由でOTLP gRPC (4317)
+- **ローカル → Collector**: SSHポートフォワーディング経由でWeb UI (3000, 9090, 16686)
+- **SSH接続**: gcloud compute ssh経由（IAP tunneling）
 
 ## トラブルシューティング
 
-### 問題: `terraform apply` でエラーが発生
-
-#### API が有効化されていない
-
-```
-Error: Error creating instance: googleapi: Error 403: Compute Engine API has not been used
-```
-
-**解決策**:
+### スタートアップスクリプトのログ確認
 
 ```bash
-gcloud services enable compute.googleapis.com --project=your-project-id
+sudo tail -f /var/log/startup-script.log
 ```
 
-#### プロジェクトIDが無効
+### loadgenがCollectorに接続できない
 
-```
-Error: Error getting project: googleapi: Error 403: The caller does not have permission
-```
+1. Collector VMでサービスが起動しているか確認：
+   ```bash
+   docker-compose ps
+   ```
 
-**解決策**: `terraform.tfvars`の`project_id`が正しいか確認
+2. ファイアウォールルールを確認：
+   ```bash
+   gcloud compute firewall-rules list --project=your-project-id
+   ```
+
+3. 内部IPで接続をテスト（Loadgen VMから）：
+   ```bash
+   nc -zv <COLLECTOR_INTERNAL_IP> 4317
+   ```
+
+### Docker Composeが起動しない
 
 ```bash
-gcloud projects list
-```
-
-#### 認証エラー
-
-```
-Error: google: could not find default credentials
-```
-
-**解決策**:
-
-```bash
-gcloud auth application-default login
-```
-
-### 問題: VMにSSH接続できない
-
-#### ファイアウォールルールの確認
-
-```bash
-gcloud compute firewall-rules list --project=your-project-id
-```
-
-`otel-collector-debug-allow-ssh`が存在するか確認
-
-#### GCPコンソールからシリアルコンソールを使用
-
-1. GCPコンソール > Compute Engine > VMインスタンス
-2. 該当のVMを選択
-3. 「シリアルポートに接続」をクリック
-
-### 問題: スタートアップスクリプトが失敗
-
-#### ログの確認
-
-VM接続後：
-
-```bash
-sudo tail -n 100 /var/log/startup-script.log
-```
-
-#### 手動でスクリプトを再実行
-
-```bash
-sudo bash /var/run/google.startup.script
-```
-
-### 問題: Gitリポジトリのクローンに失敗
-
-#### ログ確認
-
-```bash
-sudo cat /var/log/startup-script.log | grep -A 10 "Cloning"
-```
-
-#### 手動でクローン
-
-```bash
-cd ~
-git clone https://github.com/your-username/otel-memory.git
-```
-
-### 問題: Docker Composeが起動しない
-
-#### Docker サービスの確認
-
-```bash
+# Dockerサービス確認
 sudo systemctl status docker
-```
 
-#### Docker グループの確認
-
-```bash
+# dockerグループ確認
 groups ubuntu
-# ubuntu docker ... と表示されるはず
-```
 
-表示されない場合、再ログインまたは：
-
-```bash
+# 再ログインまたは
 newgrp docker
-```
-
-### 問題: メトリクスが取得できない
-
-#### サービスの起動確認
-
-```bash
-cd ~/otel-memory
-docker-compose ps
-```
-
-すべてのサービスが`Up`状態か確認
-
-#### Prometheusの接続確認
-
-```bash
-curl http://localhost:9090/-/healthy
 ```
 
 ## コスト管理
 
 ### 推定コスト（asia-northeast1リージョン）
 
-- **e2-medium**: 約$0.067/時間
-- **実験用途（1日3時間使用）**: 約$6/月
-- **1週間の実験**: 約$1.5-2
+| VM | 時間あたり | 1日3時間/月 |
+|----|-----------|------------|
+| Collector (e2-medium) | 約$0.067 | 約$6 |
+| Loadgen (e2-small) | 約$0.034 | 約$3 |
+| **合計** | 約$0.10 | 約$9 |
 
 ### コスト削減のヒント
 
@@ -373,57 +294,23 @@ curl http://localhost:9090/-/healthy
    terraform destroy
    ```
 
-2. **VMの停止**
+2. **VMの停止**（削除せずに一時停止）
    ```bash
-   gcloud compute instances stop otel-collector-debug --zone=asia-northeast1-a
+   gcloud compute instances stop otel-collector otel-loadgen --zone=asia-northeast1-a
    ```
-   停止中はCPU/RAM課金なし（ディスクのみ課金）
-
-3. **予算アラートの設定**
-   GCPコンソール > 請求 > 予算とアラート
-
-## 高度な使用例
-
-### 複数のシナリオを並列実行
-
-`main.tf`を編集して`count`を使用：
-
-```hcl
-resource "google_compute_instance" "otel_collector_vm" {
-  count = 4  # 4つのVMを作成
-  name  = "${var.instance_name}-${count.index + 1}"
-  # ...
-}
-```
-
-### Cloud Storageへの結果自動アップロード
-
-1. バケット作成
-
-```hcl
-resource "google_storage_bucket" "results" {
-  name     = "${var.project_id}-otel-results"
-  location = var.region
-}
-```
-
-2. シナリオ完了後にアップロード
-
-```bash
-gsutil cp -r scenario1_results gs://your-project-otel-results/
-```
 
 ## ファイル構成
 
 ```
 terraform/
-├── main.tf                    # メインのリソース定義
-├── variables.tf               # 変数定義
-├── outputs.tf                 # 出力値
-├── terraform.tfvars.example   # 変数の例示ファイル
-├── terraform.tfvars           # 実際の設定（.gitignore対象）
-├── startup-script.sh          # VMスタートアップスクリプト
-└── README.md                  # このファイル
+├── main.tf                      # メインのリソース定義（2 VM + Firewall）
+├── variables.tf                 # 変数定義
+├── outputs.tf                   # 出力値
+├── terraform.tfvars.example     # 変数の例示ファイル
+├── terraform.tfvars             # 実際の設定（.gitignore対象）
+├── startup-script.sh            # Collector VM スタートアップスクリプト
+├── startup-script-loadgen.sh    # Loadgen VM スタートアップスクリプト
+└── README.md                    # このファイル
 ```
 
 ## 参考リンク
@@ -432,15 +319,6 @@ terraform/
 - [GCE Machine Types](https://cloud.google.com/compute/docs/machine-types)
 - [GCP Pricing Calculator](https://cloud.google.com/products/calculator)
 - [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
-
-## サポート
-
-問題が発生した場合は、以下を確認してください：
-
-1. `terraform.tfvars`の設定が正しいか
-2. GCP APIが有効化されているか
-3. 認証が正しく設定されているか
-4. `/var/log/startup-script.log`のエラーメッセージ
 
 ## ライセンス
 
