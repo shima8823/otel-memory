@@ -89,11 +89,10 @@ cd terraform
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-`terraform.tfvars`を編集：
+`terraform.tfvars`を編集（必須項目のみ）：
 
 ```hcl
-project_id   = "your-gcp-project-id"
-git_repo_url = "https://github.com/your-username/otel-memory.git"
+project_id = "your-gcp-project-id"
 ```
 
 ### 2. Terraformの初期化と実行
@@ -120,8 +119,8 @@ terraform output
 ### 4. Collector VMでサービス起動
 
 ```bash
-# Collector VMにSSH接続（gcloudコマンドを使用）
-gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=<PROJECT_ID>
+# Collector VMにSSH接続
+gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=$(terraform output -raw project_id)
 
 # ubuntuユーザーに切り替え（スタートアップスクリプトはubuntuユーザーで実行）
 sudo su - ubuntu
@@ -143,36 +142,24 @@ docker-compose ps
 
 ```bash
 # Loadgen VMにSSH接続（別ターミナル）
-gcloud compute ssh otel-loadgen --zone=asia-northeast1-a --project=<PROJECT_ID>
+gcloud compute ssh otel-loadgen --zone=asia-northeast1-a --project=$(terraform output -raw project_id)
 
 # ubuntuユーザーに切り替え
 sudo su - ubuntu
 
-# セットアップ確認
-cat ~/setup_status.txt
-
 # loadgen実行（Collector VMの内部IPに送信）
 cd ~/otel-memory/loadgen
-./loadgen -endpoint <COLLECTOR_INTERNAL_IP>:4317 -scenario sustained -duration 60s
+./loadgen -endpoint $(terraform output -raw collector_internal_ip):4317 -scenario sustained -duration 60s
 ```
 
 **ヒント**: `terraform output loadgen_command_example` でコマンド例を確認できます。
 
-### 6. Web UIでモニタリング（直接アクセス or SSHトンネル）
+### 6. Web UIでモニタリング
 
-デフォルトではCollector VMに外部IPが割り当てられるため、`allowed_web_ips`で許可した範囲から直接アクセスできます。
-ネットワーク制約がある場合は、SSHトンネル経由でアクセスしてください。
-
-```bash
-# ローカルマシンで実行（Grafana, Prometheus, Jaegerへのトンネル）
-gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=<PROJECT_ID> \
-  -- -L 3000:localhost:3000 -L 9090:localhost:9090 -L 16686:localhost:16686
-```
-
-ブラウザで以下にアクセス：
-- **Grafana**: `http://<COLLECTOR_EXTERNAL_IP>:3000`
-- **Prometheus**: `http://<COLLECTOR_EXTERNAL_IP>:9090`
-- **Jaeger**: `http://<COLLECTOR_EXTERNAL_IP>:16686`
+ブラウザで以下にアクセス（URLは `terraform output` で確認可能）：
+- **Grafana**: `$(terraform output -raw grafana_url)`
+- **Prometheus**: `$(terraform output -raw prometheus_url)`
+- **Jaeger**: `$(terraform output -raw jaeger_url)`
 
 ### 7. リソースの削除
 
@@ -270,12 +257,12 @@ sudo tail -f /var/log/startup-script.log
 
 2. ファイアウォールルールを確認：
    ```bash
-   gcloud compute firewall-rules list --project=your-project-id
+   gcloud compute firewall-rules list --project=$(terraform output -raw project_id)
    ```
 
 3. 内部IPで接続をテスト（Loadgen VMから）：
    ```bash
-   nc -zv <COLLECTOR_INTERNAL_IP> 4317
+   nc -zv $(terraform output -raw collector_internal_ip) 4317
    ```
 
 ### Docker Composeが起動しない
@@ -310,7 +297,7 @@ newgrp docker
 
 2. **VMの停止**（削除せずに一時停止）
    ```bash
-   gcloud compute instances stop otel-collector otel-loadgen --zone=asia-northeast1-a
+   gcloud compute instances stop otel-collector otel-loadgen --zone=asia-northeast1-a --project=$(terraform output -raw project_id)
    ```
 
 ## ファイル構成
