@@ -1,6 +1,6 @@
 // SSH: 両VMへの外部アクセス
 resource "google_compute_firewall" "allow_ssh" {
-  name    = "${var.name_prefix}-allow-ssh"
+  name    = "otel-debug-allow-ssh"
   network = "default"
 
   allow {
@@ -16,7 +16,7 @@ resource "google_compute_firewall" "allow_ssh" {
 
 // Web UI: Collector VMへの外部アクセス（Grafana, Prometheus, Jaeger）
 resource "google_compute_firewall" "allow_web_ui" {
-  name    = "${var.name_prefix}-allow-web-ui"
+  name    = "otel-debug-allow-web-ui"
   network = "default"
 
   allow {
@@ -32,7 +32,7 @@ resource "google_compute_firewall" "allow_web_ui" {
 
 // OTLP gRPC: 内部ネットワークからのみ（Loadgen VM → Collector VM）
 resource "google_compute_firewall" "allow_otlp_internal" {
-  name    = "${var.name_prefix}-allow-otlp-internal"
+  name    = "otel-debug-allow-otlp-internal"
   network = "default"
 
   allow {
@@ -48,7 +48,7 @@ resource "google_compute_firewall" "allow_otlp_internal" {
 
 // Collector Metrics: 外部からのセルフテレメトリアクセス（オプション）
 resource "google_compute_firewall" "allow_collector_metrics" {
-  name    = "${var.name_prefix}-allow-collector-metrics"
+  name    = "otel-debug-allow-collector-metrics"
   network = "default"
 
   allow {

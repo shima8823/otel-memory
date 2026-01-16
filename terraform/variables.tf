@@ -10,12 +10,6 @@ variable "project_id" {
   type        = string
 }
 
-variable "name_prefix" {
-  description = "Prefix for resource names"
-  type        = string
-  default     = "otel-debug"
-}
-
 variable "region" {
   description = "GCP region for resources"
   type        = string

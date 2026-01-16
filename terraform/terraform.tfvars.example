@@ -16,9 +16,6 @@ project_id = "your-gcp-project-id"
 region = "asia-northeast1"
 zone   = "asia-northeast1-a"
 
-# リソース名のプレフィックス（ファイアウォール等）
-name_prefix = "otel-debug"
-
 # ====================
 # Collector VM 設定
 # ====================
@@ -37,22 +34,5 @@ loadgen_machine_type = "e2-small" # 2vCPU, 2GB RAM
 # セキュリティ設定
 # ====================
 
-# Web UI（Grafana, Prometheus, Jaeger）へのアクセスを許可するIP範囲
-# Collector VMへの外部アクセスのみに適用
-# 例: ["203.0.113.0/32"]  # 特定のIPのみ
-# 例: ["0.0.0.0/0"]       # すべてのIPを許可（テスト用）
 allowed_web_ips = ["0.0.0.0/0"]
-
-# SSH接続を許可するIPアドレス範囲（CIDR）
-# セキュリティのため、自分のIPアドレスに絞ることを推奨
 allowed_ssh_ips = ["0.0.0.0/0"]
-
-# ====================
-# カスタマイズ例
-# ====================
-
-# より大きなCollector VMを使用する場合（高負荷テスト用）:
-# collector_machine_type = "e2-standard-4"  # 4vCPU, 16GB RAM
-
-# より大きなLoadgen VMを使用する場合（大量のスパン生成用）:
-# loadgen_machine_type = "e2-medium"  # 2vCPU, 4GB RAM
