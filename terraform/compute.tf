@@ -55,6 +55,4 @@ resource "google_compute_instance" "loadgen_vm" {
     git_repo_url          = "https://github.com/shima8823/otel-memory.git"
     collector_internal_ip = google_compute_instance.collector_vm.network_interface[0].network_ip
   })
-
-  depends_on = [google_compute_instance.collector_vm]
 }
