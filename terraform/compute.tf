@@ -1,3 +1,21 @@
+locals {
+  base_labels = {
+    environment = "debug"
+    managed_by  = "terraform"
+  }
+
+  collector_labels = merge(local.base_labels, {
+    purpose = "otel-collector"
+  })
+
+  loadgen_labels = merge(local.base_labels, {
+    purpose = "otel-loadgen"
+  })
+
+  collector_tags = ["otel-collector", "allow-ssh", "allow-web-ui"]
+  loadgen_tags   = ["otel-loadgen", "allow-ssh"]
+}
+
 // OTel Collector, Prometheus, Grafana, Jaeger を実行
 resource "google_compute_instance" "collector_vm" {
   name                      = "otel-collector"
