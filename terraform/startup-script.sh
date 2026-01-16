@@ -132,7 +132,6 @@ Web UIs (access from browser):
 - Grafana:    http://$EXTERNAL_IP:3000
 - Prometheus: http://$EXTERNAL_IP:9090
 - Jaeger:     http://$EXTERNAL_IP:16686
-- Collector Metrics: http://$EXTERNAL_IP:8888/metrics
 
 Services in docker-compose:
 - otel-collector: Receives OTLP data on port 4317

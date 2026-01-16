@@ -22,8 +22,3 @@ output "jaeger_url" {
   description = "URL to access Jaeger UI"
   value       = "http://${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}:16686"
 }
-
-output "collector_metrics_url" {
-  description = "URL to access Collector self-telemetry metrics"
-  value       = "http://${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}:8888/metrics"
-}

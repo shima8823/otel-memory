@@ -39,17 +39,3 @@ resource "google_compute_firewall" "allow_otlp_internal" {
     ports    = ["4317"]
   }
 }
-
-// Collector Metrics: 外部からのセルフテレメトリアクセス（オプション）
-resource "google_compute_firewall" "allow_collector_metrics" {
-  name          = "otel-debug-allow-collector-metrics"
-  description   = "Allow access to Collector self-telemetry metrics"
-  network       = "default"
-  source_ranges = var.allowed_web_ips
-  target_tags   = ["otel-collector"]
-
-  allow {
-    protocol = "tcp"
-    ports    = ["8888"]
-  }
-}
