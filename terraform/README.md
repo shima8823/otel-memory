@@ -130,9 +130,9 @@ cd ~/otel-memory/loadgen
 ### 6. Web UIでモニタリング
 
 ブラウザで以下にアクセス（URLは `terraform output` で確認可能）：
-- **Grafana**: `$(terraform output -raw grafana_url)`
-- **Prometheus**: `$(terraform output -raw prometheus_url)`
-- **Jaeger**: `$(terraform output -raw jaeger_url)`
+- **Grafana**: `terraform output -raw grafana_url`
+- **Prometheus**: `terraform output -raw prometheus_url`
+- **Jaeger**: `terraform output -raw jaeger_url`
 
 ### 7. リソースの削除
 
