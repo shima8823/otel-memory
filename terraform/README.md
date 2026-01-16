@@ -96,7 +96,7 @@ terraform plan
 terraform apply
 ```
 
-### 4. Collector VMでサービス起動
+### 3. Collector VMでサービス起動
 
 ```bash
 # Collector VMにSSH接続
@@ -113,7 +113,7 @@ make up
 docker-compose ps
 ```
 
-### 5. Loadgen VMで負荷テスト実行
+### 4. Loadgen VMで負荷テスト実行
 
 ```bash
 # Loadgen VMにSSH接続（別ターミナル）
@@ -127,14 +127,14 @@ cd ~/otel-memory/loadgen
 ./loadgen -endpoint <Collectorの内部IP>:4317 -scenario sustained -duration 60s
 ```
 
-### 6. Web UIでモニタリング
+### 5. Web UIでモニタリング
 
 ブラウザで以下にアクセス（URLは `terraform output` で確認可能）：
 - **Grafana**: `terraform output -raw grafana_url`
 - **Prometheus**: `terraform output -raw prometheus_url`
 - **Jaeger**: `terraform output -raw jaeger_url`
 
-### 7. リソースの削除
+### 6. リソースの削除
 
 ```bash
 terraform destroy
