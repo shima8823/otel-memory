@@ -1,6 +1,3 @@
-# Variables for OpenTelemetry Collector debug environment on GCE
-# 2-instance configuration: Collector VM + Loadgen VM
-
 # ====================
 # 共通設定
 # ====================
@@ -23,7 +20,7 @@ variable "zone" {
 }
 
 # ====================
-# Collector VM 設定
+# VM 設定
 # ====================
 
 variable "collector_machine_type" {
@@ -31,10 +28,6 @@ variable "collector_machine_type" {
   type        = string
   default     = "e2-medium"
 }
-
-# ====================
-# Loadgen VM 設定
-# ====================
 
 variable "loadgen_machine_type" {
   description = "Loadgen VM machine type (e2-small: 2vCPU 2GB RAM)"

@@ -1,12 +1,7 @@
-# Terraform変数設定ファイルの例
-# 使用方法: このファイルをコピーして terraform.tfvars として保存し、値を編集してください
-#   cp terraform.tfvars.example terraform.tfvars
-
 # ====================
 # 必須設定
 # ====================
 
-# Google CloudプロジェクトID（必須）
 project_id = "your-gcp-project-id"
 
 # ====================
@@ -17,17 +12,13 @@ region = "asia-northeast1"
 zone   = "asia-northeast1-a"
 
 # ====================
-# Collector VM 設定
+# VM 設定
 # ====================
-# OTel Collector, Prometheus, Grafana, Jaeger を実行するVM
 
+# OTel Collector, Prometheus, Grafana, Jaeger を実行するVM
 collector_machine_type = "e2-medium" # 2vCPU, 4GB RAM
 
-# ====================
-# Loadgen VM 設定
-# ====================
 # 負荷生成ツール (loadgen) を実行するVM
-
 loadgen_machine_type = "e2-small" # 2vCPU, 2GB RAM
 
 # ====================
