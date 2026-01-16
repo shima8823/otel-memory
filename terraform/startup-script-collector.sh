@@ -23,12 +23,11 @@ log "Step 2: Installing required packages"
 apt-get install -y \
     ca-certificates \
     curl \
-    gnupg \
-    lsb-release \
     git \
     make \
     python3 \
     python3-pip \
+    python3-requests \
     jq \
     htop \
     vim >> "$LOG_FILE" 2>&1
@@ -63,10 +62,11 @@ else
 fi
 
 # 5. Pythonパッケージインストール（メトリクスエクスポート用）
-log "Step 5: Installing Python packages"
-pip3 install --upgrade pip >> "$LOG_FILE" 2>&1
-pip3 install requests >> "$LOG_FILE" 2>&1
-log "Python packages installed successfully"
+# 注: Ubuntu 24.04以降はシステムPythonへのpipインストールが制限されているため、
+# 前のステップで apt install python3-requests を使用しています
+log "Step 5: Python environment check"
+python3 -c "import requests; print('requests version:', requests.__version__)" >> "$LOG_FILE" 2>&1
+log "Python environment check completed"
 
 # 6. プロジェクトコードのクローン
 log "Step 6: Cloning project repository"
