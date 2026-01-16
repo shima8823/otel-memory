@@ -124,7 +124,7 @@ sudo su - ubuntu
 
 # loadgen実行（Collector VMの内部IPに送信）
 cd ~/otel-memory/loadgen
-./loadgen -endpoint $(terraform output -raw collector_internal_ip):4317 -scenario sustained -duration 60s
+./loadgen -endpoint <Collectorの内部IP>:4317 -scenario sustained -duration 60s
 ```
 
 ### 6. Web UIでモニタリング
