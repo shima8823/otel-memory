@@ -17,6 +17,7 @@ tmp
 notes/
 .cursor/
 AGENTS.md
+.cursorrules
 
 # Build binary
 loadgen/loadgen
