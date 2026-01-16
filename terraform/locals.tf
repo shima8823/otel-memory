@@ -1,6 +1,4 @@
 locals {
-  ssh_keys_metadata = var.ssh_public_key != "" ? "${var.ssh_user}:${var.ssh_public_key}" : ""
-
   base_labels = {
     environment = "debug"
     managed_by  = "terraform"

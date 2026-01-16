@@ -18,11 +18,6 @@ output "collector_internal_ip" {
   value       = google_compute_instance.collector_vm.network_interface[0].network_ip
 }
 
-output "collector_ssh_command" {
-  description = "SSH command to connect to the Collector VM"
-  value       = "ssh ${var.ssh_user}@${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}"
-}
-
 output "collector_gcloud_ssh_command" {
   description = "gcloud SSH command to connect to the Collector VM"
   value       = "gcloud compute ssh ${google_compute_instance.collector_vm.name} --zone=${google_compute_instance.collector_vm.zone} --project=${var.project_id}"
@@ -46,11 +41,6 @@ output "loadgen_external_ip" {
 output "loadgen_internal_ip" {
   description = "Internal IP address of the Loadgen VM"
   value       = google_compute_instance.loadgen_vm.network_interface[0].network_ip
-}
-
-output "loadgen_ssh_command" {
-  description = "SSH command to connect to the Loadgen VM"
-  value       = "ssh ${var.ssh_user}@${google_compute_instance.loadgen_vm.network_interface[0].access_config[0].nat_ip}"
 }
 
 output "loadgen_gcloud_ssh_command" {

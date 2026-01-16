@@ -9,21 +9,12 @@
 # GCPプロジェクトID（必須）
 project_id = "your-gcp-project-id"
 
-# Gitリポジトリ URL
-# 実際のリポジトリURLに変更してください
-# プライベートリポジトリの場合は、VMにデプロイキーを設定するか、
-# 手動でコードをアップロードしてください
-git_repo_url = "https://github.com/your-username/otel-memory.git"
-
 # ====================
 # 地域・ゾーン設定
 # ====================
 
 region = "asia-northeast1"
-zone = "asia-northeast1-a"
-
-# 使用するVPCネットワーク名（VM/Firewallで共通）
-network_name = "default"
+zone   = "asia-northeast1-a"
 
 # リソース名のプレフィックス（ファイアウォール等）
 name_prefix = "otel-debug"
@@ -33,28 +24,18 @@ name_prefix = "otel-debug"
 # ====================
 # OTel Collector, Prometheus, Grafana, Jaeger を実行するVM
 
-collector_instance_name = "otel-collector"
-collector_machine_type = "e2-medium"    # 2vCPU, 4GB RAM
-collector_boot_disk_size = 30           # GB（数値で指定）
+collector_machine_type = "e2-medium" # 2vCPU, 4GB RAM
 
 # ====================
 # Loadgen VM 設定
 # ====================
 # 負荷生成ツール (loadgen) を実行するVM
 
-loadgen_instance_name = "otel-loadgen"
-loadgen_machine_type = "e2-small"       # 2vCPU, 2GB RAM
-loadgen_boot_disk_size = 20             # GB（数値で指定）
+loadgen_machine_type = "e2-small" # 2vCPU, 2GB RAM
 
 # ====================
 # セキュリティ設定
 # ====================
-
-# SSH接続を許可するIPアドレス範囲（CIDR）
-# セキュリティのため、自分のIPアドレスに絞ることを推奨
-# 例: ["203.0.113.0/32"]  # 特定のIPのみ
-# 例: ["0.0.0.0/0"]       # すべてのIPを許可（テスト用）
-allowed_ssh_ips = ["0.0.0.0/0"]
 
 # Web UI（Grafana, Prometheus, Jaeger）へのアクセスを許可するIP範囲
 # Collector VMへの外部アクセスのみに適用
@@ -62,20 +43,9 @@ allowed_ssh_ips = ["0.0.0.0/0"]
 # 例: ["0.0.0.0/0"]       # すべてのIPを許可（テスト用）
 allowed_web_ips = ["0.0.0.0/0"]
 
-# OTLP gRPCを許可する内部CIDR（Loadgen → Collector）
-internal_network_cidr = "10.128.0.0/9"
-
-# ====================
-# SSH公開鍵設定（オプション）
-# ====================
-
-# SSH公開鍵（オプション）
-# 設定しない場合は、gcloud compute sshコマンドで接続してください
-# 例: ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
-ssh_public_key = ""
-
-# SSH接続ユーザー名
-ssh_user = "ubuntu"
+# SSH接続を許可するIPアドレス範囲（CIDR）
+# セキュリティのため、自分のIPアドレスに絞ることを推奨
+allowed_ssh_ips = ["0.0.0.0/0"]
 
 # ====================
 # カスタマイズ例

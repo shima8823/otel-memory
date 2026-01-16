@@ -63,20 +63,3 @@ variable "allowed_web_ips" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
-
-# ====================
-# SSH設定
-# ====================
-
-variable "ssh_public_key" {
-  description = "SSH public key for VM access (optional)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "ssh_user" {
-  description = "SSH username for the public key"
-  type        = string
-  default     = "ubuntu"
-}

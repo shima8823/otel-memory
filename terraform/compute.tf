@@ -21,10 +21,6 @@ resource "google_compute_instance" "collector_vm" {
     }
   }
 
-  metadata = {
-    ssh-keys = local.ssh_keys_metadata
-  }
-
   metadata_startup_script = templatefile("${path.module}/startup-script.sh", {
     git_repo_url = "https://github.com/shima8823/otel-memory.git"
   })
@@ -55,10 +51,6 @@ resource "google_compute_instance" "loadgen_vm" {
 
     access_config {
     }
-  }
-
-  metadata = {
-    ssh-keys = local.ssh_keys_metadata
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-loadgen.sh", {
