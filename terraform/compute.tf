@@ -40,7 +40,7 @@ resource "google_compute_instance" "collector_vm" {
     }
   }
 
-  metadata_startup_script = templatefile("${path.module}/startup-script.sh", {
+  metadata_startup_script = templatefile("${path.module}/startup-script-collector.sh", {
     git_repo_url = "https://github.com/shima8823/otel-memory.git"
   })
 }
