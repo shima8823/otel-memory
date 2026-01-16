@@ -1,6 +1,6 @@
 // OTel Collector, Prometheus, Grafana, Jaeger を実行
 resource "google_compute_instance" "collector_vm" {
-  name         = var.collector_instance_name
+  name         = "otel-collector"
   machine_type = var.collector_machine_type
   zone         = var.zone
 
@@ -9,13 +9,13 @@ resource "google_compute_instance" "collector_vm" {
   boot_disk {
     initialize_params {
       image = data.google_compute_image.ubuntu.self_link
-      size  = var.collector_boot_disk_size
+      size  = 30
       type  = "pd-standard"
     }
   }
 
   network_interface {
-    network = var.network_name
+    network = "default"
 
     access_config {
     }
@@ -26,7 +26,7 @@ resource "google_compute_instance" "collector_vm" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script.sh", {
-    git_repo_url = var.git_repo_url
+    git_repo_url = "https://github.com/shima8823/otel-memory.git"
   })
 
   allow_stopping_for_update = true
@@ -36,7 +36,7 @@ resource "google_compute_instance" "collector_vm" {
 
 // 負荷生成ツール (loadgen) を実行
 resource "google_compute_instance" "loadgen_vm" {
-  name         = var.loadgen_instance_name
+  name         = "otel-loadgen"
   machine_type = var.loadgen_machine_type
   zone         = var.zone
 
@@ -45,13 +45,13 @@ resource "google_compute_instance" "loadgen_vm" {
   boot_disk {
     initialize_params {
       image = data.google_compute_image.ubuntu.self_link
-      size  = var.loadgen_boot_disk_size
+      size  = 20
       type  = "pd-standard"
     }
   }
 
   network_interface {
-    network = var.network_name
+    network = "default"
 
     access_config {
     }
@@ -62,7 +62,7 @@ resource "google_compute_instance" "loadgen_vm" {
   }
 
   metadata_startup_script = templatefile("${path.module}/startup-script-loadgen.sh", {
-    git_repo_url          = var.git_repo_url
+    git_repo_url          = "https://github.com/shima8823/otel-memory.git"
     collector_internal_ip = google_compute_instance.collector_vm.network_interface[0].network_ip
   })
 
