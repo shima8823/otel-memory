@@ -6,7 +6,7 @@
 # 必須設定
 # ====================
 
-# GCPプロジェクトID（必須）
+# Google CloudプロジェクトID（必須）
 project_id = "your-gcp-project-id"
 
 # ====================

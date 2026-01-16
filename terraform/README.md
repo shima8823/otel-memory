@@ -1,6 +1,6 @@
 # OpenTelemetry Collector Debug Environment - Terraform IaC
 
-このディレクトリには、Google Cloud Platform（GCP）上にOpenTelemetry Collectorのデバッグ環境を構築するためのTerraform設定が含まれています。
+このディレクトリには、Google Cloud Platform（Google Cloud）上にOpenTelemetry Collectorのデバッグ環境を構築するためのTerraform設定が含まれています。
 
 ## 概要
 
@@ -10,7 +10,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         GCP VPC (default)                       │
+│                         Google Cloud VPC (default)                       │
 │                                                                 │
 │  ┌─────────────────────┐      ┌─────────────────────────────┐  │
 │  │    Loadgen VM       │      │       Collector VM          │  │
@@ -75,8 +75,8 @@
    gcloud auth application-default login
    ```
 
-3. **GCPプロジェクト**
-   - GCPプロジェクトが作成済み
+3. **Google Cloudプロジェクト**
+4.    - Google Cloudプロジェクトが作成済み
    - 請求先アカウントが有効
    - Compute Engine APIが有効化済み
 
@@ -322,7 +322,7 @@ terraform/
 
 - [Terraform Google Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
 - [GCE Machine Types](https://cloud.google.com/compute/docs/machine-types)
-- [GCP Pricing Calculator](https://cloud.google.com/products/calculator)
+- [Google Cloud Pricing Calculator](https://cloud.google.com/products/calculator)
 - [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
 
 ## ライセンス

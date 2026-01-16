@@ -6,18 +6,18 @@
 # ====================
 
 variable "project_id" {
-  description = "GCP project ID"
+  description = "Google Cloud project ID"
   type        = string
 }
 
 variable "region" {
-  description = "GCP region for resources"
+  description = "Google Cloud region for resources"
   type        = string
   default     = "asia-northeast1"
 }
 
 variable "zone" {
-  description = "GCP zone for VM instances"
+  description = "Google Cloud zone for VM instances"
   type        = string
   default     = "asia-northeast1-a"
 }
