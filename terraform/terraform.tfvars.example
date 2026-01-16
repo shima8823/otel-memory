@@ -22,6 +22,12 @@ git_repo_url = "https://github.com/your-username/otel-memory.git"
 region = "asia-northeast1"
 zone = "asia-northeast1-a"
 
+# 使用するVPCネットワーク名（VM/Firewallで共通）
+network_name = "default"
+
+# リソース名のプレフィックス（ファイアウォール等）
+name_prefix = "otel-debug"
+
 # ====================
 # Collector VM 設定
 # ====================
@@ -55,6 +61,9 @@ allowed_ssh_ips = ["0.0.0.0/0"]
 # 例: ["203.0.113.0/32"]  # 特定のIPのみ
 # 例: ["0.0.0.0/0"]       # すべてのIPを許可（テスト用）
 allowed_web_ips = ["0.0.0.0/0"]
+
+# OTLP gRPCを許可する内部CIDR（Loadgen → Collector）
+internal_network_cidr = "10.128.0.0/9"
 
 # ====================
 # SSH公開鍵設定（オプション）

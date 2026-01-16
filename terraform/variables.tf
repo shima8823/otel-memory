@@ -10,6 +10,12 @@ variable "project_id" {
   type        = string
 }
 
+variable "name_prefix" {
+  description = "Prefix for resource names (firewall rules, etc.)"
+  type        = string
+  default     = "otel-debug"
+}
+
 variable "region" {
   description = "GCP Region for resources"
   type        = string
@@ -20,6 +26,12 @@ variable "zone" {
   description = "GCP Zone for VM instances"
   type        = string
   default     = "asia-northeast1-a"
+}
+
+variable "network_name" {
+  description = "VPC network name to use for VM and firewall rules"
+  type        = string
+  default     = "default"
 }
 
 variable "git_repo_url" {
@@ -88,6 +100,12 @@ variable "allowed_web_ips" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "internal_network_cidr" {
+  description = "Internal CIDR range allowed to access OTLP gRPC on Collector VM"
+  type        = string
+  default     = "10.128.0.0/9"
+}
+
 # ====================
 # SSH設定
 # ====================
@@ -96,6 +114,7 @@ variable "ssh_public_key" {
   description = "SSH public key for VM access (optional, leave empty to use gcloud ssh)"
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 variable "ssh_user" {

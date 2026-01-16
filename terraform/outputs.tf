@@ -24,7 +24,7 @@ output "collector_internal_ip" {
 
 output "collector_ssh_command" {
   description = "SSH command to connect to the Collector VM"
-  value       = "ssh ubuntu@${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}"
+  value       = "ssh ${var.ssh_user}@${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}"
 }
 
 output "collector_gcloud_ssh_command" {
@@ -58,7 +58,7 @@ output "loadgen_internal_ip" {
 
 output "loadgen_ssh_command" {
   description = "SSH command to connect to the Loadgen VM"
-  value       = "ssh ubuntu@${google_compute_instance.loadgen_vm.network_interface[0].access_config[0].nat_ip}"
+  value       = "ssh ${var.ssh_user}@${google_compute_instance.loadgen_vm.network_interface[0].access_config[0].nat_ip}"
 }
 
 output "loadgen_gcloud_ssh_command" {
@@ -100,7 +100,7 @@ output "quick_start_collector" {
     # === Collector VM ===
     
     # 1. SSH接続
-    ssh ubuntu@${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}
+    ssh ${var.ssh_user}@${google_compute_instance.collector_vm.network_interface[0].access_config[0].nat_ip}
     
     # 2. セットアップ確認
     cat ~/setup_status.txt
@@ -121,7 +121,7 @@ output "quick_start_loadgen" {
     # === Loadgen VM ===
     
     # 1. SSH接続
-    ssh ubuntu@${google_compute_instance.loadgen_vm.network_interface[0].access_config[0].nat_ip}
+    ssh ${var.ssh_user}@${google_compute_instance.loadgen_vm.network_interface[0].access_config[0].nat_ip}
     
     # 2. セットアップ確認
     cat ~/setup_status.txt

@@ -158,9 +158,10 @@ cd ~/otel-memory/loadgen
 
 **ヒント**: `terraform output loadgen_command_example` でコマンド例を確認できます。
 
-### 6. Web UIでモニタリング（SSHポートフォワーディング）
+### 6. Web UIでモニタリング（直接アクセス or SSHトンネル）
 
-外部IPを設定していないため、SSHトンネル経由でWeb UIにアクセスします。
+デフォルトではCollector VMに外部IPが割り当てられるため、`allowed_web_ips`で許可した範囲から直接アクセスできます。
+ネットワーク制約がある場合は、SSHトンネル経由でアクセスしてください。
 
 ```bash
 # ローカルマシンで実行（Grafana, Prometheus, Jaegerへのトンネル）
@@ -227,6 +228,19 @@ allowed_ssh_ips = ["YOUR_IP_ADDRESS/32"]
 allowed_web_ips = ["YOUR_IP_ADDRESS/32"]
 ```
 
+### ネットワーク/名前の変更
+
+```hcl
+# 既存のVPCを指定（例: shared-vpc）
+network_name = "shared-vpc"
+
+# ファイアウォール名のプレフィックス
+name_prefix = "otel-debug"
+
+# OTLP gRPCの内部許可CIDR
+internal_network_cidr = "10.128.0.0/9"
+```
+
 自分のIPアドレスを確認：
 
 IAP経由のSSHには適切なIAM権限が必要です：
@@ -236,7 +250,7 @@ IAP経由のSSHには適切なIAM権限が必要です：
 ## ネットワーク構成
 
 - **Loadgen → Collector**: 内部IP経由でOTLP gRPC (4317)
-- **ローカル → Collector**: SSHポートフォワーディング経由でWeb UI (3000, 9090, 16686)
+- **ローカル → Collector**: 直接アクセスまたはSSHポートフォワーディングでWeb UI (3000, 9090, 16686)
 - **SSH接続**: gcloud compute ssh経由（IAP tunneling）
 
 ## トラブルシューティング
@@ -303,7 +317,12 @@ newgrp docker
 
 ```
 terraform/
-├── main.tf                      # メインのリソース定義（2 VM + Firewall）
+├── main.tf                      # 構成の案内（リソースは用途別に分割）
+├── providers.tf                 # Terraform/Provider 設定
+├── data.tf                      # データソース
+├── locals.tf                    # 共通ラベル/タグ/メタデータ
+├── compute_instances.tf         # Collector/Loadgen VM
+├── firewall.tf                  # ファイアウォールルール
 ├── variables.tf                 # 変数定義
 ├── outputs.tf                   # 出力値
 ├── terraform.tfvars.example     # 変数の例示ファイル
