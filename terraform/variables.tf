@@ -6,36 +6,36 @@
 # ====================
 
 variable "project_id" {
-  description = "GCP Project ID"
+  description = "GCP project ID"
   type        = string
 }
 
 variable "name_prefix" {
-  description = "Prefix for resource names (firewall rules, etc.)"
+  description = "Prefix for resource names"
   type        = string
   default     = "otel-debug"
 }
 
 variable "region" {
-  description = "GCP Region for resources"
+  description = "GCP region for resources"
   type        = string
   default     = "asia-northeast1"
 }
 
 variable "zone" {
-  description = "GCP Zone for VM instances"
+  description = "GCP zone for VM instances"
   type        = string
   default     = "asia-northeast1-a"
 }
 
 variable "network_name" {
-  description = "VPC network name to use for VM and firewall rules"
+  description = "VPC network name for VM and firewall rules"
   type        = string
   default     = "default"
 }
 
 variable "git_repo_url" {
-  description = "Git repository URL to clone the otel-memory project"
+  description = "Git repository URL to clone otel-memory"
   type        = string
   default     = "https://github.com/your-org/otel-memory.git"
 }
@@ -45,19 +45,19 @@ variable "git_repo_url" {
 # ====================
 
 variable "collector_instance_name" {
-  description = "Name of the Collector VM instance"
+  description = "Collector VM instance name"
   type        = string
   default     = "otel-collector"
 }
 
 variable "collector_machine_type" {
-  description = "GCE machine type for Collector VM (e2-medium: 2vCPU 4GB RAM)"
+  description = "Collector VM machine type (e2-medium: 2vCPU 4GB RAM)"
   type        = string
   default     = "e2-medium"
 }
 
 variable "collector_boot_disk_size" {
-  description = "Boot disk size in GB for Collector VM"
+  description = "Collector VM boot disk size (GB)"
   type        = number
   default     = 30
 }
@@ -67,19 +67,19 @@ variable "collector_boot_disk_size" {
 # ====================
 
 variable "loadgen_instance_name" {
-  description = "Name of the Loadgen VM instance"
+  description = "Loadgen VM instance name"
   type        = string
   default     = "otel-loadgen"
 }
 
 variable "loadgen_machine_type" {
-  description = "GCE machine type for Loadgen VM (e2-small: 2vCPU 2GB RAM)"
+  description = "Loadgen VM machine type (e2-small: 2vCPU 2GB RAM)"
   type        = string
   default     = "e2-small"
 }
 
 variable "loadgen_boot_disk_size" {
-  description = "Boot disk size in GB for Loadgen VM"
+  description = "Loadgen VM boot disk size (GB)"
   type        = number
   default     = 20
 }
@@ -89,19 +89,19 @@ variable "loadgen_boot_disk_size" {
 # ====================
 
 variable "allowed_ssh_ips" {
-  description = "CIDR ranges allowed for SSH access to both VMs"
+  description = "CIDR ranges for SSH access to both VMs"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
 
 variable "allowed_web_ips" {
-  description = "CIDR ranges allowed for web UI access (Grafana, Prometheus, Jaeger) on Collector VM"
+  description = "CIDR ranges for web UI access on Collector VM"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
 
 variable "internal_network_cidr" {
-  description = "Internal CIDR range allowed to access OTLP gRPC on Collector VM"
+  description = "Internal CIDR range for OTLP gRPC on Collector VM"
   type        = string
   default     = "10.128.0.0/9"
 }
@@ -111,7 +111,7 @@ variable "internal_network_cidr" {
 # ====================
 
 variable "ssh_public_key" {
-  description = "SSH public key for VM access (optional, leave empty to use gcloud ssh)"
+  description = "SSH public key for VM access (optional)"
   type        = string
   default     = ""
   sensitive   = true

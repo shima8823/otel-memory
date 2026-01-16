@@ -1,6 +1,3 @@
-// ====================
-// Collector VM
-// ====================
 // OTel Collector, Prometheus, Grafana, Jaeger を実行
 resource "google_compute_instance" "collector_vm" {
   name         = var.collector_instance_name
@@ -21,7 +18,6 @@ resource "google_compute_instance" "collector_vm" {
     network = var.network_name
 
     access_config {
-      // Ephemeral public IP
     }
   }
 
@@ -38,9 +34,6 @@ resource "google_compute_instance" "collector_vm" {
   labels = local.collector_labels
 }
 
-// ====================
-// Loadgen VM
-// ====================
 // 負荷生成ツール (loadgen) を実行
 resource "google_compute_instance" "loadgen_vm" {
   name         = var.loadgen_instance_name
@@ -61,7 +54,6 @@ resource "google_compute_instance" "loadgen_vm" {
     network = var.network_name
 
     access_config {
-      // Ephemeral public IP
     }
   }
 
@@ -76,7 +68,6 @@ resource "google_compute_instance" "loadgen_vm" {
 
   allow_stopping_for_update = true
 
-  // Collector VMが先に作成されるよう依存関係を設定
   depends_on = [google_compute_instance.collector_vm]
 
   labels = local.loadgen_labels

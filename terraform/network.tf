@@ -1,7 +1,3 @@
-// ====================
-// ファイアウォールルール
-// ====================
-
 // SSH: 両VMへの外部アクセス
 resource "google_compute_firewall" "allow_ssh" {
   name    = "${var.name_prefix}-allow-ssh"
@@ -44,10 +40,6 @@ resource "google_compute_firewall" "allow_otlp_internal" {
     ports    = ["4317"]
   }
 
-  // GCPのデフォルトVPC内部ネットワーク範囲
-  // GCPのデフォルトVPC（10.128.0.0/9, 各リージョン共通）の内部IPから許可
-  // - Loadgen VMとCollector VMが同じVPC内にいる限り全リージョンで有効
-  // - 外部からはアクセス不可（セキュリティ確保）
   source_ranges = [var.internal_network_cidr]
   target_tags   = ["otel-collector"]
 

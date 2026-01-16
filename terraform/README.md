@@ -317,12 +317,11 @@ newgrp docker
 
 ```
 terraform/
-├── main.tf                      # 構成の案内（リソースは用途別に分割）
 ├── providers.tf                 # Terraform/Provider 設定
 ├── data.tf                      # データソース
 ├── locals.tf                    # 共通ラベル/タグ/メタデータ
-├── compute_instances.tf         # Collector/Loadgen VM
-├── firewall.tf                  # ファイアウォールルール
+├── compute.tf                   # Collector/Loadgen VM
+├── network.tf                   # ファイアウォールルール
 ├── variables.tf                 # 変数定義
 ├── outputs.tf                   # 出力値
 ├── terraform.tfvars.example     # 変数の例示ファイル
