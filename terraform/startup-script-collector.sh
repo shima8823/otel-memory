@@ -30,11 +30,8 @@ apt-get install -y \
     python3 \
     python3-pip \
     jq \
-    wget \
-    unzip \
     htop \
-    vim \
-    tree >> "$LOG_FILE" 2>&1
+    vim >> "$LOG_FILE" 2>&1
 
 # 3. Dockerインストール
 log "Step 3: Installing Docker"
