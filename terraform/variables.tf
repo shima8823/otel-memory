@@ -19,6 +19,12 @@ variable "zone" {
   default     = "asia-northeast1-a"
 }
 
+variable "time_zone" {
+  description = "Time zone for resource policies"
+  type        = string
+  default     = "Asia/Tokyo"
+}
+
 # ====================
 # VM 設定
 # ====================

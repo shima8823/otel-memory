@@ -16,6 +16,19 @@ locals {
   loadgen_tags   = ["otel-loadgen", "allow-ssh"]
 }
 
+resource "google_compute_resource_policy" "night_schedule" {
+  name        = "night-schedule"
+  region      = var.region
+  description = "Stop schedule in the night"
+
+  instance_schedule_policy {
+    vm_stop_schedule {
+      schedule = "0 20 * * *"
+    }
+    time_zone = var.time_zone
+  }
+}
+
 // OTel Collector, Prometheus, Grafana, Jaeger を実行
 resource "google_compute_instance" "collector_vm" {
   name                      = "otel-collector"
@@ -24,6 +37,7 @@ resource "google_compute_instance" "collector_vm" {
   tags                      = local.collector_tags
   labels                    = local.collector_labels
   allow_stopping_for_update = true
+  resource_policies         = [google_compute_resource_policy.night_schedule.id]
 
   boot_disk {
     initialize_params {
@@ -45,6 +59,7 @@ resource "google_compute_instance" "collector_vm" {
   })
 }
 
+
 // 負荷生成ツール (loadgen) を実行
 resource "google_compute_instance" "loadgen_vm" {
   name                      = "otel-loadgen"
@@ -53,6 +68,7 @@ resource "google_compute_instance" "loadgen_vm" {
   tags                      = local.loadgen_tags
   labels                    = local.loadgen_labels
   allow_stopping_for_update = true
+  resource_policies         = [google_compute_resource_policy.night_schedule.id]
 
   boot_disk {
     initialize_params {

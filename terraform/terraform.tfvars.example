@@ -10,6 +10,7 @@ project_id = "your-gcp-project-id"
 
 region = "asia-northeast1"
 zone   = "asia-northeast1-a"
+time_zone = "Asia/Tokyo"
 
 # ====================
 # VM 設定
