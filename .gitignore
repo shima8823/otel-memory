@@ -21,3 +21,5 @@ AGENTS.md
 
 # Build binary
 loadgen/loadgen
+
+metrics_export/
