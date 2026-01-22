@@ -1,0 +1,29 @@
+# ====================
+# 必須設定
+# ====================
+
+project_id = "your-gcp-project-id"
+
+# ====================
+# 地域・ゾーン設定
+# ====================
+
+region = "asia-northeast1"
+zone   = "asia-northeast1-a"
+time_zone = "Asia/Tokyo"
+
+# ====================
+# VM 設定
+# ====================
+
+# OTel Collector, Prometheus, Grafana, Jaeger を実行するVM
+collector_machine_type = "e2-medium" # 2vCPU, 4GB RAM
+
+# 負荷生成ツール (loadgen) を実行するVM
+loadgen_machine_type = "e2-small" # 2vCPU, 2GB RAM
+
+# ====================
+# セキュリティ設定
+# ====================
+
+allowed_ssh_ips = ["0.0.0.0/0"]
