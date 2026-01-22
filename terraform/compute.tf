@@ -12,7 +12,7 @@ locals {
     purpose = "otel-loadgen"
   })
 
-  collector_tags = ["otel-collector", "allow-ssh", "allow-web-ui"]
+  collector_tags = ["otel-collector", "allow-ssh"]
   loadgen_tags   = ["otel-loadgen", "allow-ssh"]
 }
 
