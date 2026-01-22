@@ -25,5 +25,4 @@ loadgen_machine_type = "e2-small" # 2vCPU, 2GB RAM
 # セキュリティ設定
 # ====================
 
-allowed_web_ips = ["0.0.0.0/0"]
 allowed_ssh_ips = ["0.0.0.0/0"]

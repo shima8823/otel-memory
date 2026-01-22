@@ -44,9 +44,3 @@ variable "allowed_ssh_ips" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
-
-variable "allowed_web_ips" {
-  description = "CIDR ranges for web UI access on Collector VM"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
