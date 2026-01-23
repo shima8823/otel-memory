@@ -7,6 +7,7 @@ re:
 # --- 設定 ---
 ZONE = asia-northeast1-a
 INSTANCE_NAME = otel-collector
+GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 
 set-project-id:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -14,6 +15,14 @@ set-project-id:
 		echo "export PROJECT_ID=\$$(gcloud config get-value project)"; \
 		exit 1; \
 	fi
+
+# Terraform実行時にブランチ名を渡す
+tf-apply: set-project-id
+	terraform apply -var="project_id=$(PROJECT_ID)" -var="git_branch=$(GIT_BRANCH)" -auto-approve
+
+re: set-project-id
+	terraform destroy -var="project_id=$(PROJECT_ID)" -auto-approve && \
+	terraform apply -var="project_id=$(PROJECT_ID)" -var="git_branch=$(GIT_BRANCH)" -auto-approve
 
 ssh: set-project-id
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE)
@@ -52,3 +61,18 @@ restart: set-project-id
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"cd /home/ubuntu/otel-memory && sudo docker-compose up -d --force-recreate"
 	@echo "✅ All services are up-to-date and running!"
+
+# --- loadgen instance ---
+# 接続
+loadgen-ssh: set-project-id
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE)
+
+# 負荷試験の実行
+# 例: make loadgen SCENARIO=spike DURATION=180s
+SCENARIO ?= sustained
+DURATION ?= 60s
+loadgen: set-project-id
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"cd ~/otel-memory/loadgen && ./loadgen -endpoint \$$COLLECTOR_ENDPOINT -scenario $(SCENARIO) -duration $(DURATION)"
+
+	

@@ -80,13 +80,17 @@ fi
 
 # Gitリポジトリのクローン
 GIT_REPO_URL="${git_repo_url}"
-log "Cloning from: $GIT_REPO_URL"
+GIT_BRANCH="${git_branch}"
+log "Cloning from: $GIT_REPO_URL (branch: $GIT_BRANCH)"
 
 if [[ "$GIT_REPO_URL" == *"github.com"* ]] || [[ "$GIT_REPO_URL" == "https://"* ]]; then
-    git clone "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
-        log "WARNING: Failed to clone repository. You may need to manually clone or upload the code."
-        log "Creating placeholder directory..."
-        mkdir -p otel-memory
+    git clone -b "$GIT_BRANCH" "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
+        log "WARNING: Failed to clone specific branch. Attempting default branch..."
+        git clone "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
+            log "WARNING: Failed to clone repository. You may need to manually clone or upload the code."
+            log "Creating placeholder directory..."
+            mkdir -p otel-memory
+        }
     }
 else
     log "WARNING: Invalid or placeholder git_repo_url. Creating empty directory."

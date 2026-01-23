@@ -56,6 +56,7 @@ resource "google_compute_instance" "collector_vm" {
 
   metadata_startup_script = templatefile("${path.module}/startup-script-collector.sh", {
     git_repo_url = "https://github.com/shima8823/otel-memory.git"
+    git_branch   = var.git_branch
   })
 }
 
@@ -87,6 +88,7 @@ resource "google_compute_instance" "loadgen_vm" {
 
   metadata_startup_script = templatefile("${path.module}/startup-script-loadgen.sh", {
     git_repo_url          = "https://github.com/shima8823/otel-memory.git"
+    git_branch            = var.git_branch
     collector_internal_ip = google_compute_instance.collector_vm.network_interface[0].network_ip
   })
 }

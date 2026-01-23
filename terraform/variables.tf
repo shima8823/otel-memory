@@ -7,6 +7,12 @@ variable "project_id" {
   type        = string
 }
 
+variable "git_branch" {
+  description = "GitHub branch to clone"
+  type        = string
+  default     = "main"
+}
+
 variable "region" {
   description = "Google Cloud region for resources"
   type        = string
