@@ -159,4 +159,14 @@ log "Make: $(make --version | head -1)"
 log "Internal IP: $INTERNAL_IP"
 log "External IP: $EXTERNAL_IP"
 
+# 10. Start services with Docker Compose
+log "Step 10: Starting services with Docker Compose"
+cd /home/ubuntu/otel-memory
+if [ -f "docker-compose.yaml" ]; then
+    sudo -u ubuntu docker-compose up -d >> "$LOG_FILE" 2>&1
+    log "Docker Compose services started successfully"
+else
+    log "ERROR: docker-compose.yaml not found, could not start services"
+fi
+
 exit 0
