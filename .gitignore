@@ -27,3 +27,4 @@ GEMINI.md
 loadgen/loadgen
 
 metrics_export/
+.gcloud/
