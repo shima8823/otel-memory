@@ -28,3 +28,4 @@ loadgen/loadgen
 
 metrics_export/
 .gcloud/
+pprof/
