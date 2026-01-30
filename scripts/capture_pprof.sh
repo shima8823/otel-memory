@@ -9,7 +9,7 @@ BASE_DIR=${2:-""}
 MAX_CAPTURES=${3:-0}
 OUTPUT_FILE=${OUTPUT_FILE:-""}
 if [ -z "$BASE_DIR" ]; then
-    BASE_DIR="notes/${DATE_DIR}/captures"
+    BASE_DIR="pprof/${DATE_DIR}/captures"
 fi
 OUTPUT_DIR="${BASE_DIR}/${RUN_ID}"
 

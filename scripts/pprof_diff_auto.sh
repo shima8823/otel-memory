@@ -8,7 +8,7 @@ set -euo pipefail
 DIR=${1:-}
 if [ -z "$DIR" ]; then
   echo "Usage: $0 <pprof_dir>" >&2
-  echo "Example: $0 notes/01-23/captures/175921" >&2
+  echo "Example: $0 pprof/01-23/captures/175921" >&2
   exit 1
 fi
 

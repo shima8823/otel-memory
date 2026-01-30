@@ -54,10 +54,10 @@ forward: set-project-id
 
 # バックグラウンドでまとめてポートフォワード
 FORWARD_PID_FILE ?= ../.forward.pid
-FORWARD_LOG_FILE ?= ../notes/pprof-logs/port_forward.log
+FORWARD_LOG_FILE ?= ../pprof/logs/port_forward.log
 
 forward-bg: set-project-id
-	@mkdir -p ../notes/pprof-logs
+	@mkdir -p ../pprof/logs
 	@if [ -f "$(FORWARD_PID_FILE)" ] && kill -0 "$$(cat $(FORWARD_PID_FILE))" 2>/dev/null; then \
 		echo "✅ Port-forward already running (pid=$$(cat $(FORWARD_PID_FILE)))"; \
 		exit 0; \
