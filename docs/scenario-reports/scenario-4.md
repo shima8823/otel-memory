@@ -380,7 +380,7 @@ batch processor を設定する際は、以下を確認すること：
 - [batch processor](https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor)
 - [memory_limiter processor](https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md)
 - [sending_queue](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md#sending-queue)
-- [scenario.md](../scenario.md) - シナリオ4 の再現手順
+- [scenarios.md](../scenarios.md) - シナリオ4 の再現手順
 
 ### 実行コマンド
 ```bash
@@ -396,4 +396,3 @@ make export-metrics DURATION=5 STEP=10
 - **シナリオ2**: キャパシティ不足 → Queue 乱高下、慢性的な Refused
 - **シナリオ3b**: 高カーディナリティ → Heap 右肩上がり、GC後も戻らない
 - **シナリオ4**: 不適切な batch 設定 → **テントウ虫型、データ欠損** ← 本シナリオ
-

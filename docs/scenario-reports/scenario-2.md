@@ -1,4 +1,4 @@
-# 診断レポート: シナリオ3b - ステートフルprocessor（高カーディナリティ爆発）
+# 診断レポート: シナリオ2 - Processor（高カーディナリティ爆発）
 
 ## 1. 概要
 
@@ -96,7 +96,7 @@ keys: ["attr_0", "attr_1", "attr_2"]
 内部マップのサイズ: 最大 10 エントリ → メモリ安定
 ```
 
-**異常系（シナリオ3b）**:
+**異常系（シナリオ2b）**:
 ```
 keys: ["attr_0", "attr_1", "attr_2"]
 値の種類: UUID（無限）
@@ -291,7 +291,7 @@ rate(otelcol_receiver_accepted_spans_total[5m] offset 5m) * 0.8
 |------|------|
 | Queue 100% 張り付き | シナリオ1（下流停止） |
 | Queue 高位で乱高下 | シナリオ2（キャパシティ不足） |
-| **スループット段階的低下** + **Heap右肩上がり** | **シナリオ3b（高カーディナリティ）** ← 本シナリオ |
+| **スループット段階的低下** + **Heap右肩上がり** | **シナリオ2b（高カーディナリティ）** ← 本シナリオ |
 
 ### 9.4 本番投入チェックリスト
 
@@ -311,10 +311,9 @@ rate(otelcol_receiver_accepted_spans_total[5m] offset 5m) * 0.8
 ### 関連ドキュメント
 - [groupbyattrs processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/groupbyattrsprocessor)
 - [memory_limiter processor](https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md)
-- [scenario.md](../scenario.md) - シナリオ3b の再現手順
+- [scenarios.md](../scenarios.md) - シナリオ2b の再現手順
 
 ### 実行コマンド
 ```bash
-make scenario-3b  # 高カーディナリティシナリオ
-make scenario-3a  # 正常系（比較用）
+make scenario-2   # 高カーディナリティシナリオ
 ```

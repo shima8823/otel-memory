@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status sync restart loadgen-ssh loadgen scenario-1
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status sync restart loadgen-ssh loadgen scenario-1 scenario-2
 
 # --- terraform ---
 
@@ -180,3 +180,22 @@ scenario-1: set-project-id
 	\
 	echo "✅ Scenario-1 completed. Waiting for loadgen to finish..."; \
 	wait $$LOADGEN_PID
+
+# シナリオ2: Processor 高カーディナリティ（メモリ高騰）
+scenario-2: set-project-id
+	@echo "=== Scenario 2: Processor High Cardinality (Memory Growth) ==="
+	@IP=$$($(GET_COLLECTOR_IP)); \
+	echo "1. Applying scenario-2 config to Collector VM (IP: $$IP)..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/scenario-2.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 cd /home/ubuntu/otel-memory && sudo docker-compose up -d --force-recreate otel-collector"; \
+	echo "2. Starting load from Loadgen VM (high-cardinality)..."; \
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 300s -rate 8000 -workers 10 -attr-size 128 -attr-count 8 -depth 3 -metrics=false -logs=false -high-cardinality"; \
+	echo "3. Restoring Collector config..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 git -C /home/ubuntu/otel-memory restore otel-collector/otel-collector.yaml && \
+		 cd /home/ubuntu/otel-memory && sudo docker-compose up -d --force-recreate otel-collector"; \
+	echo "✅ Scenario-2 completed."

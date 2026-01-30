@@ -113,7 +113,7 @@ help:
 	@echo "=== 主要ターゲット ==="
 	@echo "  up/down/restart     環境操作"
 	@echo "  build/clean         ビルド"
-	@echo "  scenario-1〜4       シナリオ実行"
+	@echo "  scenario-*          シナリオ実行"
 	@echo "  load-*              負荷テスト"
 	@echo "  pprof-heap          メモリプロファイル"
 	@echo ""
@@ -139,11 +139,10 @@ help-build:
 	@echo "  clean               ビルド成果物を削除"
 
 help-scenario:
-	@echo "=== シナリオテスト (scenario.md 参照) ==="
+	@echo "=== シナリオテスト (docs/scenarios.md 参照) ==="
 	@echo "  scenario-1          [1] 下流停止 (1:負荷開始 -> 2:別ターミナルで jaeger-stop)"
-	@echo "  scenario-2          [2] キャパシティ不足（慢性的なデータドロップ）"
-	@echo "  scenario-3a         [3a] groupbyattrs 正常系（ベースライン）"
-	@echo "  scenario-3b         [3b] groupbyattrs 異常系（高カーディナリティ爆発）"
+	@echo "  scenario-2          [2] processor 異常系（高カーディナリティ爆発）"
+	@echo "  scenario-3          [3] キャパシティ不足（慢性的なデータドロップ）"
 	@echo "  scenario-4          [4] batchバースト処理（スパイク負荷の耐性）"
 
 help-load:
@@ -201,8 +200,10 @@ help-pprof:
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
 	@echo ""
 	@echo "=== pprof シナリオ統合 ==="
-	@echo "  pprof-scenario-full Terraform→シナリオ→pprof→diff自動実行"
-	@echo "                      (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
+	@echo "  pprof-scenario-full  Terraform→シナリオ→pprof→diff自動実行"
+	@echo "                       (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
+	@echo "  pprof-scenario1-full scenario-1 を実行"
+	@echo "  pprof-scenario2-full scenario-2 を実行"
 
 # =====================================
 # 環境操作
@@ -253,7 +254,7 @@ clean:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-1 scenario-2 scenario-3a scenario-3b scenario-4
+.PHONY: scenario-1 scenario-2 scenario-3 scenario-4
 
 scenario-1: build
 	$(call run_scenario,1,下流停止,\
@@ -261,19 +262,14 @@ scenario-1: build
 		-duration 180s -rate 12000,30,60)
 
 scenario-2: build
-	$(call run_scenario,2,キャパシティ不足,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 180s -rate 35000,0,0)
-
-scenario-3a: build
-	$(call run_scenario,3,groupbyattrs正常系,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 300s -rate 8000,0,0)
-
-scenario-3b: build
-	$(call run_scenario,3,groupbyattrs高カーディナリティ,\
+	$(call run_scenario,2,processor高カーディナリティ,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
 		-duration 300s -rate 8000 -high-cardinality,0,0)
+
+scenario-3: build
+	$(call run_scenario,3,キャパシティ不足,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
+		-duration 180s -rate 35000,0,0)
 
 scenario-4: build
 	$(call run_scenario,4,batchバースト処理,\
@@ -539,7 +535,7 @@ pprof-report:
 # =====================================
 # pprof - シナリオ統合
 # =====================================
-.PHONY: pprof-scenario-full pprof-scenario1-full
+.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full
 
 pprof-scenario-full:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -589,3 +585,6 @@ pprof-scenario-full:
 
 # 互換用（既存の呼び出しを維持）
 pprof-scenario1-full: pprof-scenario-full
+
+pprof-scenario2-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-2
