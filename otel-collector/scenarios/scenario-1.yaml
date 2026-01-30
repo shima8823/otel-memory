@@ -46,7 +46,6 @@ exporters:
     verbosity: basic
 
 extensions:
-  # pprof extension for profiling
   pprof:
     endpoint: 0.0.0.0:1777
 
