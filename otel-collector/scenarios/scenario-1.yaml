@@ -45,6 +45,11 @@ exporters:
   debug:
     verbosity: basic
 
+extensions:
+  # pprof extension for profiling
+  pprof:
+    endpoint: 0.0.0.0:1777
+
 service:
   telemetry:
     metrics:
@@ -54,7 +59,7 @@ service:
               prometheus:
                 host: '0.0.0.0'
                 port: 8888
-  extensions: []
+  extensions: [pprof]
   pipelines:
     traces:
       receivers: [otlp]

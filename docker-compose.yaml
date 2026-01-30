@@ -10,6 +10,7 @@ services:
     ports:
       - 4317:4317 # OTLP gRPC
       - 8888:8888 # Collector セルフテレメトリ
+      - 1777:1777 # pprof (Go profiling)
     deploy:
       resources:
         limits:
