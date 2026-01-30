@@ -122,7 +122,7 @@ sync: set-project-id
 		 sudo tar -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
 		 sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
 		 rm ~/project.tar.gz"
-	@rm -f "$(TAR_PATH)"
+	@rm -f "$(TAR_PATH)" project.tar.gz
 	@echo "✅ Sync completed!"
 
 # コンテナを再起動（設定変更やポートの追加を反映）
