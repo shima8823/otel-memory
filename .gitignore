@@ -15,14 +15,6 @@ coverage.*
 go.work
 go.work.sum
 
-tmp
-notes/
-.cursor/
-AGENTS.md
-.cursorrules
-GEMINI.md
-.agent
-
 # Build binary
 loadgen/loadgen
 
