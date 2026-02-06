@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 DIR=${1:-}
 if [ -z "$DIR" ]; then
@@ -15,9 +16,9 @@ fi
 LIST_OUTPUT=$(mktemp)
 trap 'rm -f "$LIST_OUTPUT"' EXIT
 
-# Use the existing pprof-list rule to compute totals per profile.
-if ! make pprof-list DIR="$DIR" > "$LIST_OUTPUT"; then
-  echo "Failed to run make pprof-list DIR=$DIR" >&2
+# Use machine-readable output to avoid format drift from table rendering.
+if ! python3 "${SCRIPT_DIR}/pprof_list.py" "$DIR" --format plain > "$LIST_OUTPUT"; then
+  echo "Failed to run pprof_list.py for DIR=$DIR" >&2
   exit 1
 fi
 
@@ -85,7 +86,9 @@ if [ ! -f "$base_path" ] || [ ! -f "$peak_path" ]; then
   exit 1
 fi
 
+PPROF_DIFF_PORT=${PPROF_DIFF_PORT:-8081}
+
 echo "BASE: $base_path"
 echo "PEAK: $peak_path"
-echo "Opening diff view at http://localhost:8081"
-go tool pprof -http=:8081 --diff_base "$base_path" "$peak_path"
+echo "Opening diff view at http://localhost:${PPROF_DIFF_PORT}"
+go tool pprof -http=:"${PPROF_DIFF_PORT}" --diff_base "$base_path" "$peak_path"

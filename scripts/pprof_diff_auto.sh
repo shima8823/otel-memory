@@ -80,10 +80,13 @@ if [ -z "$min_file" ] || [ -z "$max_file" ]; then
 fi
 
 # 同一ファイルの場合
+PPROF_PORT=${PPROF_PORT:-8080}
+PPROF_DIFF_PORT=${PPROF_DIFF_PORT:-8081}
+
 if [ "$min_file" = "$max_file" ]; then
   echo "⚠️  All files have similar heap size. No significant variation detected."
   echo "   Opening single profile: $(basename "$min_file")"
-  go tool pprof -http=:8080 "$min_file"
+  go tool pprof -http=:"${PPROF_PORT}" "$min_file"
   exit 0
 fi
 
@@ -98,9 +101,9 @@ echo "📈 Peak (最大):     $(basename "$max_file")"
 go tool pprof -top "$max_file" 2>/dev/null | grep "Showing top" || echo "  (data unavailable)"
 echo ""
 echo "=========================================="
-echo "🌐 Opening diff view at http://localhost:8081"
+echo "🌐 Opening diff view at http://localhost:${PPROF_DIFF_PORT}"
 echo "   Press Ctrl+C to stop"
 echo "=========================================="
 
 # Diff 表示
-go tool pprof -http=:8081 --diff_base "$min_file" "$max_file"
+go tool pprof -http=:"${PPROF_DIFF_PORT}" --diff_base "$min_file" "$max_file"
