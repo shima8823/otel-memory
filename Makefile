@@ -40,8 +40,14 @@ PPROF_CAPTURE_PID_FILE ?= .pprof_capture.pid
 PPROF_DIR ?= pprof
 PPROF_LOG_DIR ?= $(PPROF_DIR)/logs
 PPROF_CAPTURE_LOG ?= $(PPROF_LOG_DIR)/pprof_capture.log
+PPROF_FORWARD_LOG ?= $(PPROF_LOG_DIR)/port_forward_pprof.log
+PPROF_LAST_DIR_FILE ?= $(PPROF_DIR)/last_capture.txt
+PPROF_TUNNEL_PORT ?= 1777
+PPROF_PORT ?= 8080
+PPROF_DIFF_PORT ?= 8081
+PPROF_CAPTURE_READY_WAIT ?= 60
 PPROF_WAIT ?= 60
-PPROF_URL ?= http://localhost:1777/debug/pprof/heap
+PPROF_URL ?= http://localhost:$(PPROF_TUNNEL_PORT)/debug/pprof/heap
 SCENARIO ?= scenario-1
 SYNC ?= 1
 RESTART ?= 1
@@ -202,13 +208,19 @@ help-pprof:
 	@echo "  pprof-list          キャプチャ一覧表示 (DIR=...)"
 	@echo "  pprof-diff-auto     ベースラインとピークを自動検出して比較 (DIR=...)"
 	@echo "  pprof-peak-diff     ピークと直前を比較 (DIR=...)"
+	@echo "  pprof-ui            単一のプロファイルを表示 (FILE=...)"
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
 	@echo ""
 	@echo "=== pprof シナリオ統合 ==="
-	@echo "  pprof-scenario-full  Terraform→シナリオ→pprof→diff自動実行"
-	@echo "                       (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
-	@echo "  pprof-scenario1-full scenario-1 を実行"
-	@echo "  pprof-scenario2-full scenario-2 を実行"
+	@echo "  pprof-scenario-full      Terraform→シナリオ→pprof→diff自動実行"
+	@echo "                           (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
+	@echo "  pprof-scenario1-full     scenario-1 を実行"
+	@echo "  pprof-scenario2-full     scenario-2 を実行"
+	@echo "  pprof-scenario2-lite     scenario-2 を軽量実行（SYNC=0 RESTART=0）"
+	@echo "  pprof-scenario-receiver-full receiver 受信過多を実行"
+	@echo "  pprof-tail-sampling-full tail-sampling を実行"
+	@echo "  pprof-tail-sampling-lite tail-sampling を軽量実行"
+	@echo "  pprof-high-cardinality-metrics-full  王道の高カーディナリティを実行"
 
 # =====================================
 # 環境操作
@@ -411,23 +423,24 @@ clean-metrics:
 
 pprof-heap:
 	@echo "🔍 Fetching Heap Profile..."
-	go tool pprof -http=:8080 http://localhost:1777/debug/pprof/heap
+	go tool pprof -http=:$(PPROF_PORT) http://localhost:$(PPROF_TUNNEL_PORT)/debug/pprof/heap
 
 pprof-allocs:
 	@echo "🔍 Fetching Allocs Profile..."
-	go tool pprof -http=:8080 http://localhost:1777/debug/pprof/allocs
+	go tool pprof -http=:$(PPROF_PORT) http://localhost:$(PPROF_TUNNEL_PORT)/debug/pprof/allocs
 
 pprof-cpu:
 	@echo "🔍 Profiling CPU for 30s..."
-	go tool pprof -http=:8080 http://localhost:1777/debug/pprof/profile?seconds=30
+	go tool pprof -http=:$(PPROF_PORT) http://localhost:$(PPROF_TUNNEL_PORT)/debug/pprof/profile?seconds=30
 
 # =====================================
 # pprof - キャプチャ
 # =====================================
-.PHONY: pprof-capture pprof-capture-bg pprof-capture-stop pprof-capture-status pprof-wait
+.PHONY: pprof-capture pprof-capture-bg pprof-capture-stop pprof-capture-status pprof-wait pprof-capture-wait
 
 pprof-capture:
-	@bash scripts/capture_pprof.sh 5
+	@PPROF_URL="$(PPROF_URL)" PPROF_TUNNEL_PORT="$(PPROF_TUNNEL_PORT)" \
+		bash scripts/capture_pprof.sh 5
 
 pprof-wait:
 	@if [ "$(PPROF_WAIT)" -le 0 ]; then exit 0; fi; \
@@ -444,14 +457,42 @@ pprof-wait:
 		exit 1; \
 	fi
 
+pprof-capture-wait:
+	@READY=0; \
+	for i in $$(seq 1 $(PPROF_CAPTURE_READY_WAIT)); do \
+		if [ -f "$(PPROF_LAST_DIR_FILE)" ]; then \
+			DIR=$$(cat "$(PPROF_LAST_DIR_FILE)"); \
+			if [ -n "$$DIR" ] && [ -f "$$DIR/.ready" ]; then \
+				READY=1; \
+				break; \
+			fi; \
+		fi; \
+		sleep 1; \
+	done; \
+	if [ "$$READY" -ne 1 ]; then \
+		echo "❌ pprof capture not ready (no successful capture within $(PPROF_CAPTURE_READY_WAIT)s)"; \
+		if [ -f "$(PPROF_CAPTURE_LOG)" ]; then \
+			echo "---- pprof_capture.log (tail) ----"; \
+			tail -n 20 "$(PPROF_CAPTURE_LOG)" || true; \
+		fi; \
+		if [ -f "$(PPROF_FORWARD_LOG)" ]; then \
+			echo "---- port_forward.log (tail) ----"; \
+			tail -n 20 "$(PPROF_FORWARD_LOG)" || true; \
+		fi; \
+		exit 1; \
+	fi
+
 pprof-capture-bg:
 	@mkdir -p $(PPROF_LOG_DIR)
+	@mkdir -p $(PPROF_DIR)
 	@if [ -f "$(PPROF_CAPTURE_PID_FILE)" ] && kill -0 "$$(cat $(PPROF_CAPTURE_PID_FILE))" 2>/dev/null; then \
 		echo "✅ pprof capture already running (pid=$$(cat $(PPROF_CAPTURE_PID_FILE)))"; \
 		exit 0; \
 	fi
 	@$(MAKE) pprof-wait
-	@nohup bash scripts/capture_pprof.sh $(CAPTURE_INTERVAL) "$(CAPTURE_BASE_DIR)" $(CAPTURE_MAX) \
+	@PPROF_LAST_DIR_FILE="$(PPROF_LAST_DIR_FILE)" OUTPUT_FILE="$(PPROF_LAST_DIR_FILE)" \
+		PPROF_URL="$(PPROF_URL)" PPROF_TUNNEL_PORT="$(PPROF_TUNNEL_PORT)" \
+		nohup bash scripts/capture_pprof.sh $(CAPTURE_INTERVAL) "$(CAPTURE_BASE_DIR)" $(CAPTURE_MAX) \
 		> "$(PPROF_CAPTURE_LOG)" 2>&1 & echo $$! > "$(PPROF_CAPTURE_PID_FILE)"
 	@sleep 1; \
 	if [ ! -f "$(PPROF_CAPTURE_PID_FILE)" ] || ! kill -0 "$$(cat $(PPROF_CAPTURE_PID_FILE))" 2>/dev/null; then \
@@ -497,44 +538,44 @@ pprof-capture-status:
 # =====================================
 # pprof - 分析
 # =====================================
-.PHONY: pprof-diff pprof-diff-stop pprof-list pprof-diff-auto pprof-peak-diff pprof-report
+.PHONY: pprof-diff pprof-diff-stop pprof-list pprof-diff-auto pprof-peak-diff pprof-ui pprof-report
+
+pprof-ui:
+	@if [ -z "$(FILE)" ]; then echo "❌ Usage: make pprof-ui FILE=path/to/profile.pprof"; exit 1; fi
+	go tool pprof -http=:$(PPROF_PORT) $(FILE)
 
 pprof-diff:
 	@if [ -z "$(BASE)" ] || [ -z "$(NEW)" ]; then \
 		echo "❌ Usage: make pprof-diff BASE=path/to/old.pprof NEW=path/to/new.pprof"; \
 		exit 1; \
 	fi
-	go tool pprof -http=:8081 --diff_base $(BASE) $(NEW)
+	go tool pprof -http=:$(PPROF_DIFF_PORT) --diff_base $(BASE) $(NEW)
 
 pprof-diff-stop:
-	@PID=$$(lsof -ti tcp:8081 2>/dev/null); \
+	@PID=$$(lsof -ti tcp:$(PPROF_DIFF_PORT) 2>/dev/null); \
 	if [ -z "$$PID" ]; then \
-		echo "ℹ️  No process is listening on :8081"; \
+		echo "ℹ️  No process is listening on :$(PPROF_DIFF_PORT)"; \
 		exit 0; \
 	fi; \
 	kill $$PID 2>/dev/null || true; \
 	for i in 1 2 3; do \
 		if ! kill -0 $$PID 2>/dev/null; then \
-			echo "✅ Stopped :8081 (pid=$$PID)"; \
+			echo "✅ Stopped :$(PPROF_DIFF_PORT) (pid=$$PID)"; \
 			exit 0; \
 		fi; \
 		sleep 1; \
 	done; \
 	kill -9 $$PID 2>/dev/null || true; \
 	if ! kill -0 $$PID 2>/dev/null; then \
-		echo "✅ Stopped :8081 (pid=$$PID)"; \
+		echo "✅ Stopped :$(PPROF_DIFF_PORT) (pid=$$PID)"; \
 		exit 0; \
 	fi; \
-	echo "❌ Failed to stop :8081 (pid=$$PID)"; \
+	echo "❌ Failed to stop :$(PPROF_DIFF_PORT) (pid=$$PID)"; \
 	exit 1
 
 pprof-list:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-list DIR=path/to/captures/XXXXXX"; exit 1; fi
-	@for f in $(DIR)/*.pprof; do \
-		[ -s "$$f" ] || continue; \
-		printf "%1s " "$$(basename $$f):"; \
-		python3 scripts/pprof_total_mb.py "$$f"; \
-	done
+	@python3 scripts/pprof_list.py "$(DIR)"
 
 pprof-diff-auto:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-diff-auto DIR=path/to/captures/XXXXXX"; exit 1; fi
@@ -553,7 +594,7 @@ pprof-report:
 # =====================================
 # pprof - シナリオ統合
 # =====================================
-.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full
+.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full pprof-scenario2-lite pprof-scenario-receiver-full pprof-tail-sampling-full pprof-tail-sampling-lite pprof-high-cardinality-metrics-full
 
 pprof-scenario-full:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -561,7 +602,7 @@ pprof-scenario-full:
 		exit 1; \
 	fi; \
 	echo "=== Terraform apply ==="; \
-	PROJECT_ID="$(PROJECT_ID)" make -C terraform tf-apply; \
+	PROJECT_ID="$(PROJECT_ID)" make -C terraform apply; \
 	if [ "$(SYNC)" = "1" ]; then \
 		echo "=== Sync project to VM ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform sync; \
@@ -570,11 +611,25 @@ pprof-scenario-full:
 		echo "=== Restart services on VM ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform restart; \
 	fi; \
+	if [ "$(SCENARIO)" = "scenario-high-cardinality-metrics" ]; then \
+		echo "=== Prepare high-cardinality loadgen ==="; \
+		PROJECT_ID="$(PROJECT_ID)" make -C terraform prepare-high-cardinality-metrics; \
+	fi; \
 	echo "=== Start port-forward (background) ==="; \
-	PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-bg; \
+	echo "    Grafana:    http://localhost:3000"; \
+	echo "    Prometheus: http://localhost:9090"; \
+	echo "    Jaeger:     http://localhost:16686"; \
+	echo "    pprof:      http://localhost:$(PPROF_TUNNEL_PORT)/debug/pprof/"; \
+	PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-bg PPROF_TUNNEL_PORT="$(PPROF_TUNNEL_PORT)"; \
 	echo "=== Start pprof capture (background) ==="; \
-	PPROF_WAIT=0 make pprof-capture-bg || { \
+	make pprof-capture-bg || { \
 		echo "❌ pprof capture failed to start"; \
+		PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
+		exit 1; \
+	}; \
+	make pprof-capture-wait || { \
+		echo "❌ pprof capture not ready"; \
+		make pprof-capture-stop; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
 		exit 1; \
 	}; \
@@ -588,16 +643,17 @@ pprof-scenario-full:
 	echo "=== Stop background processes ==="; \
 	make pprof-capture-stop; \
 	PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
-	LOG_FILE="$(PPROF_CAPTURE_LOG)"; \
-	if [ ! -f "$$LOG_FILE" ]; then \
-		echo "❌ pprof capture log not found: $$LOG_FILE"; \
+	OUT_FILE="$(PPROF_LAST_DIR_FILE)"; \
+	if [ ! -f "$$OUT_FILE" ]; then \
+		echo "❌ pprof output dir file not found: $$OUT_FILE"; \
 		exit 1; \
 	fi; \
-	DIR=$$(grep -m1 "保存先:" "$$LOG_FILE" | sed 's/.*保存先: //'); \
+	DIR=$$(cat "$$OUT_FILE"); \
 	if [ -z "$$DIR" ]; then \
-		echo "❌ Failed to parse output dir from $$LOG_FILE"; \
+		echo "❌ pprof output dir file is empty: $$OUT_FILE"; \
 		exit 1; \
 	fi; \
+	make pprof-diff-stop; \
 	echo "=== Open diff (peak vs previous) ==="; \
 	make pprof-peak-diff DIR="$$DIR"
 
@@ -606,3 +662,20 @@ pprof-scenario1-full: pprof-scenario-full
 
 pprof-scenario2-full:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-2
+
+# 軽量実行: インフラ再作成を避ける（sync と restart は実行）
+pprof-scenario2-lite:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-2 SYNC=0 RESTART=0
+
+pprof-scenario-receiver-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-receiver
+
+# Tail Sampling シナリオ（時間軸の罠）
+pprof-tail-sampling-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling
+
+pprof-tail-sampling-lite:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling SYNC=1 RESTART=1
+
+pprof-high-cardinality-metrics-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-high-cardinality-metrics
