@@ -1,0 +1,102 @@
+# Tail Sampling Processor によるメモリ高騰シナリオ
+#
+# メカニズム（時間軸の罠）:
+#   - tail_sampling は decision_wait の間、全トレースをメモリに保持
+#   - decision_wait × スループット = 必要メモリ
+#   - 高スループット時にメモリが爆発的に増加
+#
+# このシナリオでは:
+#   - decision_wait: 30s（通常の3-10倍）
+#   - num_traces: 1000000（実質無制限）
+#   - 高スループット負荷をかけてメモリ肥大化を再現
+#
+# pprof で確認すべき箇所:
+#   - tailsamplingprocessor.(*tailSamplingSpanProcessor).samplingPolicyOnTick
+#   - tailsamplingprocessor.(*tailSamplingSpanProcessor).processTraces
+#   - pdata.Traces / pdata.Span のスライス
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # memory_limiter は tail_sampling の前に配置（ベストプラクティス）
+  # ただし、tail_sampling の内部バッファは memory_limiter では制御できない
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  # Tail Sampling Processor
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/tailsamplingprocessor
+  #
+  # 意図的にメモリを肥大化させる設定:
+  # - decision_wait: 30s（長い待機時間）
+  # - num_traces: 1000000（上限を実質無制限に）
+  # - expected_new_traces_per_sec: 10000（高スループットを想定）
+  tail_sampling:
+    decision_wait: 30s
+    num_traces: 1000000
+    expected_new_traces_per_sec: 10000
+    policies:
+      # すべてのトレースをサンプリング（100%）
+      # 実際の運用では確率サンプリングやレイテンシベースを使用
+      - name: always-sample
+        type: always_sample
+
+  # batch は tail_sampling の後
+  batch:
+    send_batch_size: 2000
+    send_batch_max_size: 4000
+    timeout: 200ms
+
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 5000
+    retry_on_failure:
+      enabled: true
+
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+
+  debug:
+    verbosity: basic
+
+extensions:
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [pprof]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, tail_sampling, batch]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
