@@ -208,11 +208,12 @@ forward-pprof-status:
 sync: set-project-id
 	@echo "🚀 Syncing local project to VM..."
 	@rm -f "$(TAR_PATH)"
-	# 以前の書き方だと --exclude がうまく動かなかったので修正
-	tar -czf "$(TAR_PATH)" \
+	# macOS の ._* ファイル（AppleDouble）を除外
+	COPYFILE_DISABLE=1 tar -czf "$(TAR_PATH)" \
 		--exclude='.git' \
 		--exclude='.terraform' \
 		--exclude='*.tfstate*' \
+		--exclude='._*' \
 		-C .. .
 	gcloud compute scp "$(TAR_PATH)" $(INSTANCE_NAME):~/project.tar.gz --project $(PROJECT_ID) --zone $(ZONE)
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
@@ -261,10 +262,11 @@ restart: wait-collector
 sync-loadgen: set-project-id wait-loadgen
 	@echo "🚀 Syncing local project to Loadgen VM..."
 	@rm -f "$(TAR_PATH)"
-	tar -czf "$(TAR_PATH)" \
+	COPYFILE_DISABLE=1 tar -czf "$(TAR_PATH)" \
 		--exclude='.git' \
 		--exclude='.terraform' \
 		--exclude='*.tfstate*' \
+		--exclude='._*' \
 		-C .. .
 	gcloud compute scp "$(TAR_PATH)" otel-loadgen:~/project.tar.gz --project $(PROJECT_ID) --zone $(ZONE)
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
