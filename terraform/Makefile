@@ -16,6 +16,8 @@ ZONE = asia-northeast1-a
 INSTANCE_NAME = otel-collector
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 TAR_PATH ?= /tmp/otel-memory-project.tar.gz
+SCENARIO_FILE_1 := scenario-1.yaml
+SCENARIO_FILE_2 := high-cardinality-spanmetrics.yaml
 
 set-project-id:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -156,7 +158,7 @@ scenario-1: set-project-id
 	echo "1. Applying scenario-1 config to Collector VM (IP: $$IP)..."; \
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/scenario-1.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_1) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
 		 cd /home/ubuntu/otel-memory && sudo docker-compose up -d --force-recreate otel-collector"; \
 	echo "2. Starting load from Loadgen VM..."; \
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
@@ -188,7 +190,7 @@ scenario-2: set-project-id
 	echo "1. Applying scenario-2 config to Collector VM (IP: $$IP)..."; \
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/scenario-2.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_2) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
 		 cd /home/ubuntu/otel-memory && sudo docker-compose up -d --force-recreate otel-collector"; \
 	echo "2. Starting load from Loadgen VM (high-cardinality)..."; \
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
