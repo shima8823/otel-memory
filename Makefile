@@ -18,6 +18,10 @@ RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
 BASE_SCENARIO := sustained
 BASE_PARAMS := -workers 10 -attr-size 128 -attr-count 8 -depth 3 \
 	-metrics=false -logs=false
+SCENARIO_FILE_1 := otel-collector/scenarios/scenario-1.yaml
+SCENARIO_FILE_2 := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
+SCENARIO_FILE_RECEIVER := otel-collector/scenarios/scenario-receiver.yaml
+SCENARIO_FILE_TAIL := otel-collector/scenarios/tail-sampling.yaml
 
 # === telemetrygen設定 ===
 TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
@@ -66,7 +70,7 @@ define run_scenario
 	@echo "シナリオ $(1): $(2)"
 	@echo "========================================"
 	@echo "📌 シナリオ用設定を適用中..."
-	@cp otel-collector/scenarios/scenario-$(1).yaml otel-collector/otel-collector.yaml
+	@cp $(if $(6),$(6),otel-collector/scenarios/scenario-$(1).yaml) otel-collector/otel-collector.yaml
 	@$(RESTART_COLLECTOR)
 	@echo "✅ 設定ファイル適用完了"
 	@echo ""
@@ -139,11 +143,12 @@ help-build:
 	@echo "  clean               ビルド成果物を削除"
 
 help-scenario:
-	@echo "=== シナリオテスト (docs/scenarios.md 参照) ==="
-	@echo "  scenario-1          [1] 下流停止 (1:負荷開始 -> 2:別ターミナルで jaeger-stop)"
-	@echo "  scenario-2          [2] processor 異常系（高カーディナリティ爆発）"
-	@echo "  scenario-3          [3] キャパシティ不足（慢性的なデータドロップ）"
-	@echo "  scenario-4          [4] batchバースト処理（スパイク負荷の耐性）"
+	@echo "=== シナリオテスト (docs/blog/scenario-reports/why-these-scenarios.md 参照) ==="
+	@echo "  scenario-1              [参考] 下流停止 (1:負荷開始 -> 2:別ターミナルで jaeger-stop)"
+	@echo "  scenario-2              [空間軸] processor 異常系（spanmetricsによる高カーディナリティ爆発）"
+	@echo "  scenario-receiver       [流量軸] 受信過多（慢性的なデータドロップ）"
+	@echo "  scenario-tail-sampling  [時間軸] Tail Sampling（decision_wait によるメモリ肥大化）"
+	@echo "  scenario-high-cardinality-metrics  [空間軸] 王道の高カーディナリティ（メトリクスラベル爆発）"
 
 help-load:
 	@echo "=== 負荷テスト (loadgen) ==="
@@ -254,27 +259,40 @@ clean:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-1 scenario-2 scenario-3 scenario-4
+.PHONY: scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-high-cardinality-metrics
 
 scenario-1: build
 	$(call run_scenario,1,下流停止,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 180s -rate 12000,30,60)
+		-duration 180s -rate 12000,30,60,$(SCENARIO_FILE_1))
 
 scenario-2: build
 	$(call run_scenario,2,processor高カーディナリティ,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 300s -rate 8000 -high-cardinality,0,0)
+		-duration 240s -rate 12000 -high-cardinality,0,0,$(SCENARIO_FILE_2))
 
-scenario-3: build
-	$(call run_scenario,3,キャパシティ不足,\
+scenario-receiver: build
+	$(call run_scenario,receiver,受信過多（流量軸）,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 180s -rate 35000,0,0)
+		-duration 180s -rate 35000,0,0,$(SCENARIO_FILE_RECEIVER))
 
-scenario-4: build
-	$(call run_scenario,4,batchバースト処理,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario spike \
-		-duration 180s -rate 15000,0,0)
+scenario-tail-sampling: build
+	$(call run_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
+		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
+		-duration 180s -rate 10000,0,0,$(SCENARIO_FILE_TAIL))
+
+# 王道の高カーディナリティメトリクス シナリオ（空間軸）
+# メトリクスラベルに request_id, user_id 等を含めると時系列が爆発
+# spanmetrics を使わない「最も一般的な」高カーディナリティ問題
+scenario-high-cardinality-metrics:
+	@if [ -z "$(PROJECT_ID)" ]; then \
+		echo "❌ PROJECT_ID is not set. Run: export PROJECT_ID=\$$(gcloud config get-value project)"; \
+		exit 1; \
+	fi
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform sync
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform prepare-high-cardinality-metrics
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform restart
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform scenario-high-cardinality-metrics
 
 # =====================================
 # 負荷テスト (loadgen)
