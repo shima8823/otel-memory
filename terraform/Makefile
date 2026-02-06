@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status sync restart loadgen-ssh loadgen scenario-1 scenario-2
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync restart loadgen-ssh loadgen scenario-1 scenario-2
 
 # --- terraform ---
 
@@ -16,6 +16,7 @@ ZONE = asia-northeast1-a
 INSTANCE_NAME = otel-collector
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 TAR_PATH ?= /tmp/otel-memory-project.tar.gz
+PPROF_TUNNEL_PORT ?= 1777
 SCENARIO_FILE_1 := scenario-1.yaml
 SCENARIO_FILE_2 := high-cardinality-spanmetrics.yaml
 
@@ -44,7 +45,7 @@ grafana: set-project-id
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- -NL 3000:localhost:3000
 
 pprof: set-project-id
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- -NL 1777:localhost:1777
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- -NL $(PPROF_TUNNEL_PORT):localhost:1777
 
 # Grafana / Prometheus / Jaeger / pprof をまとめてポートフォワード
 forward: set-project-id
@@ -52,7 +53,7 @@ forward: set-project-id
 		-NL 3000:localhost:3000 \
 		-NL 9090:localhost:9090 \
 		-NL 16686:localhost:16686 \
-		-NL 1777:localhost:1777
+		-NL $(PPROF_TUNNEL_PORT):localhost:1777
 
 # バックグラウンドでまとめてポートフォワード
 FORWARD_PID_FILE ?= ../.forward.pid
@@ -60,16 +61,32 @@ FORWARD_LOG_FILE ?= ../pprof/logs/port_forward.log
 
 forward-bg: set-project-id
 	@mkdir -p ../pprof/logs
+	@PORT_PID=$$(lsof -ti tcp:$(PPROF_TUNNEL_PORT) 2>/dev/null || true); \
+	if [ -n "$$PORT_PID" ]; then \
+		echo "⚠️  Local port $(PPROF_TUNNEL_PORT) is in use (pid=$$PORT_PID). Killing..."; \
+		kill $$PORT_PID 2>/dev/null || true; \
+		sleep 1; \
+	fi
 	@if [ -f "$(FORWARD_PID_FILE)" ] && kill -0 "$$(cat $(FORWARD_PID_FILE))" 2>/dev/null; then \
 		echo "✅ Port-forward already running (pid=$$(cat $(FORWARD_PID_FILE)))"; \
 		exit 0; \
 	fi
 	@nohup gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		-o ExitOnForwardFailure=yes \
+		-o ServerAliveInterval=30 \
+		-o ServerAliveCountMax=3 \
 		-NL 3000:localhost:3000 \
 		-NL 9090:localhost:9090 \
 		-NL 16686:localhost:16686 \
-		-NL 1777:localhost:1777 \
+		-NL $(PPROF_TUNNEL_PORT):localhost:1777 \
 		> "$(FORWARD_LOG_FILE)" 2>&1 & echo $$! > "$(FORWARD_PID_FILE)"
+	@sleep 1; \
+	PID=$$(cat "$(FORWARD_PID_FILE)"); \
+	if ! kill -0 $$PID 2>/dev/null; then \
+		echo "❌ Port-forward failed to start"; \
+		if [ -f "$(FORWARD_LOG_FILE)" ]; then tail -n 20 "$(FORWARD_LOG_FILE)"; fi; \
+		exit 1; \
+	fi
 	@echo "✅ Port-forward started (pid=$$(cat $(FORWARD_PID_FILE)))"
 
 forward-stop:
@@ -103,6 +120,74 @@ forward-status:
 		echo "✅ Port-forward running (pid=$$(cat $(FORWARD_PID_FILE)))"; \
 	else \
 		echo "ℹ️  Port-forward not running"; \
+	fi
+
+# pprof only (avoid local port conflicts)
+FORWARD_PPROF_PID_FILE ?= ../.forward_pprof.pid
+FORWARD_PPROF_LOG_FILE ?= ../pprof/logs/port_forward_pprof.log
+
+forward-pprof: set-project-id
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		-NL $(PPROF_TUNNEL_PORT):localhost:1777
+
+forward-pprof-bg: set-project-id
+	@mkdir -p ../pprof/logs
+	@PORT_PID=$$(lsof -ti tcp:$(PPROF_TUNNEL_PORT) 2>/dev/null || true); \
+	if [ -n "$$PORT_PID" ]; then \
+		echo "⚠️  Local port $(PPROF_TUNNEL_PORT) is in use (pid=$$PORT_PID). Killing..."; \
+		kill $$PORT_PID 2>/dev/null || true; \
+		sleep 1; \
+	fi
+	@if [ -f "$(FORWARD_PPROF_PID_FILE)" ] && kill -0 "$$(cat $(FORWARD_PPROF_PID_FILE))" 2>/dev/null; then \
+		echo "✅ Port-forward (pprof) already running (pid=$$(cat $(FORWARD_PPROF_PID_FILE)))"; \
+		exit 0; \
+	fi
+	@nohup gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		-o ExitOnForwardFailure=yes \
+		-o ServerAliveInterval=30 \
+		-o ServerAliveCountMax=3 \
+		-NL $(PPROF_TUNNEL_PORT):localhost:1777 \
+		> "$(FORWARD_PPROF_LOG_FILE)" 2>&1 & echo $$! > "$(FORWARD_PPROF_PID_FILE)"
+	@sleep 1; \
+	PID=$$(cat "$(FORWARD_PPROF_PID_FILE)"); \
+	if ! kill -0 $$PID 2>/dev/null; then \
+		echo "❌ Port-forward (pprof) failed to start"; \
+		if [ -f "$(FORWARD_PPROF_LOG_FILE)" ]; then tail -n 20 "$(FORWARD_PPROF_LOG_FILE)"; fi; \
+		exit 1; \
+	fi
+	@echo "✅ Port-forward (pprof) started (pid=$$(cat $(FORWARD_PPROF_PID_FILE)))"
+
+forward-pprof-stop:
+	@if [ ! -f "$(FORWARD_PPROF_PID_FILE)" ]; then \
+		echo "ℹ️  Port-forward (pprof) not running (no pid file)"; \
+		exit 0; \
+	fi
+	@PID=$$(cat "$(FORWARD_PPROF_PID_FILE)"); \
+	if kill -0 $$PID 2>/dev/null; then \
+		kill $$PID; \
+		for i in 1 2 3 4 5; do \
+			kill -0 $$PID 2>/dev/null || break; \
+			sleep 1; \
+		done; \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill -9 $$PID 2>/dev/null || true; \
+			sleep 1; \
+		fi; \
+		if kill -0 $$PID 2>/dev/null; then \
+			echo "❌ Port-forward (pprof) still running (pid=$$PID)"; \
+			exit 1; \
+		fi; \
+		echo "✅ Port-forward (pprof) stopped (pid=$$PID)"; \
+	else \
+		echo "ℹ️  Port-forward (pprof) pid not running (pid=$$PID)"; \
+	fi
+	@rm -f "$(FORWARD_PPROF_PID_FILE)"
+
+forward-pprof-status:
+	@if [ -f "$(FORWARD_PPROF_PID_FILE)" ] && kill -0 "$$(cat $(FORWARD_PPROF_PID_FILE))" 2>/dev/null; then \
+		echo "✅ Port-forward (pprof) running (pid=$$(cat $(FORWARD_PPROF_PID_FILE)))"; \
+	else \
+		echo "ℹ️  Port-forward (pprof) not running"; \
 	fi
 
 # --- 開発・デバッグ用コマンド ---
