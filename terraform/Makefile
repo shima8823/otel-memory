@@ -25,8 +25,8 @@ set-project-id:
 	fi
 
 # Terraform実行時にブランチ名を渡す
-# 使用例: make re (再構築) または make tf-apply (適用)
-tf-apply: set-project-id
+# 使用例: make re (再構築) または make apply (適用)
+apply: set-project-id
 	terraform apply -var="project_id=$(PROJECT_ID)" -var="git_branch=$(GIT_BRANCH)" -auto-approve
 destroy: set-project-id
 	terraform destroy -var="project_id=$(PROJECT_ID)" -auto-approve
