@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync restart loadgen-ssh loadgen scenario-1 scenario-2
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart rebuild-loadgen prepare-high-cardinality-metrics sync-and-rebuild loadgen-ssh loadgen scenario-1 scenario-2 wait-collector wait-loadgen
 
 # --- terraform ---
 
@@ -16,6 +16,8 @@ ZONE = asia-northeast1-a
 INSTANCE_NAME = otel-collector
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 TAR_PATH ?= /tmp/otel-memory-project.tar.gz
+WAIT_RETRIES ?= 30
+WAIT_INTERVAL ?= 5
 PPROF_TUNNEL_PORT ?= 1777
 SCENARIO_FILE_1 := scenario-1.yaml
 SCENARIO_FILE_2 := high-cardinality-spanmetrics.yaml
@@ -212,12 +214,74 @@ sync: set-project-id
 	@rm -f "$(TAR_PATH)" project.tar.gz
 	@echo "✅ Sync completed!"
 
+# VM ready wait (startup-script 完了待ち)
+wait-collector: set-project-id
+	@echo "⏳ Waiting for collector VM to be ready..."
+	@for i in $$(seq 1 $(WAIT_RETRIES)); do \
+		if gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) --command "test -f /home/ubuntu/setup_status.txt" >/dev/null 2>&1; then \
+			echo "✅ Collector VM ready"; \
+			exit 0; \
+		fi; \
+		echo "  ...waiting ($$i/$(WAIT_RETRIES))"; \
+		sleep $(WAIT_INTERVAL); \
+	done; \
+	echo "❌ Collector VM not ready (setup_status.txt missing)"; \
+	exit 1
+
+wait-loadgen: set-project-id
+	@echo "⏳ Waiting for loadgen VM to be ready..."
+	@for i in $$(seq 1 $(WAIT_RETRIES)); do \
+		if gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) --command "test -f /home/ubuntu/setup_status.txt" >/dev/null 2>&1; then \
+			echo "✅ Loadgen VM ready"; \
+			exit 0; \
+		fi; \
+		echo "  ...waiting ($$i/$(WAIT_RETRIES))"; \
+		sleep $(WAIT_INTERVAL); \
+	done; \
+	echo "❌ Loadgen VM not ready (setup_status.txt missing)"; \
+	exit 1
+
 # コンテナを再起動（設定変更やポートの追加を反映）
-restart: set-project-id
+restart: wait-collector
 	@echo "🔄 Recreating containers to apply changes..."
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory && sudo docker-compose up -d --force-recreate"
+		"cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate"
 	@echo "✅ All services are up-to-date and running!"
+
+# Loadgen VMにプロジェクトを同期（syncはCollector VMのみなので別途必要）
+sync-loadgen: set-project-id wait-loadgen
+	@echo "🚀 Syncing local project to Loadgen VM..."
+	@rm -f "$(TAR_PATH)"
+	tar -czf "$(TAR_PATH)" \
+		--exclude='.git' \
+		--exclude='.terraform' \
+		--exclude='*.tfstate*' \
+		-C .. .
+	gcloud compute scp "$(TAR_PATH)" otel-loadgen:~/project.tar.gz --project $(PROJECT_ID) --zone $(ZONE)
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo mkdir -p /home/ubuntu/otel-memory && \
+		 sudo tar -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
+		 sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 rm ~/project.tar.gz"
+	@rm -f "$(TAR_PATH)" project.tar.gz
+	@echo "✅ Loadgen sync completed!"
+
+# Loadgenをリビルド（新しいフラグを追加した場合など）
+rebuild-loadgen: set-project-id wait-loadgen
+	@echo "🔨 Rebuilding loadgen on VM..."
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory/loadgen && \
+		 sudo -u ubuntu bash -lc 'cd /home/ubuntu/otel-memory/loadgen && /usr/local/go/bin/go build -buildvcs=false -o loadgen .'"
+	@echo "✅ Loadgen rebuilt!"
+
+# syncしてリビルド（コード変更後に使用）
+# sync: Collector VM（docker compose用）, sync-loadgen: Loadgen VM（loadgenコード用）
+sync-and-rebuild: sync sync-loadgen rebuild-loadgen restart
+	@echo "✅ Sync, rebuild, and restart completed!"
+
+# 高カーディナリティメトリクス用の最小準備（Loadgen VMのみ）
+prepare-high-cardinality-metrics: sync-loadgen rebuild-loadgen
+	@echo "✅ High-cardinality loadgen prep completed!"
 
 # --- 負荷試験のヘルパー ---
 GET_COLLECTOR_IP = gcloud compute instances describe $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) --format='get(networkInterfaces[0].networkIP)'
