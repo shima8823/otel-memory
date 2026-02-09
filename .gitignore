@@ -21,6 +21,6 @@ loadgen/loadgen
 metrics_export/
 .gcloud/
 
-pprof/
+captures/
 .forward.pid
 .pprof_capture.pid

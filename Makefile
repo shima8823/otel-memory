@@ -552,7 +552,7 @@ pprof-capture-status:
 .PHONY: pprof-diff pprof-diff-stop pprof-list pprof-diff-auto pprof-peak-diff pprof-ui pprof-report
 
 pprof-ui:
-	@if [ -z "$(FILE)" ]; then echo "❌ Usage: make pprof-ui FILE=path/to/profile.pprof"; exit 1; fi
+	@if [ -z "$(FILE)" ]; then echo "❌ Usage: make pprof-ui FILE=path/to/captures/MM-DD/HHMMSS/pprof/profile.pprof"; exit 1; fi
 	go tool pprof -http=:$(PPROF_PORT) $(FILE)
 
 pprof-diff:
@@ -586,7 +586,7 @@ pprof-diff-stop:
 
 pprof-list:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-list DIR=path/to/captures/XXXXXX"; exit 1; fi
-	@python3 scripts/pprof_list.py "$(DIR)"
+	@python3 scripts/pprof_list.py "$(DIR)/pprof"
 
 pprof-diff-auto:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-diff-auto DIR=path/to/captures/XXXXXX"; exit 1; fi
@@ -594,7 +594,7 @@ pprof-diff-auto:
 
 pprof-peak-diff:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-peak-diff DIR=path/to/captures/XXXXXX"; exit 1; fi
-	@bash scripts/pprof_peak_diff.sh "$(DIR)"
+	@bash scripts/pprof_peak_diff.sh "$(DIR)/pprof"
 
 pprof-report:
 	@echo "=== Top 50 Memory Increases ==="
@@ -654,7 +654,7 @@ pprof-scenario-full:
 	echo "=== Stop background processes ==="; \
 	make pprof-capture-stop; \
 	PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
-	OUT_FILE="$(PPROF_LAST_DIR_FILE)"; \
+	OUT_FILE="$(CAPTURE_LAST_DIR_FILE)"; \
 	if [ ! -f "$$OUT_FILE" ]; then \
 		echo "❌ pprof output dir file not found: $$OUT_FILE"; \
 		exit 1; \
