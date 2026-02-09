@@ -57,8 +57,8 @@ make pprof-capture-stop
 - Refused が増えた区間
 - 最適化前後の比較パネル
 
-```md
 ![Grafana Heap/RSS](./images/grafana-heap-rss.png)
+```md
 ![Grafana Refused](./images/grafana-refused.png)
 ![Grafana Before/After](./images/grafana-before-after.png)
 ```
