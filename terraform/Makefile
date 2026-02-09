@@ -68,10 +68,10 @@ forward: set-project-id
 
 # バックグラウンドでまとめてポートフォワード
 FORWARD_PID_FILE ?= ../.forward.pid
-FORWARD_LOG_FILE ?= ../pprof/logs/port_forward.log
+FORWARD_LOG_FILE ?= ../captures/logs/port_forward.log
 
 forward-bg: set-project-id
-	@mkdir -p ../pprof/logs
+	@mkdir -p ../captures/logs
 	@PORT_PID=$$(lsof -ti tcp:$(PPROF_TUNNEL_PORT) 2>/dev/null || true); \
 	if [ -n "$$PORT_PID" ]; then \
 		echo "⚠️  Local port $(PPROF_TUNNEL_PORT) is in use (pid=$$PORT_PID). Killing..."; \
@@ -135,14 +135,14 @@ forward-status:
 
 # pprof only (avoid local port conflicts)
 FORWARD_PPROF_PID_FILE ?= ../.forward_pprof.pid
-FORWARD_PPROF_LOG_FILE ?= ../pprof/logs/port_forward_pprof.log
+FORWARD_PPROF_LOG_FILE ?= ../captures/logs/port_forward_pprof.log
 
 forward-pprof: set-project-id
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		-NL $(PPROF_TUNNEL_PORT):localhost:1777
 
 forward-pprof-bg: set-project-id
-	@mkdir -p ../pprof/logs
+	@mkdir -p ../captures/logs
 	@PORT_PID=$$(lsof -ti tcp:$(PPROF_TUNNEL_PORT) 2>/dev/null || true); \
 	if [ -n "$$PORT_PID" ]; then \
 		echo "⚠️  Local port $(PPROF_TUNNEL_PORT) is in use (pid=$$PORT_PID). Killing..."; \
