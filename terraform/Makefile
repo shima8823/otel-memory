@@ -205,11 +205,11 @@ forward-pprof-status:
 
 # プロジェクト全体を VM に同期（Gitの状態に関わらず、手元の最新ファイルを反映）
 # プロジェクト全体を VM に同期
-sync: set-project-id
+sync: set-project-id wait-collector
 	@echo "🚀 Syncing local project to VM..."
 	@rm -f "$(TAR_PATH)"
 	# macOS の ._* ファイル（AppleDouble）を除外
-	COPYFILE_DISABLE=1 tar -czf "$(TAR_PATH)" \
+	COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf "$(TAR_PATH)" \
 		--exclude='.git' \
 		--exclude='.terraform' \
 		--exclude='*.tfstate*' \
@@ -218,7 +218,7 @@ sync: set-project-id
 	gcloud compute scp "$(TAR_PATH)" $(INSTANCE_NAME):~/project.tar.gz --project $(PROJECT_ID) --zone $(ZONE)
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo mkdir -p /home/ubuntu/otel-memory && \
-		 sudo tar -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
+		 sudo tar --warning=no-unknown-keyword -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
 		 sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
 		 rm ~/project.tar.gz"
 	@rm -f "$(TAR_PATH)" project.tar.gz
@@ -262,7 +262,7 @@ restart: wait-collector
 sync-loadgen: set-project-id wait-loadgen
 	@echo "🚀 Syncing local project to Loadgen VM..."
 	@rm -f "$(TAR_PATH)"
-	COPYFILE_DISABLE=1 tar -czf "$(TAR_PATH)" \
+	COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf "$(TAR_PATH)" \
 		--exclude='.git' \
 		--exclude='.terraform' \
 		--exclude='*.tfstate*' \
