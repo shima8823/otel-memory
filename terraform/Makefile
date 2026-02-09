@@ -271,7 +271,7 @@ sync-loadgen: set-project-id wait-loadgen
 	gcloud compute scp "$(TAR_PATH)" otel-loadgen:~/project.tar.gz --project $(PROJECT_ID) --zone $(ZONE)
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo mkdir -p /home/ubuntu/otel-memory && \
-		 sudo tar -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
+		 sudo tar --warning=no-unknown-keyword -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
 		 sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
 		 rm ~/project.tar.gz"
 	@rm -f "$(TAR_PATH)" project.tar.gz
