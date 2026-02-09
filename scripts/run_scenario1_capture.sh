@@ -16,7 +16,7 @@ if [ -z "$PROJECT_ID" ]; then
   exit 1
 fi
 
-LOG_DIR=${LOG_DIR:-"pprof/logs"}
+LOG_DIR=${LOG_DIR:-"captures/logs"}
 mkdir -p "${LOG_DIR}"
 FORWARD_LOG=$(mktemp "${LOG_DIR}/port_forward.XXXXXX.log")
 CAPTURE_LOG=$(mktemp "${LOG_DIR}/capture.XXXXXX.log")

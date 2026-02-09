@@ -7,8 +7,8 @@ set -euo pipefail
 
 DIR=${1:-}
 if [ -z "$DIR" ]; then
-  echo "Usage: $0 <pprof_dir>" >&2
-  echo "Example: $0 pprof/01-23/captures/175921" >&2
+  echo "Usage: $0 <capture_dir>" >&2
+  echo "Example: $0 captures/01-23/175921" >&2
   exit 1
 fi
 
@@ -17,14 +17,20 @@ if [ ! -d "$DIR" ]; then
   exit 1
 fi
 
-# .pprof ファイルの存在確認
-PPROF_FILES=("${DIR}"/*.pprof)
-if [ ! -f "${PPROF_FILES[0]}" ]; then
-  echo "❌ No .pprof files found in: $DIR" >&2
+PPROF_DIR="${DIR}/pprof"
+if [ ! -d "$PPROF_DIR" ]; then
+  echo "❌ pprof directory not found: $PPROF_DIR" >&2
   exit 1
 fi
 
-echo "📊 Scanning .pprof files in: $DIR"
+# .pprof ファイルの存在確認
+PPROF_FILES=("${PPROF_DIR}"/*.pprof)
+if [ ! -f "${PPROF_FILES[0]}" ]; then
+  echo "❌ No .pprof files found in: $PPROF_DIR" >&2
+  exit 1
+fi
+
+echo "📊 Scanning .pprof files in: $PPROF_DIR"
 echo ""
 
 min_file=""
@@ -33,7 +39,7 @@ max_file=""
 max_val=0
 
 # 各ファイルの inuse_space を解析
-for f in "${DIR}"/*.pprof; do
+for f in "${PPROF_DIR}"/*.pprof; do
   [ -s "$f" ] || continue  # 空ファイルをスキップ
   
   # go tool pprof で inuse_space の合計値を取得

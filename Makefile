@@ -460,8 +460,8 @@ pprof-wait:
 pprof-capture-wait:
 	@READY=0; \
 	for i in $$(seq 1 $(PPROF_CAPTURE_READY_WAIT)); do \
-		if [ -f "$(PPROF_LAST_DIR_FILE)" ]; then \
-			DIR=$$(cat "$(PPROF_LAST_DIR_FILE)"); \
+		if [ -f "$(CAPTURE_LAST_DIR_FILE)" ]; then \
+			DIR=$$(cat "$(CAPTURE_LAST_DIR_FILE)"); \
 			if [ -n "$$DIR" ] && [ -f "$$DIR/.ready" ]; then \
 				READY=1; \
 				break; \
@@ -483,14 +483,14 @@ pprof-capture-wait:
 	fi
 
 pprof-capture-bg:
-	@mkdir -p $(PPROF_LOG_DIR)
-	@mkdir -p $(PPROF_DIR)
+	@mkdir -p $(CAPTURE_LOG_DIR)
+	@mkdir -p $(CAPTURE_DIR)
 	@if [ -f "$(PPROF_CAPTURE_PID_FILE)" ] && kill -0 "$$(cat $(PPROF_CAPTURE_PID_FILE))" 2>/dev/null; then \
 		echo "✅ pprof capture already running (pid=$$(cat $(PPROF_CAPTURE_PID_FILE)))"; \
 		exit 0; \
 	fi
 	@$(MAKE) pprof-wait
-	@PPROF_LAST_DIR_FILE="$(PPROF_LAST_DIR_FILE)" OUTPUT_FILE="$(PPROF_LAST_DIR_FILE)" \
+	@CAPTURE_LAST_DIR_FILE="$(CAPTURE_LAST_DIR_FILE)" OUTPUT_FILE="$(CAPTURE_LAST_DIR_FILE)" \
 		PPROF_URL="$(PPROF_URL)" PPROF_TUNNEL_PORT="$(PPROF_TUNNEL_PORT)" \
 		nohup bash scripts/capture_pprof.sh $(CAPTURE_INTERVAL) "$(CAPTURE_BASE_DIR)" $(CAPTURE_MAX) \
 		> "$(PPROF_CAPTURE_LOG)" 2>&1 & echo $$! > "$(PPROF_CAPTURE_PID_FILE)"

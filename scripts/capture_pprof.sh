@@ -9,21 +9,26 @@ BASE_DIR=${2:-""}
 MAX_CAPTURES=${3:-0}
 OUTPUT_FILE=${OUTPUT_FILE:-""}
 PPROF_URL=${PPROF_URL:-""}
+if [ -z "$OUTPUT_FILE" ] && [ -n "${CAPTURE_LAST_DIR_FILE:-}" ]; then
+    OUTPUT_FILE="${CAPTURE_LAST_DIR_FILE}"
+fi
 if [ -z "$OUTPUT_FILE" ] && [ -n "${PPROF_LAST_DIR_FILE:-}" ]; then
     OUTPUT_FILE="${PPROF_LAST_DIR_FILE}"
 fi
 if [ -z "$BASE_DIR" ]; then
-    BASE_DIR="pprof/${DATE_DIR}/captures"
+    BASE_DIR="captures/${DATE_DIR}"
 fi
 if [ -z "$PPROF_URL" ]; then
     PPROF_TUNNEL_PORT=${PPROF_TUNNEL_PORT:-1777}
     PPROF_URL="http://localhost:${PPROF_TUNNEL_PORT}/debug/pprof/heap"
 fi
 OUTPUT_DIR="${BASE_DIR}/${RUN_ID}"
+PPROF_OUTPUT_DIR="${OUTPUT_DIR}/pprof"
 READY_MARKER="${OUTPUT_DIR}/.ready"
 HAS_READY=0
 
 mkdir -p "$OUTPUT_DIR"
+mkdir -p "$PPROF_OUTPUT_DIR"
 if [ -n "$OUTPUT_FILE" ]; then
     mkdir -p "$(dirname "$OUTPUT_FILE")"
     echo "$OUTPUT_DIR" > "$OUTPUT_FILE"
@@ -40,7 +45,7 @@ echo "===================================================="
 COUNT=0
 while true; do
     TS=$(date +%H%M%S)
-    FILE_PATH="${OUTPUT_DIR}/heap_${TS}.pprof"
+    FILE_PATH="${PPROF_OUTPUT_DIR}/heap_${TS}.pprof"
     
     # Heapプロファイルをバイナリ形式で取得
     # -s で進捗を非表示に
