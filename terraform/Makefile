@@ -29,6 +29,7 @@ SCENARIO_FILE_1 := scenario-1.yaml
 SCENARIO_FILE_2 := high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_RECEIVER := scenario-receiver.yaml
 SCENARIO_FILE_TAIL := tail-sampling.yaml
+SCENARIO_FILE_TAIL_OPT := tail-sampling-optimized.yaml
 SCENARIO_FILE_HC_METRICS := scenario-high-cardinality-metrics.yaml
 
 set-project-id:
@@ -420,6 +421,31 @@ scenario-tail-sampling: wait-collector wait-loadgen
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
 	echo "✅ Scenario-tail-sampling completed."
+
+# シナリオ: Tail Sampling（最適化版）
+# decision_wait を短縮した設定でメモリ挙動の改善を比較する
+scenario-tail-sampling-optimized: wait-collector wait-loadgen
+	@echo "=== Scenario: Tail Sampling Optimized (Reduced decision_wait) ==="
+	@IP=$$($(GET_COLLECTOR_IP)); \
+	echo "1. Applying scenario-tail-sampling-optimized config to Collector VM (IP: $$IP)..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
+		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
+		 fi && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_TAIL_OPT) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "2. Starting load from Loadgen VM (high throughput for optimized tail sampling)..."; \
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 120s -rate 5000 -workers 10 -attr-size 128 -attr-count 8 -depth 5 -metrics=false -logs=false || true"; \
+	echo "3. Restoring Collector config..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
+		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
+		 fi && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "✅ Scenario-tail-sampling-optimized completed."
 
 # シナリオ: 王道の高カーディナリティメトリクス（空間軸）
 # メトリクスラベルに request_id, user_id 等を含めると時系列が爆発

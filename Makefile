@@ -154,6 +154,7 @@ help-scenario:
 	@echo "  scenario-2              [空間軸] processor 異常系（spanmetricsによる高カーディナリティ爆発）"
 	@echo "  scenario-receiver       [流量軸] 受信過多（慢性的なデータドロップ）"
 	@echo "  scenario-tail-sampling  [時間軸] Tail Sampling（decision_wait によるメモリ肥大化）"
+	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版（decision_wait短縮）"
 	@echo "  scenario-high-cardinality-metrics  [空間軸] 王道の高カーディナリティ（メトリクスラベル爆発）"
 
 help-load:
@@ -220,6 +221,7 @@ help-pprof:
 	@echo "  pprof-scenario-receiver-full receiver 受信過多を実行"
 	@echo "  pprof-tail-sampling-full tail-sampling を実行"
 	@echo "  pprof-tail-sampling-lite tail-sampling を軽量実行"
+	@echo "  pprof-tail-sampling-optimized-full tail-sampling 最適化版を実行"
 	@echo "  pprof-high-cardinality-metrics-full  王道の高カーディナリティを実行"
 
 # =====================================
@@ -271,7 +273,7 @@ clean:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-high-cardinality-metrics
+.PHONY: scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized scenario-high-cardinality-metrics
 
 scenario-1: build
 	$(call run_scenario,1,下流停止,\
@@ -291,7 +293,16 @@ scenario-receiver: build
 scenario-tail-sampling: build
 	$(call run_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 180s -rate 10000,0,0,$(SCENARIO_FILE_TAIL))
+		-duration 120s -rate 3000,0,0,$(SCENARIO_FILE_TAIL))
+
+scenario-tail-sampling-optimized:
+	@if [ -z "$(PROJECT_ID)" ]; then \
+		echo "❌ PROJECT_ID is not set. Run: export PROJECT_ID=\$$(gcloud config get-value project)"; \
+		exit 1; \
+	fi
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform sync
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform restart
+	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform scenario-tail-sampling-optimized
 
 # 王道の高カーディナリティメトリクス シナリオ（空間軸）
 # メトリクスラベルに request_id, user_id 等を含めると時系列が爆発
@@ -676,6 +687,9 @@ pprof-tail-sampling-full:
 
 pprof-tail-sampling-lite:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling SYNC=1 RESTART=1
+
+pprof-tail-sampling-optimized-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling-optimized
 
 pprof-high-cardinality-metrics-full:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-high-cardinality-metrics
