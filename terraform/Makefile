@@ -412,7 +412,7 @@ scenario-tail-sampling: wait-collector wait-loadgen
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
 	echo "2. Starting load from Loadgen VM (high throughput for tail sampling)..."; \
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 180s -rate 10000 -workers 10 -attr-size 128 -attr-count 8 -depth 5 -metrics=false -logs=false || true"; \
+		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 120s -rate 5000 -workers 10 -attr-size 128 -attr-count 8 -depth 5 -metrics=false -logs=false || true"; \
 	echo "3. Restoring Collector config..."; \
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
