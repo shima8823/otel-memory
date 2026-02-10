@@ -2,9 +2,37 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-DIR=${1:-}
+PRINT_ONLY=${PRINT_ONLY:-}
+DIR=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --print-only)
+      PRINT_ONLY=1
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--print-only] <pprof_dir>" >&2
+      exit 0
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      echo "Usage: $0 [--print-only] <pprof_dir>" >&2
+      exit 1
+      ;;
+    *)
+      if [ -n "$DIR" ]; then
+        echo "Unexpected argument: $1" >&2
+        echo "Usage: $0 [--print-only] <pprof_dir>" >&2
+        exit 1
+      fi
+      DIR=$1
+      shift
+      ;;
+  esac
+done
+
 if [ -z "$DIR" ]; then
-  echo "Usage: $0 <pprof_dir>" >&2
+  echo "Usage: $0 [--print-only] <pprof_dir>" >&2
   exit 1
 fi
 
@@ -86,9 +114,14 @@ if [ ! -f "$base_path" ] || [ ! -f "$peak_path" ]; then
   exit 1
 fi
 
-PPROF_DIFF_PORT=${PPROF_DIFF_PORT:-8081}
-
 echo "BASE: $base_path"
 echo "PEAK: $peak_path"
+
+# --print-only が指定された場合はパスを表示して終了
+if [ "${PRINT_ONLY:-}" = "1" ]; then
+  exit 0
+fi
+
+PPROF_DIFF_PORT=${PPROF_DIFF_PORT:-8081}
 echo "Opening diff view at http://localhost:${PPROF_DIFF_PORT}"
 go tool pprof -http=:"${PPROF_DIFF_PORT}" --diff_base "$base_path" "$peak_path"
