@@ -293,7 +293,10 @@ func runSustainedScenario(ctx context.Context, cfg Config, tracer trace.Tracer, 
 	var wg sync.WaitGroup
 
 	// 各ワーカーの送信レート
-	ratePerWorker := cfg.SpansPerSecond / cfg.WorkerCount
+	// 1トレースで depth+1 スパン生成するので、トレース生成レートを調整
+	spansPerTrace := cfg.SpanDepth + 1
+	tracesPerSecond := cfg.SpansPerSecond / spansPerTrace
+	ratePerWorker := tracesPerSecond / cfg.WorkerCount
 	if ratePerWorker < 1 {
 		ratePerWorker = 1
 	}
