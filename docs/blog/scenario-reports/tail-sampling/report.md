@@ -113,21 +113,7 @@ make pprof-tail-sampling-optimized-full
 | 定常中央値 | ~320 MB | ~250 MB | -22% |
 | GC 復帰後の谷 | 156 MB | 140 MB | -10% |
 
-### 3.2 RSS Memory の挙動
-
-| 指標 | 30s | 10s |
-|------|-----|-----|
-| アイドル | 46-47 MB | 173-197 MB |
-| ピーク | 514 MB | 493 MB |
-| 負荷中定常 | 466-514 MB | 343-493 MB |
-
-30s では RSS がコンテナメモリ上限（512 MiB）付近に達した。
-`memory_limiter` は Go の Heap を監視して back-pressure を返すが、RSS は直接制御しない。
-RSS = Heap + Go runtime オーバーヘッド（stack, mmap, GC メタデータ）であるため、
-Heap を抑制しても RSS はコンテナ上限に接近し、OOM Kill のリスクが残る。
-10s では Heap が低く抑えられるため、RSS も相対的に安全な水準に留まる。
-
-### 3.3 Receiver メトリクスの挙動
+### 3.2 Receiver メトリクスの挙動
 
 #### 受信スループット
 
@@ -143,7 +129,7 @@ Heap を抑制しても RSS はコンテナ上限に接近し、OOM Kill のリ�
 |------|-----|-----|------|
 | Accepted rate 範囲 | 1,180-3,079/s | 1,535-4,679/s | +48% (中央値) |
 | 目標 5,000/s に対する達成率 | ~50% | ~74% | 大幅改善 |
-| 総送信スパン | 607,218 | 620,262 | +2% |
+| 総送信スパン (loadgen) | 611,844 | 614,628 | +0.5% |
 
 30s ではバッファ処理がボトルネックとなり、back-pressure が強く発生。
 10s ではバッファ回転が速いため、受信能力が向上している。
@@ -160,9 +146,9 @@ Heap を抑制しても RSS はコンテナ上限に接近し、OOM Kill のリ�
 
 | 指標 | 30s | 10s | 変化 |
 |------|-----|-----|------|
-| Refused rate 範囲 | 0.58-4.65/s | 0.54-1.75/s | -63% (ピーク比) |
 | Refused rate ピーク | 4.65/s | 1.75/s | -62% |
-| loadgen エラー回数 | 4回 | 1回 | -75% |
+| Refused 累計 | ~359 spans | ~131 spans | -64% |
+| loadgen gRPC エラー回数 | 4回 | 1回 | -75% |
 
 30s では `memory_limiter` が持続的に発火し、ピーク 4.65/s のスパンを拒否。
 10s では発火頻度・強度ともに大幅に低下したが、**完全にはゼロにならなかった**。
@@ -171,6 +157,52 @@ Heap を抑制しても RSS はコンテナ上限に接近し、OOM Kill のリ�
 GC の振動で一時的に超えるために発生する。パラメータ調整だけでは解消できない構造的な要因であり、
 完全な解消にはメモリ増量または `spike_limit_percentage` の調整が必要になる。
 この点は [ベストプラクティス](../best-practices.md) で詳述する。
+
+### 3.3 パイプラインファネル分析
+
+Receiver の rate メトリクスや loadgen のエラーログだけでは、実際にどれだけのスパンが失われたかを正確に把握できない。
+`increase()` ベースの累計カウントと Tail Sampling 固有メトリクスを組み合わせることで、パイプライン全体のデータフローを定量化できる。
+
+> **固有メトリクスの発見方法**: Prometheus で `curl -s http://localhost:9090/api/v1/label/__name__/values | jq -r '.data[]' | grep tail_sampling` を実行すると、tail_sampling processor が公開する固有メトリクスを列挙できる。詳細は [デバッグ基本技法](../debug-basics.md) のセクション 2.1 を参照。
+
+#### エンドツーエンドのデータフロー
+
+| ステージ | メトリクス | 30s | 10s |
+|---------|-----------|-----|-----|
+| Loadgen 送信 | （loadgen ログ） | 611,844 spans | 614,628 spans |
+| Receiver Accepted | `increase(otelcol_receiver_accepted_spans_total[3m])` | ~340,009 (55.6%) | ~549,457 (89.4%) |
+| Receiver Refused | `increase(otelcol_receiver_refused_spans_total[3m])` | ~359 (0.06%) | ~131 (0.02%) |
+| **クライアント側損失** | Loadgen - Accepted - Refused | **~271,476 (44.4%)** | **~65,040 (10.6%)** |
+| Exporter Sent (otlp) | `increase(otelcol_exporter_sent_spans_total[3m])` | ~270,273 (44.2%) | ~525,376 (85.5%) |
+| Exporter Failed | `increase(otelcol_exporter_send_failed_spans_total[3m])` | 0 | 0 |
+
+30s ではエンドツーエンドのスループットが **44%** まで低下し、送信スパンの半数以上が失われる。10s に短縮するだけで **86%** に改善される。
+
+#### データ損失の主経路
+
+Receiver Refused（memory_limiter の直接拒否）は両シナリオとも **0.1% 未満** であり、データ損失の主要因ではない。
+損失の大部分は、Collector がメモリ圧力により gRPC エラーを返した際の**クライアント側タイムアウト**（`context deadline exceeded`）で発生している。
+
+- 30s: クライアント側で 44.4%（~271,000 spans）が消失
+- 10s: クライアント側で 10.6%（~65,000 spans）が消失
+
+これは、loadgen のエラーログ（4回 vs 1回）だけでは見えない損失規模である。
+
+#### Tail Sampling 固有メトリクス
+
+| メトリクス | 30s | 10s | 意味 |
+|-----------|-----|-----|------|
+| `new_trace_id_received` | ~56,676 traces | ~91,580 traces | Processor に到達した新規トレース数 |
+| `count_traces_sampled` (decision=sampled) | ~45,051 traces | ~87,566 traces | サンプリング判定済みトレース数 |
+| **判定待ちバックログ** | **~11,625 traces (20.5%)** | **~4,014 traces (4.4%)** | まだ decision_wait 中のトレース |
+| `sampling_traces_on_memory` (ピーク) | 55,020 | 89,801 | メモリ上のトレース数 |
+| `sampling_trace_dropped_too_early` | 0 | 0 | num_traces 上限による強制ドロップ |
+
+注目すべき点:
+
+1. **10s の方がメモリ上のトレース数が多い**（89,801 vs 55,020）。一見矛盾するが、10s ではメモリ圧力が低いため Collector がより多くのデータを受け入れ、結果的に Processor により多くのトレースが流入する
+2. **30s の判定バックログは 10s の約3倍**（11,625 vs 4,014）。`decision_wait` が長いと判定が追いつかず、バッファが滞留する
+3. **強制ドロップはゼロ**。`num_traces: 1000000` の上限には到達していない。データ損失は Tail Sampling 内部ではなく、上流の memory_limiter → gRPC 拒否 → クライアント側タイムアウトの経路で発生している
 
 ### 3.4 Processor パネル
 
@@ -297,13 +329,17 @@ Tail Sampling は「全スパンが揃うまで判定を待つ」ため、
 
 | 指標 | 30s | 10s | 改善 |
 |------|-----|-----|------|
+| **エンドツーエンド スループット** | **44.2%** | **85.5%** | **+41.3pt** |
+| Receiver Accepted (累計) | ~340,009 | ~549,457 | **+62%** |
+| クライアント側損失率 | 44.4% | 10.6% | **-33.8pt** |
 | pprof inuse_space | 320 MB | 201 MB | **37% 削減** |
 | pdata 消費 | 238 MB | 121 MB | **49% 削減** |
 | Refused rate ピーク | 4.65/s | 1.75/s | **62% 削減** |
 | loadgen エラー | 4回 | 1回 | **75% 削減** |
-| Accepted rate 中央値 | ~2,500/s | ~3,700/s | **48% 向上** |
 
 `decision_wait` の短縮は、最も即効性が高く、副作用が小さい最適化手段である。
+エンドツーエンドのスループットが 44% → 86% に改善されるという効果は、loadgen のエラーログ回数（4→1）からは読み取れない。
+パイプラインファネル分析（セクション 3.3）によって初めて可視化される。
 
 ### 6.2 Step 2: さらなる改善に向けて
 
@@ -368,6 +404,7 @@ rate(otelcol_receiver_accepted_spans_total{job="otel-collector-self"}[5m]) < 250
 ## 8. まとめ
 
 - `tail_sampling` は `decision_wait` に比例してメモリを消費する。バッファサイズは概算式で見積もれるが、実測は概算の約3倍になる
-- `decision_wait: 30s → 10s` の短縮だけで、pdata のメモリ消費が **49% 削減**、スパン拒否率が **62% 削減** された
+- `decision_wait: 30s → 10s` の短縮で、エンドツーエンドのスループットが **44% → 86%** に改善。pdata のメモリ消費は **49% 削減**、スパン拒否率は **62% 削減**
+- データ損失の主経路は Collector 内部の Refused ではなく、**クライアント側のタイムアウト**である。Receiver Refused は両シナリオとも 0.1% 未満に過ぎない
 - pprof の `flat` ではなく `cum` を見ることで、tail_sampling が「保持の原因者」であることを特定できる
 - 完全に `memory_limiter` の発火をゼロにするには、`decision_wait` の調整に加えてメモリ設計の見直しが必要
