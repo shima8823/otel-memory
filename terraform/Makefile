@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart rebuild-loadgen prepare-high-cardinality-metrics sync-and-rebuild loadgen-ssh loadgen scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-high-cardinality-metrics wait-collector wait-loadgen
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart rebuild-loadgen prepare-high-cardinality-metrics sync-and-rebuild loadgen-ssh loadgen scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized scenario-high-cardinality-metrics wait-collector wait-loadgen
 
 # --- terraform ---
 

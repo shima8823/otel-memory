@@ -293,7 +293,7 @@ scenario-receiver: build
 scenario-tail-sampling: build
 	$(call run_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
 		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 120s -rate 3000,0,0,$(SCENARIO_FILE_TAIL))
+		-duration 120s -rate 5000,0,0,$(SCENARIO_FILE_TAIL))
 
 scenario-tail-sampling-optimized:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -605,7 +605,7 @@ pprof-report:
 # =====================================
 # pprof - シナリオ統合
 # =====================================
-.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full pprof-scenario2-lite pprof-scenario-receiver-full pprof-tail-sampling-full pprof-tail-sampling-lite pprof-high-cardinality-metrics-full
+.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full pprof-scenario2-lite pprof-scenario-receiver-full pprof-tail-sampling-full pprof-tail-sampling-lite pprof-tail-sampling-optimized-full pprof-high-cardinality-metrics-full
 
 pprof-scenario-full:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -674,9 +674,8 @@ pprof-scenario-full:
 		echo "❌ pprof output dir file is empty: $$OUT_FILE"; \
 		exit 1; \
 	fi; \
-	make pprof-diff-stop; \
-	echo "=== Open diff (peak vs previous) ==="; \
-	make pprof-peak-diff DIR="$$DIR"
+	echo "=== Peak profile ==="; \
+	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
 
 # 互換用（既存の呼び出しを維持）
 pprof-scenario1-full: pprof-scenario-full
