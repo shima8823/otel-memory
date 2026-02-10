@@ -4,9 +4,9 @@ OpenTelemetry Collector の pprof 取得・比較手順を、ローカル実行�
 
 ## 出力先
 
-- pprof キャプチャ: `pprof/<MM-DD>/captures/<RUN_ID>/heap_*.pprof`
-- キャプチャログ: `pprof/logs/pprof_capture.log`
-- ポートフォワードログ: `pprof/logs/port_forward.log`
+- pprof キャプチャ: `captures/<MM-DD>/<RUN_ID>/pprof/heap_*.pprof`
+- キャプチャログ: `captures/logs/pprof_capture.log`
+- ポートフォワードログ: `captures/logs/port_forward.log`
 
 ## ローカル（Docker Compose）での基本操作
 
@@ -32,7 +32,7 @@ make pprof-capture-status
 make pprof-capture-stop
 ```
 
-保存先は `pprof/<MM-DD>/captures/<RUN_ID>` です。  
+保存先は `captures/<MM-DD>/<RUN_ID>` です。  
 `CAPTURE_INTERVAL`, `CAPTURE_BASE_DIR`, `CAPTURE_MAX` で調整できます。
 
 ## Terraform / GCP 統合（推奨）
@@ -54,7 +54,7 @@ make pprof-scenario1-full
 `.pprof_last_dir` は作成しません。保存先はログから取得できます。
 
 ```
-grep -m1 "保存先:" pprof/logs/pprof_capture.log
+grep -m1 "保存先:" captures/logs/pprof_capture.log
 ```
 
 ### 変数で調整
@@ -74,7 +74,7 @@ bash scripts/run_scenario1_capture.sh
 
 ```
 CAPTURE_INTERVAL=3 \
-CAPTURE_BASE_DIR=pprof/01-23/captures \
+CAPTURE_BASE_DIR=captures/01-23 \
 KEEP_FORWARD=1 \
 bash scripts/run_scenario1_capture.sh
 ```
@@ -83,11 +83,11 @@ bash scripts/run_scenario1_capture.sh
 
 ```
 # ピークと直前を自動で diff
-make pprof-peak-diff DIR=pprof/01-23/captures/175921
+make pprof-peak-diff DIR=captures/01-23/175921
 
 # 手動で diff
-make pprof-diff BASE=pprof/01-23/captures/175921/heap_120000.pprof \
-               NEW=pprof/01-23/captures/175921/heap_120010.pprof
+make pprof-diff BASE=captures/01-23/175921/pprof/heap_120000.pprof \
+               NEW=captures/01-23/175921/pprof/heap_120010.pprof
 ```
 
 ## トラブルシュート
