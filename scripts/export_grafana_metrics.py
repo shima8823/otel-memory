@@ -155,6 +155,55 @@ QUERIES = {
         "description": "Exporter: キュー投入失敗レート (Spans)",
         "unit": "ops"
     },
+    
+    # Pipeline Funnel (cumulative counts over test window)
+    "Receiver_Accepted_Spans_Total": {
+        "query": 'increase(otelcol_receiver_accepted_spans_total{job="otel-collector-self"}[3m])',
+        "description": "Receiver: テスト期間中に受信したSpans累計",
+        "unit": "count"
+    },
+    "Receiver_Refused_Spans_Total": {
+        "query": 'increase(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[3m])',
+        "description": "Receiver: テスト期間中に拒否されたSpans累計",
+        "unit": "count"
+    },
+    "Exporter_Sent_Spans_Total": {
+        "query": 'increase(otelcol_exporter_sent_spans_total{job="otel-collector-self"}[3m])',
+        "description": "Exporter: テスト期間中に送信成功したSpans累計",
+        "unit": "count"
+    },
+    "Exporter_Failed_Spans_Total": {
+        "query": 'increase(otelcol_exporter_send_failed_spans_total{job="otel-collector-self"}[3m])',
+        "description": "Exporter: テスト期間中に送信失敗したSpans累計",
+        "unit": "count"
+    },
+    
+    # Tail Sampling Processor
+    "TailSampling_Traces_On_Memory": {
+        "query": 'otelcol_processor_tail_sampling_sampling_traces_on_memory{job="otel-collector-self"}',
+        "description": "Tail Sampling: 現在メモリに保持しているトレース数",
+        "unit": "count"
+    },
+    "TailSampling_Count_Traces_Sampled": {
+        "query": 'increase(otelcol_processor_tail_sampling_count_traces_sampled_total{job="otel-collector-self"}[3m])',
+        "description": "Tail Sampling: サンプリング判定済みトレース累計（policy/decision ラベル付き）",
+        "unit": "count"
+    },
+    "TailSampling_Global_Count_Traces_Sampled": {
+        "query": 'increase(otelcol_processor_tail_sampling_global_count_traces_sampled_total{job="otel-collector-self"}[3m])',
+        "description": "Tail Sampling: 全ポリシー通じたサンプリング判定済みトレース累計",
+        "unit": "count"
+    },
+    "TailSampling_New_Trace_Received": {
+        "query": 'increase(otelcol_processor_tail_sampling_new_trace_id_received_total{job="otel-collector-self"}[3m])',
+        "description": "Tail Sampling: 新規トレース到着数累計",
+        "unit": "count"
+    },
+    "TailSampling_Dropped_Too_Early": {
+        "query": 'increase(otelcol_processor_tail_sampling_sampling_trace_dropped_too_early_total{job="otel-collector-self"}[3m])',
+        "description": "Tail Sampling: num_traces上限超過による強制ドロップ累計",
+        "unit": "count"
+    },
 }
 
 PANELS = {
