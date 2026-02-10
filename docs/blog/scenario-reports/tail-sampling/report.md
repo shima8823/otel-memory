@@ -25,7 +25,7 @@ processors:
 ```
 
 ポイント:
-- `decision_wait: 30s` は公式推奨（5-10s）の3-6倍
+- `decision_wait: 30s` は一般的な設定（5-10s）と比べて長い
 - `num_traces: 1000000` は実質無制限で、上限によるドロップが発生しない
 - `always_sample` により全トレースが `decision_wait` 中バッファに保持される
 
@@ -86,6 +86,8 @@ make pprof-tail-sampling-optimized-full
 | ピーク | 12:25:22 | 344 MB | `decision_wait: 30s` 分のバッファ蓄積 |
 | 負荷中定常 | 12:25:37-12:26:52 | 156-344 MB | GC の振動により大きく変動 |
 
+> 注: 上記の値は Prometheus メトリクス `otelcol_process_runtime_heap_alloc_bytes` のエクスポートデータから取得した。
+
 特徴: Heap が 300 MB 以上に張り付き、GC による解放が追いつかない。
 
 #### 最適化（decision_wait: 10s）
@@ -119,14 +121,22 @@ make pprof-tail-sampling-optimized-full
 | ピーク | 514 MB | 493 MB |
 | 負荷中定常 | 466-514 MB | 343-493 MB |
 
-30s ではコンテナメモリ上限（512 MB）に極めて近い RSS に達しており、OOM Kill のリスクがある。
-10s では RSS ピークも下がるが、Go runtime の mmap 保持により、Heap 解放後も RSS は即座には低下しない。
+30s では RSS がコンテナメモリ上限（512 MiB）付近に達した。
+`memory_limiter` は Go の Heap を監視して back-pressure を返すが、RSS は直接制御しない。
+RSS = Heap + Go runtime オーバーヘッド（stack, mmap, GC メタデータ）であるため、
+Heap を抑制しても RSS はコンテナ上限に接近し、OOM Kill のリスクが残る。
+10s では Heap が低く抑えられるため、RSS も相対的に安全な水準に留まる。
 
 ### 3.3 Receiver メトリクスの挙動
 
 #### 受信スループット
 
+**非最適化（30s）:**
+
 ![Receiver Spans — 30s](./images/30s-receiver-spans.png)
+
+**最適化（10s）:**
+
 ![Receiver Spans — 10s](./images/10s-receiver-spans.png)
 
 | 指標 | 30s | 10s | 変化 |
@@ -140,7 +150,12 @@ make pprof-tail-sampling-optimized-full
 
 #### 拒否レート（memory_limiter 発火）
 
+**非最適化（30s）:**
+
 ![Receiver Drop Rate — 30s](./images/30s-receiver-drop-rate.png)
+
+**最適化（10s）:**
+
 ![Receiver Drop Rate — 10s](./images/10s-receiver-drop-rate.png)
 
 | 指標 | 30s | 10s | 変化 |
@@ -159,7 +174,12 @@ GC の振動で一時的に超えるために発生する。パラメータ調�
 
 ### 3.4 Processor パネル
 
+**非最適化（30s）:**
+
 ![Processor Ratio — 30s](./images/30s-processor-ratio.png)
+
+**最適化（10s）:**
+
 ![Processor Ratio — 10s](./images/10s-processor-ratio.png)
 
 Processor の Out/In Ratio パネルで `memory_limiter` の発火状況を視覚的に確認できる。
@@ -269,20 +289,9 @@ Tail Sampling は「全スパンが揃うまで判定を待つ」ため、
 
 この保持量が大きいと、GC 負荷が上がり、処理遅延やスパン拒否が発生する。
 
-## 6. 他シナリオとの鑑別
+## 6. パラメータ最適化
 
-| 指標 | Tail Sampling | 高カーディナリティ |
-|------|---------------|---------------------|
-| Heap パターン | 急騰 → 高止まり → 解放 | 右肩上がり（戻らない） |
-| 負荷停止後 | 回復する | 回復しない |
-| GC の効果 | 一時的に下がる | ほぼ効かない |
-| 主因 | 時間軸のバッファリング | 空間軸の状態膨張 |
-| pprof top | `tailsamplingprocessor` | `groupbyattrs` / `spanmetrics` の内部 map |
-| 対処 | `decision_wait` の短縮 | カーディナリティの削減 |
-
-## 7. パラメータ最適化
-
-### 7.1 Step 1: `decision_wait` の短縮
+### 6.1 Step 1: `decision_wait` の短縮
 
 `decision_wait` を 30s → 10s に短縮するだけで、以下の改善が得られた:
 
@@ -296,7 +305,7 @@ Tail Sampling は「全スパンが揃うまで判定を待つ」ため、
 
 `decision_wait` の短縮は、最も即効性が高く、副作用が小さい最適化手段である。
 
-### 7.2 Step 2: さらなる改善に向けて
+### 6.2 Step 2: さらなる改善に向けて
 
 Step 1 だけでは、GC の振動で `spike_limit_percentage` のソフトリミットを一時的に超えるため、
 低頻度ながら `memory_limiter` の発火が残る。完全に解消するには:
@@ -327,9 +336,9 @@ processors:
 
 これらの詳細は [ベストプラクティス](../best-practices.md) で扱う。
 
-## 8. 監視ポイント
+## 7. 監視ポイント
 
-### 8.1 Heap 上昇の検知
+### 7.1 Heap 上昇の検知
 
 Tail Sampling 特有の「急騰 → 高止まり → 解放」パターンを検知するには、
 Heap の絶対値と変化率の両方を監視する。
@@ -342,24 +351,23 @@ otelcol_process_runtime_heap_alloc_bytes{job="otel-collector-self"} > 300e6
 deriv(otelcol_process_runtime_heap_alloc_bytes{job="otel-collector-self"}[5m]) > 10e6
 ```
 
-### 8.2 Refused 発生の検知
+### 7.2 Refused 発生の検知
 
 ```promql
 # memory_limiter によるスパン拒否が発生
 rate(otelcol_receiver_refused_spans_total{job="otel-collector-self"}[5m]) > 0
 ```
 
-### 8.3 スループット低下の検知
+### 7.3 スループット低下の検知
 
 ```promql
 # 受信スループットが期待値の50%を下回る
 rate(otelcol_receiver_accepted_spans_total{job="otel-collector-self"}[5m]) < 2500
 ```
 
-## 9. まとめ
+## 8. まとめ
 
 - `tail_sampling` は `decision_wait` に比例してメモリを消費する。バッファサイズは概算式で見積もれるが、実測は概算の約3倍になる
 - `decision_wait: 30s → 10s` の短縮だけで、pdata のメモリ消費が **49% 削減**、スパン拒否率が **62% 削減** された
 - pprof の `flat` ではなく `cum` を見ることで、tail_sampling が「保持の原因者」であることを特定できる
 - 完全に `memory_limiter` の発火をゼロにするには、`decision_wait` の調整に加えてメモリ設計の見直しが必要
-- Heap パターン（急騰 → 解放）で高カーディナリティ（右肩上がり）との鑑別が可能
