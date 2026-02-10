@@ -3,16 +3,19 @@
 Grafanaダッシュボードのクエリデータを取得してLLM/人間向けに出力
 
 使用方法:
-    python export_grafana_metrics.py [--duration MINUTES] [--step SECONDS] [--output DIR]
+    python export_grafana_metrics.py [--duration MINUTES] [--step SECONDS] [--output DIR] [--images] [--image-output DIR]
 
 例:
     python export_grafana_metrics.py                     # デフォルト: 直近15分、60秒間隔
     python export_grafana_metrics.py --duration 60      # 直近60分
     python export_grafana_metrics.py --step 30          # 30秒間隔
+    python export_grafana_metrics.py --images           # メトリクス + パネル画像を出力
+    python export_grafana_metrics.py --images --image-output captures/01-23/120000/images
 """
 import argparse
 import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
@@ -20,6 +23,7 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
 PROMETHEUS_URL = "http://localhost:9090"
+DEFAULT_GRAFANA_URL = "http://localhost:3000"
 
 # ダッシュボード (otel-collector-memory.json) から抽出したクエリ定義
 # カテゴリごとに整理
@@ -153,6 +157,31 @@ QUERIES = {
     },
 }
 
+PANELS = {
+    # Memory Overview
+    "heap_memory": {"id": 1, "title": "Collector Heap Memory", "width": 1000, "height": 500},
+    "rss_memory": {"id": 2, "title": "Collector Sys / RSS Memory", "width": 1000, "height": 500},
+    # Receiver
+    "receiver_spans": {"id": 7, "title": "Receiver: Spans Rate", "width": 1000, "height": 500},
+    "receiver_metrics": {"id": 8, "title": "Receiver: Metric Points Rate", "width": 1000, "height": 500},
+    "receiver_logs": {"id": 9, "title": "Receiver: Log Records Rate", "width": 1000, "height": 500},
+    "receiver_drop_rate": {"id": 10, "title": "Receiver: Drop Rate", "width": 1000, "height": 500},
+    # Processor
+    "processor_ratio": {"id": 11, "title": "Processor: Out/In Ratio", "width": 1000, "height": 500},
+    "processor_net_reduction": {"id": 12, "title": "Processor: Net Reduction", "width": 1000, "height": 500},
+    "batch_avg_size": {"id": 13, "title": "Batch Processor: Average Batch Size", "width": 1000, "height": 500},
+    "batch_p95_size": {"id": 14, "title": "Batch Processor: 95th Percentile Batch Size", "width": 1000, "height": 500},
+    "batch_metadata_cardinality": {"id": 15, "title": "Batch Processor: Metadata Cardinality", "width": 1000, "height": 500},
+    "batch_trigger": {"id": 16, "title": "Batch Processor: Size Trigger vs Timeout Trigger", "width": 1000, "height": 500},
+    # Exporter
+    "exporter_spans": {"id": 17, "title": "Exporter: Spans Rate", "width": 1000, "height": 500},
+    "exporter_metrics": {"id": 18, "title": "Exporter: Metric Points Rate", "width": 1000, "height": 500},
+    "exporter_logs": {"id": 19, "title": "Exporter: Log Records Rate", "width": 1000, "height": 500},
+    "exporter_enqueue_failed": {"id": 20, "title": "Exporter: Queue Enqueue Failed", "width": 1000, "height": 500},
+    "exporter_send_failure_rate": {"id": 21, "title": "Exporter: Send Failure Rate", "width": 1000, "height": 500},
+    "exporter_queue_usage": {"id": 22, "title": "Exporter Queue Usage", "width": 1000, "height": 500},
+}
+
 
 def query_prometheus(query: str, start: int, end: int, step: str) -> dict:
     """Prometheusから時系列データを取得"""
@@ -203,6 +232,11 @@ def format_value(value: str, unit: str) -> str:
                 return f"{num / 60:.2f}m"
             else:
                 return f"{num:.2f}s"
+        elif unit == "count":
+            if num >= 1_000_000:
+                return f"{num:,.0f}"
+            else:
+                return f"{num:.0f}"
         else:
             return f"{num:.4f}"
     except (ValueError, TypeError):
@@ -282,7 +316,82 @@ def export_single_metric(name: str, info: dict, start: int, end: int, step: str,
     return True
 
 
-def export_all_metrics(duration_minutes: int = 15, step_seconds: int = 60, output_dir: str = "metrics_export", raw_values: bool = False):
+def export_panel_images(
+    grafana_url: str,
+    dashboard_uid: str,
+    panels: dict,
+    start_ms: int,
+    end_ms: int,
+    output_dir: Path
+) -> int:
+    """Grafana Render API でパネル画像を取得して保存。成功数を返す。"""
+    image_dir = output_dir
+    image_dir.mkdir(parents=True, exist_ok=True)
+
+    success_count = 0
+    base_url = grafana_url.rstrip("/")
+
+    print()
+    print("パネル画像をエクスポート中...")
+
+    for panel_key, panel in panels.items():
+        params = urlencode({
+            "orgId": 1,
+            "panelId": panel["id"],
+            "from": start_ms,
+            "to": end_ms,
+            "width": panel["width"],
+            "height": panel["height"],
+        })
+        url = f"{base_url}/render/d-solo/{dashboard_uid}/{dashboard_uid}?{params}"
+        output_file = image_dir / f"{panel_key}.png"
+        last_error = None
+
+        for attempt in range(2):
+            try:
+                req = Request(url)
+                with urlopen(req, timeout=60) as response:
+                    image_data = response.read()
+                    if not image_data:
+                        raise ValueError("empty response")
+                    output_file.write_bytes(image_data)
+                    success_count += 1
+                    print(f"  ✅ {output_file.name}")
+                    last_error = None
+                    break
+            except (HTTPError, URLError, Exception) as e:
+                last_error = e
+                if attempt == 0:
+                    print(f"  🔄 {panel_key}: リトライ中...", file=sys.stderr)
+                    time.sleep(5)
+
+        if last_error is not None:
+            if isinstance(last_error, HTTPError):
+                print(
+                    f"  ⚠️  {panel_key}: 画像取得失敗 (HTTP {last_error.code} {last_error.reason}) - "
+                    f"Image Rendererプラグイン未導入の可能性があります",
+                    file=sys.stderr
+                )
+            elif isinstance(last_error, URLError):
+                print(f"  ⚠️  {panel_key}: 画像取得失敗 ({last_error.reason})", file=sys.stderr)
+            else:
+                print(f"  ⚠️  {panel_key}: 画像取得失敗 ({last_error})", file=sys.stderr)
+
+    print(f"画像エクスポート完了: 成功 {success_count}, 失敗 {len(panels) - success_count}")
+    print(f"画像出力ディレクトリ: {image_dir.absolute()}")
+    return success_count
+
+
+def export_all_metrics(
+    duration_minutes: int = 15,
+    step_seconds: int = 60,
+    output_dir: str = "metrics_export",
+    raw_values: bool = False,
+    images: bool = False,
+    image_output: str = None,
+    grafana_url: str = DEFAULT_GRAFANA_URL,
+    dashboard_uid: str = "otel-collector-memory",
+):
     """すべてのメトリクスをエクスポート"""
     end = int(datetime.now().timestamp())
     start = end - (duration_minutes * 60)
@@ -330,8 +439,19 @@ def export_all_metrics(duration_minutes: int = 15, step_seconds: int = 60, outpu
     
     for name, info in QUERIES.items():
         summary_lines.append(f"- **{name}**: {info['description']}")
-    
+
     (output_path / "_SUMMARY.md").write_text("\n".join(summary_lines), encoding="utf-8")
+
+    if images:
+        image_output_dir = Path(image_output) if image_output else output_path / "images"
+        export_panel_images(
+            grafana_url=grafana_url,
+            dashboard_uid=dashboard_uid,
+            panels=PANELS,
+            start_ms=start * 1000,
+            end_ms=end * 1000,
+            output_dir=image_output_dir,
+        )
 
 
 def main():
@@ -361,6 +481,23 @@ def main():
         action="store_true",
         help="フォーマット済み値を省略し、生の値のみ出力"
     )
+    parser.add_argument(
+        "--images",
+        action="store_true",
+        help="Grafana Render APIを使って主要パネル画像を出力"
+    )
+    parser.add_argument(
+        "--image-output",
+        type=str,
+        default=None,
+        help="画像出力ディレクトリ（未指定時は --output 内の images/）"
+    )
+    parser.add_argument(
+        "--grafana-url",
+        type=str,
+        default=DEFAULT_GRAFANA_URL,
+        help=f"Grafana URL。デフォルト: {DEFAULT_GRAFANA_URL}"
+    )
     
     args = parser.parse_args()
     
@@ -368,7 +505,10 @@ def main():
         duration_minutes=args.duration,
         step_seconds=args.step,
         output_dir=args.output,
-        raw_values=args.raw
+        raw_values=args.raw,
+        images=args.images,
+        image_output=args.image_output,
+        grafana_url=args.grafana_url,
     )
 
 

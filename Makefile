@@ -653,6 +653,16 @@ pprof-scenario-full:
 	}; \
 	echo "=== Stop background processes ==="; \
 	make pprof-capture-stop; \
+	echo "=== Export metrics & images ==="; \
+	DIR=$$(cat "$(CAPTURE_LAST_DIR_FILE)"); \
+	if [ -n "$$DIR" ]; then \
+		python3 scripts/export_grafana_metrics.py \
+			--duration 5 --step 15 --images \
+			--output "$$DIR/metrics" \
+			--image-output "$$DIR/images"; \
+	else \
+		echo "⚠️  pprof output dir not found, skipping metrics export"; \
+	fi; \
 	PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
 	OUT_FILE="$(CAPTURE_LAST_DIR_FILE)"; \
 	if [ ! -f "$$OUT_FILE" ]; then \
