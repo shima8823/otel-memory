@@ -24,3 +24,7 @@ metrics_export/
 captures/
 .forward.pid
 .pprof_capture.pid
+
+# Python cache
+__pycache__/
+*.py[cod]
