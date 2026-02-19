@@ -125,6 +125,7 @@ help:
 	@echo "=== 主要ターゲット ==="
 	@echo "  up/down/restart     環境操作"
 	@echo "  scenario-*          シナリオ実行"
+	@echo "  run-*               GCP統合シナリオ実行"
 	@echo "  pprof-heap          メモリプロファイル"
 	@echo ""
 	@echo "=== URL ==="
@@ -187,15 +188,14 @@ help-pprof:
 	@echo "  pprof-ui            単一のプロファイルを表示 (FILE=...)"
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
 	@echo ""
-	@echo "=== pprof シナリオ統合 ==="
-	@echo "  pprof-scenario-full      Terraform→シナリオ→pprof→diff自動実行"
-	@echo "                           (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
-	@echo "  pprof-tail-sampling-full          tail-sampling を実行"
-	@echo "  pprof-tail-sampling-optimized-full tail-sampling 最適化版を実行"
-	@echo "  pprof-receiver-full               receiver 受信過多を実行"
-	@echo "  pprof-scenario1-full              scenario-1 下流停止を実行"
-	@echo "  pprof-scenario2-full              scenario-2 Python版を実行"
-	@echo "  pprof-high-cardinality-metrics-full 高カーディナリティ Python版を実行"
+	@echo "=== シナリオ統合実行 ==="
+	@echo "  run-scenario                全自動実行 (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
+	@echo "  run-tail-sampling           tail-sampling を実行"
+	@echo "  run-tail-sampling-optimized tail-sampling 最適化版を実行"
+	@echo "  run-receiver                receiver 受信過多を実行"
+	@echo "  run-scenario-1              scenario-1 下流停止を実行"
+	@echo "  run-scenario-2              scenario-2 Python版を実行"
+	@echo "  run-high-cardinality-metrics 高カーディナリティ Python版を実行"
 
 # =====================================
 # 環境操作
@@ -541,11 +541,11 @@ pprof-report:
 	@go tool pprof -tree -nodecount=30 --diff_base $(BASE) $(NEW)
 
 # =====================================
-# pprof - シナリオ統合
+# シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full pprof-tail-sampling-full pprof-tail-sampling-optimized-full pprof-high-cardinality-metrics-full pprof-receiver-full
+.PHONY: run-scenario run-scenario-1 run-scenario-2 run-tail-sampling run-tail-sampling-optimized run-receiver run-high-cardinality-metrics
 
-pprof-scenario-full:
+run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
 		echo "❌ PROJECT_ID is not set. Run: export PROJECT_ID=\$$(gcloud config get-value project)"; \
 		exit 1; \
@@ -619,20 +619,20 @@ pprof-scenario-full:
 	echo "=== Peak profile ==="; \
 	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
 
-pprof-scenario1-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-1
+run-scenario-1:
+	$(MAKE) run-scenario SCENARIO=scenario-1
 
-pprof-scenario2-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-2
+run-scenario-2:
+	$(MAKE) run-scenario SCENARIO=scenario-2
 
-pprof-tail-sampling-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling
+run-tail-sampling:
+	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling
 
-pprof-tail-sampling-optimized-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling-optimized
+run-tail-sampling-optimized:
+	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-optimized
 
-pprof-receiver-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-receiver
+run-receiver:
+	$(MAKE) run-scenario SCENARIO=scenario-receiver
 
-pprof-high-cardinality-metrics-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-high-cardinality-metrics
+run-high-cardinality-metrics:
+	$(MAKE) run-scenario SCENARIO=scenario-high-cardinality-metrics
