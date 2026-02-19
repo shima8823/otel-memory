@@ -6,18 +6,9 @@
 # =====================================
 
 # === 基本設定 ===
-LOADGEN := ./loadgen/loadgen
 ENDPOINT := localhost:4317
 RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
 
-# === シナリオ設定 ===
-# ベースシナリオ: Trace > Metrics > Logsなので、Traceのみ
-# 1スパン: 128 bytes × 8属性 = 1KB
-# 1トレース: 1KB × (depth+1) = 4KB （root + 3子スパン）
-# rate 12,000 spans/sec → 12MB/sec 流入
-BASE_SCENARIO := sustained
-BASE_PARAMS := -workers 10 -attr-size 128 -attr-count 8 -depth 3 \
-	-metrics=false -logs=false
 SCENARIO_FILE_1 := otel-collector/scenarios/scenario-1.yaml
 SCENARIO_FILE_2 := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_RECEIVER := otel-collector/scenarios/scenario-receiver.yaml
@@ -28,7 +19,6 @@ TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/tel
 TGEN := docker run --rm --network host $(TELEMETRYGEN_IMAGE)
 
 # === telemetrygen シナリオレート設定 ===
-# loadgen の -rate(spans/sec) → telemetrygen の --rate(traces/sec) 変換済み
 TGEN_TAIL_RATE := 1500
 TGEN_TAIL_DURATION := 120s
 TGEN_TAIL_WORKERS := 10
@@ -83,48 +73,10 @@ endif
 # マクロ定義
 # =====================================
 
-# シナリオ実行マクロ（統合版）
-# $(1): シナリオ番号
-# $(2): メッセージ
-# $(3): loadgenコマンド（BASE_PARAMS除く）
-# $(4): 下流停止秒（0=下流停止なし）
-# $(5): 観察秒（下流停止時のみ使用）
-define run_scenario
-	@echo "========================================"
-	@echo "シナリオ $(1): $(2)"
-	@echo "========================================"
-	@echo "📌 シナリオ用設定を適用中..."
-	@cp $(if $(6),$(6),otel-collector/scenarios/scenario-$(1).yaml) otel-collector/otel-collector.yaml
-	@$(RESTART_COLLECTOR)
-	@echo "✅ 設定ファイル適用完了"
-	@echo ""
-	@if [ "$(4)" -gt 0 ]; then \
-		$(3) $(BASE_PARAMS) & PID=$$!; \
-		echo "⏳ $(4)秒後にJaeger停止..."; sleep $(4); \
-		echo "🛑 Jaeger停止"; docker compose stop jaeger; \
-		echo "⏳ $(5)秒間観察..."; sleep $(5); \
-		echo "🔄 Jaeger復旧"; docker compose start jaeger; \
-		wait $$PID 2>/dev/null || true; \
-		git restore otel-collector/otel-collector.yaml; \
-		$(RESTART_COLLECTOR); \
-		echo "✅ シナリオ完了"; \
-	else \
-		($(3) $(BASE_PARAMS)) ; \
-		EXIT_CODE=$$? ; \
-		echo "" ; \
-		echo "📌 設定をベストプラクティスに復元中..." ; \
-		git restore otel-collector/otel-collector.yaml ; \
-		$(RESTART_COLLECTOR) ; \
-		echo "✅ 設定の復元完了" ; \
-		exit $$EXIT_CODE; \
-	fi
-endef
-
 # telemetrygen シナリオ実行マクロ
-# run_scenario との違い: BASE_PARAMS を付加しない
 # $(1): シナリオ名, $(2): メッセージ, $(3): telemetrygenコマンド（完全形）
 # $(4): 下流停止秒, $(5): 観察秒, $(6): シナリオファイルパス
-define run_tgen_scenario
+define run_scenario
 	@echo "========================================"
 	@echo "シナリオ $(1): $(2) [telemetrygen]"
 	@echo "========================================"
@@ -158,26 +110,21 @@ endef
 # =====================================
 # Help
 # =====================================
-.PHONY: help help-env help-build help-scenario help-load help-tgen help-config help-util help-pprof
+.PHONY: help help-env help-scenario help-config help-util help-pprof
 
 help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "詳細: make help-<section>"
 	@echo "  help-env       環境操作"
-	@echo "  help-build     ビルド"
 	@echo "  help-scenario  シナリオテスト"
-	@echo "  help-load      負荷テスト (loadgen)"
-	@echo "  help-tgen      負荷テスト (telemetrygen)"
 	@echo "  help-config    設定管理"
 	@echo "  help-util      ユーティリティ"
 	@echo "  help-pprof     プロファイリング"
 	@echo ""
 	@echo "=== 主要ターゲット ==="
 	@echo "  up/down/restart     環境操作"
-	@echo "  build/clean         ビルド"
 	@echo "  scenario-*          シナリオ実行"
-	@echo "  load-*              負荷テスト"
 	@echo "  pprof-heap          メモリプロファイル"
 	@echo ""
 	@echo "=== URL ==="
@@ -196,47 +143,14 @@ help-env:
 	@echo "  logs-f              Collector のログをフォロー"
 	@echo "  status              サービス状態を表示"
 
-help-build:
-	@echo "=== ビルド ==="
-	@echo "  build               loadgen をビルド"
-	@echo "  clean               ビルド成果物を削除"
-
 help-scenario:
-	@echo "=== シナリオテスト (docs/blog/scenario-reports/why-these-scenarios.md 参照) ==="
-	@echo "  scenario-1              [参考] 下流停止 (1:負荷開始 -> 2:別ターミナルで jaeger-stop)"
-	@echo "  scenario-2              [空間軸] processor 異常系（spanmetricsによる高カーディナリティ爆発）"
-	@echo "  scenario-receiver       [流量軸] 受信過多（慢性的なデータドロップ）"
-	@echo "  scenario-tail-sampling  [時間軸] Tail Sampling（decision_wait によるメモリ肥大化）"
-	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版（decision_wait短縮）"
-	@echo "  scenario-high-cardinality-metrics  [空間軸] 王道の高カーディナリティ（メトリクスラベル爆発）"
-
-help-load:
-	@echo "=== 負荷テスト (loadgen) ==="
-	@echo "  load-burst          burst シナリオ (最大速度で送信)"
-	@echo "  load-sustained      sustained シナリオ (一定レートで継続)"
-	@echo "  load-spike          spike シナリオ (通常↔スパイクを交互)"
-	@echo "  load-rampup         rampup シナリオ (徐々に負荷増加)"
-	@echo "  load-light          軽い負荷 (動作確認用)"
-	@echo "  load-logs           ログ送信テスト"
-	@echo "  load-stop           実行中の loadgen を停止"
-
-help-tgen:
-	@echo "=== 負荷テスト (telemetrygen) ==="
-	@echo "  tgen-traces         traces を生成"
-	@echo "  tgen-metrics        metrics を生成"
-	@echo "  tgen-logs           logs を生成"
-	@echo "  tgen-burst          高負荷 traces (memory_limiter 発火用)"
-	@echo "  tgen-sustained      持続的な負荷"
-	@echo "  tgen-all            traces + metrics + logs を同時生成"
-	@echo "  tgen-help           telemetrygen のヘルプを表示"
-	@echo ""
-	@echo "  --- シナリオテスト (telemetrygen) ---"
-	@echo "  tgen-scenario-tail-sampling           [時間軸] Tail Sampling (telemetrygen版)"
-	@echo "  tgen-scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版"
-	@echo "  tgen-scenario-receiver                [流量軸] 受信過多 (telemetrygen版)"
-	@echo "  tgen-scenario-1                       [参考] 下流停止 (telemetrygen版)"
-	@echo "  tgen-scenario-2                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
-	@echo "  tgen-scenario-high-cardinality-metrics [空間軸] メトリクスラベル爆発 [Python + OTel SDK]"
+	@echo "=== シナリオテスト ==="
+	@echo "  scenario-tail-sampling           [時間軸] Tail Sampling [telemetrygen]"
+	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版 [telemetrygen]"
+	@echo "  scenario-receiver                [流量軸] 受信過多 [telemetrygen]"
+	@echo "  scenario-1                       [参考] 下流停止 [telemetrygen]"
+	@echo "  scenario-2                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
+	@echo "  scenario-high-cardinality-metrics [空間軸] メトリクスラベル爆発 [Python + OTel SDK]"
 
 help-config:
 	@echo "=== 設定管理 ==="
@@ -276,22 +190,12 @@ help-pprof:
 	@echo "=== pprof シナリオ統合 ==="
 	@echo "  pprof-scenario-full      Terraform→シナリオ→pprof→diff自動実行"
 	@echo "                           (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
-	@echo "  pprof-scenario1-full     scenario-1 を実行"
-	@echo "  pprof-scenario2-full     scenario-2 を実行"
-	@echo "  pprof-scenario2-lite     scenario-2 を軽量実行（SYNC=0 RESTART=0）"
-	@echo "  pprof-scenario-receiver-full receiver 受信過多を実行"
-	@echo "  pprof-tail-sampling-full tail-sampling を実行"
-	@echo "  pprof-tail-sampling-lite tail-sampling を軽量実行"
+	@echo "  pprof-tail-sampling-full          tail-sampling を実行"
 	@echo "  pprof-tail-sampling-optimized-full tail-sampling 最適化版を実行"
-	@echo "  pprof-high-cardinality-metrics-full  王道の高カーディナリティを実行"
-	@echo ""
-	@echo "=== pprof シナリオ統合 (telemetrygen) ==="
-	@echo "  pprof-tgen-tail-sampling-full          [tgen] tail-sampling を実行"
-	@echo "  pprof-tgen-tail-sampling-optimized-full [tgen] tail-sampling 最適化版を実行"
-	@echo "  pprof-tgen-receiver-full               [tgen] receiver 受信過多を実行"
-	@echo "  pprof-tgen-scenario1-full              [tgen] scenario-1 下流停止を実行"
-	@echo "  pprof-tgen-scenario2-full              [pyloadgen] scenario-2 Python版を実行"
-	@echo "  pprof-tgen-high-cardinality-metrics-full [pyloadgen] 高カーディナリティ Python版を実行"
+	@echo "  pprof-receiver-full               receiver 受信過多を実行"
+	@echo "  pprof-scenario1-full              scenario-1 下流停止を実行"
+	@echo "  pprof-scenario2-full              scenario-2 Python版を実行"
+	@echo "  pprof-high-cardinality-metrics-full 高カーディナリティ Python版を実行"
 
 # =====================================
 # 環境操作
@@ -327,93 +231,6 @@ status:
 	docker compose ps
 
 # =====================================
-# ビルド
-# =====================================
-.PHONY: build clean
-
-build:
-	cd loadgen && go build -o loadgen .
-	@echo "✅ loadgen built: ./loadgen/loadgen"
-
-clean:
-	rm -f loadgen/loadgen
-	@echo "✅ Cleaned"
-
-# =====================================
-# シナリオテスト
-# =====================================
-.PHONY: scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized scenario-high-cardinality-metrics
-
-scenario-1: build
-	$(call run_scenario,1,下流停止,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 180s -rate 12000,30,60,$(SCENARIO_FILE_1))
-
-scenario-2: build
-	$(call run_scenario,2,processor高カーディナリティ,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 240s -rate 12000 -high-cardinality,0,0,$(SCENARIO_FILE_2))
-
-scenario-receiver: build
-	$(call run_scenario,receiver,受信過多（流量軸）,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 180s -rate 35000,0,0,$(SCENARIO_FILE_RECEIVER))
-
-scenario-tail-sampling: build
-	$(call run_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
-		$(LOADGEN) -endpoint $(ENDPOINT) -scenario $(BASE_SCENARIO) \
-		-duration 120s -rate 5000,0,0,$(SCENARIO_FILE_TAIL))
-
-scenario-tail-sampling-optimized:
-	@if [ -z "$(PROJECT_ID)" ]; then \
-		echo "❌ PROJECT_ID is not set. Run: export PROJECT_ID=\$$(gcloud config get-value project)"; \
-		exit 1; \
-	fi
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform sync
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform restart
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform scenario-tail-sampling-optimized
-
-# 王道の高カーディナリティメトリクス シナリオ（空間軸）
-# メトリクスラベルに request_id, user_id 等を含めると時系列が爆発
-# spanmetrics を使わない「最も一般的な」高カーディナリティ問題
-scenario-high-cardinality-metrics:
-	@if [ -z "$(PROJECT_ID)" ]; then \
-		echo "❌ PROJECT_ID is not set. Run: export PROJECT_ID=\$$(gcloud config get-value project)"; \
-		exit 1; \
-	fi
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform sync
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform prepare-high-cardinality-metrics
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform restart
-	PROJECT_ID="$(PROJECT_ID)" $(MAKE) -C terraform scenario-high-cardinality-metrics
-
-# =====================================
-# 負荷テスト (loadgen)
-# =====================================
-.PHONY: load-burst load-sustained load-spike load-rampup load-light load-logs load-stop
-
-load-burst: build
-	$(LOADGEN) -endpoint $(ENDPOINT) -scenario burst -duration 120s -workers 50 -attr-size 128 -attr-count 15 -depth 8
-
-load-sustained: build
-	$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 180s -rate 10000 -workers 20 -attr-size 64 -attr-count 10 -depth 5
-
-load-spike: build
-	$(LOADGEN) -endpoint $(ENDPOINT) -scenario spike -duration 180s -rate 15000 -workers 20 -attr-size 64 -attr-count 10 -depth 5
-
-load-rampup: build
-	$(LOADGEN) -endpoint $(ENDPOINT) -scenario rampup -duration 120s -rate 20000 -workers 20 -attr-size 64 -attr-count 10 -depth 5
-
-load-light: build
-	$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 30s -rate 1000 -workers 5 -attr-size 32 -attr-count 5 -depth 3
-
-load-logs: build
-	$(LOADGEN) -endpoint $(ENDPOINT) -scenario sustained -duration 60s -rate 2000 -workers 5 -attr-size 128 -attr-count 10 -depth 3 -logs
-
-load-stop:
-	-pkill -f "loadgen" 2>/dev/null || true
-	@echo "✅ loadgen stopped"
-
-# =====================================
 # 負荷テスト (telemetrygen)
 # =====================================
 .PHONY: tgen-traces tgen-metrics tgen-logs tgen-burst tgen-sustained tgen-all tgen-help
@@ -443,29 +260,29 @@ tgen-help:
 	$(TGEN) traces --help
 
 # =====================================
-# telemetrygen シナリオテスト
+# シナリオテスト
 # =====================================
-.PHONY: tgen-scenario-tail-sampling tgen-scenario-tail-sampling-optimized tgen-scenario-receiver tgen-scenario-1 tgen-scenario-2 tgen-scenario-high-cardinality-metrics
+.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-receiver scenario-1 scenario-2 scenario-high-cardinality-metrics
 
 # Tail Sampling（時間軸: 保持遅延型）
 # telemetrygen 1500 traces/s × (1 root + 5 child) = 約9,000 spans/s
-tgen-scenario-tail-sampling:
-	$(call run_tgen_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
+scenario-tail-sampling:
+	$(call run_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
 		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_TAIL_RATE) --duration $(TGEN_TAIL_DURATION) \
 		--workers $(TGEN_TAIL_WORKERS) --child-spans $(TGEN_TAIL_CHILD_SPANS),0,0,$(SCENARIO_FILE_TAIL))
 
 # Tail Sampling 最適化版（decision_wait短縮）
-tgen-scenario-tail-sampling-optimized:
-	$(call run_tgen_scenario,tail-sampling-optimized,Tail Sampling 最適化版,\
+scenario-tail-sampling-optimized:
+	$(call run_scenario,tail-sampling-optimized,Tail Sampling 最適化版,\
 		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_TAIL_RATE) --duration $(TGEN_TAIL_DURATION) \
 		--workers $(TGEN_TAIL_WORKERS) --child-spans $(TGEN_TAIL_CHILD_SPANS),0,0,otel-collector/scenarios/tail-sampling-optimized.yaml)
 
 # 受信過多（流量軸: キュー滞留型）
 # telemetrygen 8,750 traces/s × (1 root + 3 child) = 約35,000 spans/s
-tgen-scenario-receiver:
-	$(call run_tgen_scenario,receiver,受信過多（流量軸）,\
+scenario-receiver:
+	$(call run_scenario,receiver,受信過多（流量軸）,\
 		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_RECEIVER_RATE) --duration $(TGEN_RECEIVER_DURATION) \
 		--workers $(TGEN_RECEIVER_WORKERS) --child-spans $(TGEN_RECEIVER_CHILD_SPANS),0,0,$(SCENARIO_FILE_RECEIVER))
@@ -473,23 +290,23 @@ tgen-scenario-receiver:
 # 下流停止（Jaeger停止→復旧パターン）
 # telemetrygen 3,000 traces/s × (1 root + 3 child) = 約12,000 spans/s
 # 30秒後にJaeger停止、60秒間観察後に復旧
-tgen-scenario-1:
-	$(call run_tgen_scenario,1,下流停止,\
+scenario-1:
+	$(call run_scenario,1,下流停止,\
 		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_S1_RATE) --duration $(TGEN_S1_DURATION) \
 		--workers $(TGEN_S1_WORKERS) --child-spans $(TGEN_S1_CHILD_SPANS),30,60,$(SCENARIO_FILE_1))
 
 # 高カーディナリティ spanmetrics [Python + OTel SDK]
 # telemetrygen ではランダム属性生成ができないため Python を使用
-tgen-scenario-2:
-	$(call run_tgen_scenario,2,高カーディナリティ spanmetrics [Python],\
+scenario-2:
+	$(call run_scenario,2,高カーディナリティ spanmetrics [Python],\
 		python3 pyloadgen/high_cardinality_traces.py \
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
 		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_2))
 
 # 高カーディナリティ metrics [Python + OTel SDK]
-tgen-scenario-high-cardinality-metrics:
-	$(call run_tgen_scenario,high-cardinality-metrics,高カーディナリティ metrics [Python],\
+scenario-high-cardinality-metrics:
+	$(call run_scenario,high-cardinality-metrics,高カーディナリティ metrics [Python],\
 		python3 pyloadgen/high_cardinality_metrics.py \
 		--endpoint $(ENDPOINT) --rate 1500 --duration 240 \
 		--cardinality 35000,0,0,otel-collector/scenarios/scenario-high-cardinality-metrics.yaml)
@@ -726,7 +543,7 @@ pprof-report:
 # =====================================
 # pprof - シナリオ統合
 # =====================================
-.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full pprof-scenario2-lite pprof-scenario-receiver-full pprof-tail-sampling-full pprof-tail-sampling-lite pprof-tail-sampling-optimized-full pprof-high-cardinality-metrics-full pprof-tgen-tail-sampling-full pprof-tgen-tail-sampling-optimized-full pprof-tgen-receiver-full pprof-tgen-scenario1-full pprof-tgen-scenario2-full pprof-tgen-high-cardinality-metrics-full
+.PHONY: pprof-scenario-full pprof-scenario1-full pprof-scenario2-full pprof-tail-sampling-full pprof-tail-sampling-optimized-full pprof-high-cardinality-metrics-full pprof-receiver-full
 
 pprof-scenario-full:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -747,11 +564,7 @@ pprof-scenario-full:
 		echo "=== Restart services on VM ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform restart; \
 	fi; \
-	if [ "$(SCENARIO)" = "scenario-high-cardinality-metrics" ]; then \
-		echo "=== Prepare high-cardinality loadgen ==="; \
-		PROJECT_ID="$(PROJECT_ID)" make -C terraform prepare-high-cardinality-metrics; \
-	fi; \
-	if [ "$(SCENARIO)" = "tgen-scenario-2" ] || [ "$(SCENARIO)" = "tgen-scenario-high-cardinality-metrics" ]; then \
+	if [ "$(SCENARIO)" = "scenario-2" ] || [ "$(SCENARIO)" = "scenario-high-cardinality-metrics" ]; then \
 		echo "=== Prepare pyloadgen (pip install) ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform prepare-pyloadgen; \
 	fi; \
@@ -806,47 +619,20 @@ pprof-scenario-full:
 	echo "=== Peak profile ==="; \
 	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
 
-# 互換用（既存の呼び出しを維持）
-pprof-scenario1-full: pprof-scenario-full
+pprof-scenario1-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-1
 
 pprof-scenario2-full:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-2
 
-# 軽量実行: インフラ再作成を避ける（sync と restart は実行）
-pprof-scenario2-lite:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-2 SYNC=0 RESTART=0
-
-pprof-scenario-receiver-full:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-receiver
-
-# Tail Sampling シナリオ（時間軸の罠）
 pprof-tail-sampling-full:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling
-
-pprof-tail-sampling-lite:
-	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling SYNC=1 RESTART=1
 
 pprof-tail-sampling-optimized-full:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-tail-sampling-optimized
 
+pprof-receiver-full:
+	$(MAKE) pprof-scenario-full SCENARIO=scenario-receiver
+
 pprof-high-cardinality-metrics-full:
 	$(MAKE) pprof-scenario-full SCENARIO=scenario-high-cardinality-metrics
-
-# telemetrygen シナリオ統合（pprof-scenario-full 経由）
-pprof-tgen-tail-sampling-full:
-	$(MAKE) pprof-scenario-full SCENARIO=tgen-scenario-tail-sampling
-
-pprof-tgen-tail-sampling-optimized-full:
-	$(MAKE) pprof-scenario-full SCENARIO=tgen-scenario-tail-sampling-optimized
-
-pprof-tgen-receiver-full:
-	$(MAKE) pprof-scenario-full SCENARIO=tgen-scenario-receiver
-
-pprof-tgen-scenario1-full:
-	$(MAKE) pprof-scenario-full SCENARIO=tgen-scenario-1
-
-pprof-tgen-scenario2-full:
-	$(MAKE) pprof-scenario-full SCENARIO=tgen-scenario-2
-
-pprof-tgen-high-cardinality-metrics-full:
-	$(MAKE) pprof-scenario-full SCENARIO=tgen-scenario-high-cardinality-metrics

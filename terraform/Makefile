@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart rebuild-loadgen prepare-high-cardinality-metrics prepare-telemetrygen prepare-pyloadgen sync-and-rebuild loadgen-ssh loadgen scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized scenario-high-cardinality-metrics wait-collector wait-loadgen tgen-scenario-tail-sampling tgen-scenario-tail-sampling-optimized tgen-scenario-receiver tgen-scenario-1 tgen-scenario-2 tgen-scenario-high-cardinality-metrics
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized scenario-high-cardinality-metrics wait-collector wait-loadgen
 
 # --- terraform ---
 
@@ -278,23 +278,6 @@ sync-loadgen: set-project-id wait-loadgen
 	@rm -f "$(TAR_PATH)" project.tar.gz
 	@echo "✅ Loadgen sync completed!"
 
-# Loadgenをリビルド（新しいフラグを追加した場合など）
-rebuild-loadgen: set-project-id wait-loadgen
-	@echo "🔨 Rebuilding loadgen on VM..."
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory/loadgen && \
-		 sudo -u ubuntu bash -lc 'cd /home/ubuntu/otel-memory/loadgen && /usr/local/go/bin/go build -buildvcs=false -o loadgen .'"
-	@echo "✅ Loadgen rebuilt!"
-
-# syncしてリビルド（コード変更後に使用）
-# sync: Collector VM（docker compose用）, sync-loadgen: Loadgen VM（loadgenコード用）
-sync-and-rebuild: sync sync-loadgen rebuild-loadgen restart
-	@echo "✅ Sync, rebuild, and restart completed!"
-
-# 高カーディナリティメトリクス用の最小準備（Loadgen VMのみ）
-prepare-high-cardinality-metrics: sync-loadgen rebuild-loadgen
-	@echo "✅ High-cardinality loadgen prep completed!"
-
 # telemetrygen を Loadgen VM にインストール（未インストールの場合のみ）
 prepare-telemetrygen: wait-loadgen
 	@echo "📦 Ensuring telemetrygen is installed on Loadgen VM..."
@@ -326,185 +309,10 @@ GET_COLLECTOR_IP = gcloud compute instances describe $(INSTANCE_NAME) --project 
 loadgen-ssh: set-project-id
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE)
 
-# 負荷試験の実行
-# 例: make loadgen SCENARIO=spike DURATION=180s
-SCENARIO ?= sustained
-DURATION ?= 60s
-loadgen: set-project-id
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario $(SCENARIO) -duration $(DURATION)"
-
 # --- シナリオ実行 (Distributed) ---
 
-# シナリオ1: 下流停止 (Jaeger停止によるメモリ蓄積の観測)
-scenario-1: wait-collector wait-loadgen
-	@echo "=== Scenario 1: Downstream Failure (Jaeger Stop) ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-1 config to Collector VM (IP: $$IP)..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_1) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting load from Loadgen VM..."; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 180s -rate 12000" & \
-	LOADGEN_PID=$$!; \
-	echo "⏳ Waiting 30s before stopping Jaeger..."; sleep 30; \
-	\
-	echo "3. 🛑 Stopping Jaeger on Collector VM..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- "sudo docker compose -f /home/ubuntu/otel-memory/docker-compose.yaml stop jaeger"; \
-	\
-	echo "⏳ Observing for 60s..."; sleep 60; \
-	\
-	echo "4. 🔄 Starting Jaeger on Collector VM..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- "sudo docker compose -f /home/ubuntu/otel-memory/docker-compose.yaml start jaeger"; \
-	\
-	echo "5. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	\
-	echo "✅ Scenario-1 completed. Waiting for loadgen to finish..."; \
-	wait $$LOADGEN_PID
-
-# シナリオ2: Processor 高カーディナリティ（メモリ高騰）
-scenario-2: wait-collector wait-loadgen
-	@echo "=== Scenario 2: Processor High Cardinality (Memory Growth) ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-2 config to Collector VM (IP: $$IP)..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_2) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting load from Loadgen VM (high-cardinality)..."; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 300s -rate 8000 -workers 10 -attr-size 128 -attr-count 8 -depth 3 -metrics=false -logs=false -high-cardinality || true"; \
-	echo "3. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ Scenario-2 completed."
-
-# シナリオ: Receiver 受信過多（流量軸）
-scenario-receiver: wait-collector wait-loadgen
-	@echo "=== Scenario: Receiver Overload (Flow Axis) ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-receiver config to Collector VM (IP: $$IP)..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_RECEIVER) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting load from Loadgen VM (receiver overload)..."; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 180s -rate 35000 -workers 10 -attr-size 128 -attr-count 8 -depth 3 -metrics=false -logs=false || true"; \
-	echo "3. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ Scenario-receiver completed."
-
-# シナリオ: Tail Sampling（時間軸の罠）
-# decision_wait=30s × 高スループット でメモリ肥大化を再現
-scenario-tail-sampling: wait-collector wait-loadgen
-	@echo "=== Scenario: Tail Sampling (Time-axis Memory Growth) ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-tail-sampling config to Collector VM (IP: $$IP)..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_TAIL) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting load from Loadgen VM (high throughput for tail sampling)..."; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 120s -rate 5000 -workers 10 -attr-size 128 -attr-count 8 -depth 5 -metrics=false -logs=false || true"; \
-	echo "3. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ Scenario-tail-sampling completed."
-
-# シナリオ: Tail Sampling（最適化版）
-# decision_wait を短縮した設定でメモリ挙動の改善を比較する
-scenario-tail-sampling-optimized: wait-collector wait-loadgen
-	@echo "=== Scenario: Tail Sampling Optimized (Reduced decision_wait) ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-tail-sampling-optimized config to Collector VM (IP: $$IP)..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_TAIL_OPT) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting load from Loadgen VM (high throughput for optimized tail sampling)..."; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario sustained -duration 120s -rate 5000 -workers 10 -attr-size 128 -attr-count 8 -depth 5 -metrics=false -logs=false || true"; \
-	echo "3. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ Scenario-tail-sampling-optimized completed."
-
-# シナリオ: 王道の高カーディナリティメトリクス（空間軸）
-# メトリクスラベルに request_id, user_id 等を含めると時系列が爆発
-# spanmetrics を使わない「最も一般的な」高カーディナリティ問題
-# 注: 事前準備は prepare-high-cardinality-metrics で明示実行する
-scenario-high-cardinality-metrics: wait-collector wait-loadgen
-	@echo "=== Scenario: High Cardinality Metrics (Classic Label Explosion) ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-high-cardinality-metrics config to Collector VM (IP: $$IP)..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_HC_METRICS) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting load from Loadgen VM (high-cardinality metrics)..."; \
-	echo "   ⚠️  WARNING: This sends metrics with high-cardinality labels (bounded to $(HC_METRIC_CARDINALITY) series)"; \
-	echo "   Parameters: scenario=$(HC_SCENARIO), rate=$(HC_RATE), workers=$(HC_WORKERS), duration=$(HC_DURATION), export_interval=$(HC_METRIC_EXPORT_INTERVAL)"; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory/loadgen && ./loadgen -endpoint $$IP:4317 -scenario $(HC_SCENARIO) -duration $(HC_DURATION) -rate $(HC_RATE) -workers $(HC_WORKERS) -traces=false -metric-export-interval $(HC_METRIC_EXPORT_INTERVAL) -metrics=true -logs=false -high-cardinality-metrics -metric-cardinality $(HC_METRIC_CARDINALITY) -attr-size 64 -attr-count 5 -depth 2 || true"; \
-	echo "3. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ Scenario-high-cardinality-metrics completed."
-
-# --- telemetrygen シナリオ実行 (Distributed) ---
-
 # Tail Sampling（telemetrygen版）
-tgen-scenario-tail-sampling: wait-collector prepare-telemetrygen
+scenario-tail-sampling: wait-collector prepare-telemetrygen
 	@echo "=== [tgen] Scenario: Tail Sampling (Time-axis Memory Growth) ==="
 	@IP=$$($(GET_COLLECTOR_IP)); \
 	echo "1. Applying tail-sampling config to Collector VM (IP: $$IP)..."; \
@@ -528,7 +336,7 @@ tgen-scenario-tail-sampling: wait-collector prepare-telemetrygen
 	echo "✅ [tgen] Scenario-tail-sampling completed."
 
 # Tail Sampling 最適化版（telemetrygen版）
-tgen-scenario-tail-sampling-optimized: wait-collector prepare-telemetrygen
+scenario-tail-sampling-optimized: wait-collector prepare-telemetrygen
 	@echo "=== [tgen] Scenario: Tail Sampling Optimized ==="
 	@IP=$$($(GET_COLLECTOR_IP)); \
 	echo "1. Applying tail-sampling-optimized config to Collector VM (IP: $$IP)..."; \
@@ -552,7 +360,7 @@ tgen-scenario-tail-sampling-optimized: wait-collector prepare-telemetrygen
 	echo "✅ [tgen] Scenario-tail-sampling-optimized completed."
 
 # 受信過多（telemetrygen版）
-tgen-scenario-receiver: wait-collector prepare-telemetrygen
+scenario-receiver: wait-collector prepare-telemetrygen
 	@echo "=== [tgen] Scenario: Receiver Overload ==="
 	@IP=$$($(GET_COLLECTOR_IP)); \
 	echo "1. Applying scenario-receiver config to Collector VM (IP: $$IP)..."; \
@@ -576,7 +384,7 @@ tgen-scenario-receiver: wait-collector prepare-telemetrygen
 	echo "✅ [tgen] Scenario-receiver completed."
 
 # 下流停止（telemetrygen版）
-tgen-scenario-1: wait-collector prepare-telemetrygen
+scenario-1: wait-collector prepare-telemetrygen
 	@echo "=== [tgen] Scenario 1: Downstream Failure (Jaeger Stop) ==="
 	@IP=$$($(GET_COLLECTOR_IP)); \
 	echo "1. Applying scenario-1 config to Collector VM (IP: $$IP)..."; \
@@ -614,7 +422,7 @@ tgen-scenario-1: wait-collector prepare-telemetrygen
 
 # シナリオ: spanmetrics 高カーディナリティ [Python + OTel SDK]
 # telemetrygen ではランダム属性生成ができないため Python を使用
-tgen-scenario-2: wait-collector prepare-pyloadgen
+scenario-2: wait-collector prepare-pyloadgen
 	@echo "=== [pyloadgen] Scenario 2: Processor High Cardinality (spanmetrics) ==="
 	@IP=$$($(GET_COLLECTOR_IP)); \
 	echo "1. Applying scenario-2 config to Collector VM (IP: $$IP)..."; \
@@ -635,10 +443,10 @@ tgen-scenario-2: wait-collector prepare-pyloadgen
 		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ [pyloadgen] tgen-scenario-2 completed."
+	echo "✅ [pyloadgen] scenario-2 completed."
 
 # シナリオ: メトリクスラベル爆発 [Python + OTel SDK]
-tgen-scenario-high-cardinality-metrics: wait-collector prepare-pyloadgen
+scenario-high-cardinality-metrics: wait-collector prepare-pyloadgen
 	@echo "=== [pyloadgen] Scenario: High Cardinality Metrics ==="
 	@IP=$$($(GET_COLLECTOR_IP)); \
 	echo "1. Applying scenario-high-cardinality-metrics config to Collector VM (IP: $$IP)..."; \
@@ -659,4 +467,4 @@ tgen-scenario-high-cardinality-metrics: wait-collector prepare-pyloadgen
 		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ [pyloadgen] tgen-scenario-high-cardinality-metrics completed."
+	echo "✅ [pyloadgen] scenario-high-cardinality-metrics completed."

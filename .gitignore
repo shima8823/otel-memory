@@ -15,9 +15,6 @@ coverage.*
 go.work
 go.work.sum
 
-# Build binary
-loadgen/loadgen
-
 metrics_export/
 .gcloud/
 

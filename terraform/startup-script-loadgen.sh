@@ -89,43 +89,17 @@ if [[ "$GIT_REPO_URL" == *"github.com"* ]] || [[ "$GIT_REPO_URL" == "https://"* 
         git clone "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
             log "WARNING: Failed to clone repository. You may need to manually clone or upload the code."
             log "Creating placeholder directory..."
-            mkdir -p otel-memory/loadgen
+            mkdir -p otel-memory
         }
     }
 else
     log "WARNING: Invalid or placeholder git_repo_url. Creating empty directory."
     log "Please manually upload your code or configure git_repo_url variable."
-    mkdir -p otel-memory/loadgen
+    mkdir -p otel-memory
 fi
 
 chown -R ubuntu:ubuntu otel-memory
 log "Project code setup completed"
-
-# 5. loadgenバイナリのビルド
-log "Step 5: Building loadgen binary"
-cd /home/ubuntu/otel-memory/loadgen
-
-if [ -f "go.mod" ]; then
-    export PATH=$PATH:/usr/local/go/bin
-    export GOPATH=/home/ubuntu/go
-    
-    # 依存関係のダウンロード
-    sudo -u ubuntu /usr/local/go/bin/go mod download >> "$LOG_FILE" 2>&1 || log "WARNING: go mod download failed"
-    
-    # ビルド
-    sudo -u ubuntu /usr/local/go/bin/go build -o loadgen . >> "$LOG_FILE" 2>&1 || {
-        log "WARNING: Failed to build loadgen. You may need to build manually."
-    }
-    
-    if [ -f "loadgen" ]; then
-        chmod +x loadgen
-        log "loadgen binary built successfully"
-    fi
-else
-    log "WARNING: go.mod not found in loadgen directory. Manual setup required."
-fi
-
-chown -R ubuntu:ubuntu /home/ubuntu/otel-memory
 
 # 5b. Python 依存のインストール（pyloadgen 用）
 log "Step 5b: Installing Python dependencies for pyloadgen"
@@ -149,8 +123,7 @@ COLLECTOR_INTERNAL_IP=$COLLECTOR_IP
 COLLECTOR_ENDPOINT=$COLLECTOR_IP:4317
 
 # Usage example:
-# cd ~/otel-memory/loadgen
-# ./loadgen -endpoint $COLLECTOR_IP:4317 -scenario sustained -duration 60s
+# telemetrygen traces --otlp-endpoint $COLLECTOR_IP:4317 --otlp-insecure --rate 1500 --duration 120s --workers 10 --child-spans 5
 EOF
 
 # 環境変数としても設定
@@ -169,8 +142,7 @@ Status: READY
 Collector VM Internal IP: $COLLECTOR_IP
 
 Quick Start:
-1. cd ~/otel-memory/loadgen
-2. ./loadgen -endpoint $COLLECTOR_IP:4317 -scenario sustained -duration 60s
+1. telemetrygen traces --otlp-endpoint $COLLECTOR_IP:4317 --otlp-insecure --rate 1500 --duration 120s --workers 10 --child-spans 5
 
 Installed versions:
 - Go: $(/usr/local/go/bin/go version 2>/dev/null || echo "Not found")
