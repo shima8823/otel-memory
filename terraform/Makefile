@@ -31,6 +31,8 @@ SCENARIO_FILE_RECEIVER := scenario-receiver.yaml
 SCENARIO_FILE_TAIL := tail-sampling.yaml
 SCENARIO_FILE_TAIL_OPT := tail-sampling-optimized.yaml
 SCENARIO_FILE_HC_METRICS := scenario-high-cardinality-metrics.yaml
+TELEMETRYGEN_VERSION ?= v0.146.0
+TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:$(TELEMETRYGEN_VERSION)
 
 set-project-id:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -285,14 +287,14 @@ prepare-telemetrygen: wait-loadgen
 		"if command -v telemetrygen &>/dev/null; then \
 			echo '✅ telemetrygen already installed'; \
 		else \
-			echo 'Installing telemetrygen...'; \
-			TMPBIN=\$$(mktemp -d) && \
-			export PATH=\$$PATH:/usr/local/go/bin && \
-			GOBIN=\$$TMPBIN /usr/local/go/bin/go install github.com/open-telemetry/opentelemetry-collector-contrib/cmd/telemetrygen@latest && \
-			sudo cp \$$TMPBIN/telemetrygen /usr/local/bin/telemetrygen && \
+			echo 'Installing telemetrygen $(TELEMETRYGEN_VERSION) from Docker image...'; \
+			sudo docker pull $(TELEMETRYGEN_IMAGE) && \
+			sudo docker create --name tgen-tmp $(TELEMETRYGEN_IMAGE) && \
+			sudo docker cp tgen-tmp:/telemetrygen /usr/local/bin/telemetrygen && \
+			sudo docker rm tgen-tmp && \
 			sudo chmod +x /usr/local/bin/telemetrygen && \
-			rm -rf \$$TMPBIN && \
-			echo '✅ telemetrygen installed'; \
+			sudo docker rmi $(TELEMETRYGEN_IMAGE) || true && \
+			echo '✅ telemetrygen $(TELEMETRYGEN_VERSION) installed'; \
 		fi"
 
 # Python loadgen (pyloadgen) の準備

@@ -28,44 +28,35 @@ apt-get install -y \
     htop \
     vim >> "$LOG_FILE" 2>&1
 
-# 3. Goインストール（loadgenビルド用）
-log "Step 3: Installing Go"
-if ! command -v go &> /dev/null; then
-    GO_VERSION="1.23.4"
-    log "Installing Go version: $GO_VERSION"
-    cd /tmp
-    curl -fsSL "https://go.dev/dl/go$${GO_VERSION}.linux-amd64.tar.gz" -o "go$${GO_VERSION}.linux-amd64.tar.gz" >> "$LOG_FILE" 2>&1
-    tar -C /usr/local -xzf "go$${GO_VERSION}.linux-amd64.tar.gz"
-    rm "go$${GO_VERSION}.linux-amd64.tar.gz"
-    
-    # 環境変数設定
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> /home/ubuntu/.bashrc
-    echo 'export GOPATH=/home/ubuntu/go' >> /home/ubuntu/.bashrc
-    
-    # Go modulesディレクトリ設定
-    mkdir -p /home/ubuntu/go
-    chown -R ubuntu:ubuntu /home/ubuntu/go
-    
-    log "Go installed successfully"
+# 3. Docker インストール（telemetrygen バイナリ抽出用）
+log "Step 3: Installing Docker"
+if ! command -v docker &> /dev/null; then
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh >> "$LOG_FILE" 2>&1
+    rm get-docker.sh
+    systemctl enable docker
+    systemctl start docker
+    usermod -aG docker ubuntu
+    log "Docker installed successfully"
 else
-    log "Go already installed"
+    log "Docker already installed"
 fi
 
-# 3.5. telemetrygen インストール
-log "Step 3.5: Installing telemetrygen"
-export PATH=$PATH:/usr/local/go/bin
-export GOPATH=/home/ubuntu/go
-/usr/local/go/bin/go install \
-    github.com/open-telemetry/opentelemetry-collector-contrib/cmd/telemetrygen@latest >> "$LOG_FILE" 2>&1 || {
-    log "WARNING: Failed to install telemetrygen"
-}
-# telemetrygen バイナリをPATHに配置
-if [ -f /home/ubuntu/go/bin/telemetrygen ]; then
-    cp /home/ubuntu/go/bin/telemetrygen /usr/local/bin/telemetrygen
+# 3.5. telemetrygen インストール（Docker イメージからバイナリ抽出）
+log "Step 3.5: Installing telemetrygen from Docker image"
+TELEMETRYGEN_VERSION="v0.146.0"
+TELEMETRYGEN_IMAGE="ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:$${TELEMETRYGEN_VERSION}"
+if ! command -v telemetrygen &> /dev/null; then
+    docker pull "$${TELEMETRYGEN_IMAGE}" >> "$LOG_FILE" 2>&1
+    docker create --name tgen-tmp "$${TELEMETRYGEN_IMAGE}" >> "$LOG_FILE" 2>&1
+    docker cp tgen-tmp:/telemetrygen /usr/local/bin/telemetrygen
+    docker rm tgen-tmp >> "$LOG_FILE" 2>&1
     chmod +x /usr/local/bin/telemetrygen
-    log "telemetrygen installed successfully"
+    # イメージのクリーンアップ（ディスク節約）
+    docker rmi "$${TELEMETRYGEN_IMAGE}" >> "$LOG_FILE" 2>&1 || true
+    log "telemetrygen $${TELEMETRYGEN_VERSION} installed successfully"
 else
-    log "WARNING: telemetrygen binary not found after install"
+    log "telemetrygen already installed"
 fi
 
 # 4. プロジェクトコードのクローン
@@ -145,7 +136,8 @@ Quick Start:
 1. telemetrygen traces --otlp-endpoint $COLLECTOR_IP:4317 --otlp-insecure --rate 1500 --duration 120s --workers 10 --child-spans 5
 
 Installed versions:
-- Go: $(/usr/local/go/bin/go version 2>/dev/null || echo "Not found")
+- telemetrygen: $(telemetrygen --version 2>/dev/null || echo "Not found")
+- Docker: $(docker --version 2>/dev/null || echo "Not found")
 
 For more information, see ~/otel-memory/README.md
 EOF
@@ -157,7 +149,8 @@ log "Users can now SSH and run: cat ~/setup_status.txt"
 
 # 8. 最終確認
 log "Final check - listing installed tools:"
-log "Go: $(/usr/local/go/bin/go version 2>/dev/null || echo "Not found")"
+log "telemetrygen: $(telemetrygen --version 2>/dev/null || echo "Not found")"
+log "Docker: $(docker --version 2>/dev/null || echo "Not found")"
 log "Git: $(git --version)"
 log "Collector IP: $COLLECTOR_IP"
 
