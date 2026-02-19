@@ -51,6 +51,23 @@ else
     log "Go already installed"
 fi
 
+# 3.5. telemetrygen インストール
+log "Step 3.5: Installing telemetrygen"
+export PATH=$PATH:/usr/local/go/bin
+export GOPATH=/home/ubuntu/go
+/usr/local/go/bin/go install \
+    github.com/open-telemetry/opentelemetry-collector-contrib/cmd/telemetrygen@latest >> "$LOG_FILE" 2>&1 || {
+    log "WARNING: Failed to install telemetrygen"
+}
+# telemetrygen バイナリをPATHに配置
+if [ -f /home/ubuntu/go/bin/telemetrygen ]; then
+    cp /home/ubuntu/go/bin/telemetrygen /usr/local/bin/telemetrygen
+    chmod +x /usr/local/bin/telemetrygen
+    log "telemetrygen installed successfully"
+else
+    log "WARNING: telemetrygen binary not found after install"
+fi
+
 # 4. プロジェクトコードのクローン
 log "Step 4: Cloning project repository"
 cd /home/ubuntu
@@ -109,6 +126,18 @@ else
 fi
 
 chown -R ubuntu:ubuntu /home/ubuntu/otel-memory
+
+# 5b. Python 依存のインストール（pyloadgen 用）
+log "Step 5b: Installing Python dependencies for pyloadgen"
+apt-get install -y python3-pip >> "$LOG_FILE" 2>&1 || log "WARNING: Failed to install python3-pip"
+if [ -f "/home/ubuntu/otel-memory/pyloadgen/requirements.txt" ]; then
+    pip3 install --break-system-packages -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt >> "$LOG_FILE" 2>&1 || {
+        log "WARNING: Failed to install Python dependencies. You may need to install manually."
+    }
+    log "Python dependencies installed successfully"
+else
+    log "WARNING: pyloadgen/requirements.txt not found. Skipping Python dependency installation."
+fi
 
 # 6. Collector VMの内部IP情報を保存
 log "Step 6: Saving Collector VM connection info"
