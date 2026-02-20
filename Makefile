@@ -587,12 +587,15 @@ run-scenario:
 		exit 1; \
 	}; \
 	echo "=== Run $(SCENARIO) ==="; \
-	PROJECT_ID="$(PROJECT_ID)" make -C terraform "$(SCENARIO)" || { \
-		echo "❌ Scenario failed"; \
+	DIR=$$(cat "$(CAPTURE_LAST_DIR_FILE)"); \
+	PROJECT_ID="$(PROJECT_ID)" make -C terraform "$(SCENARIO)" 2>&1 | tee "$$DIR/scenario.log"; \
+	SCENARIO_EXIT=$${PIPESTATUS[0]}; \
+	if [ "$$SCENARIO_EXIT" -ne 0 ]; then \
+		echo "❌ Scenario failed (exit=$$SCENARIO_EXIT)"; \
 		make pprof-capture-stop; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
 		exit 1; \
-	}; \
+	fi; \
 	echo "=== Stop background processes ==="; \
 	make pprof-capture-stop; \
 	echo "=== Export metrics & images ==="; \
