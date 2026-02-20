@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized scenario-high-cardinality-metrics wait-collector wait-loadgen
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh scenario-1 scenario-2 scenario-receiver scenario-tail-sampling scenario-tail-sampling-optimized wait-collector wait-loadgen
 
 # --- terraform ---
 
@@ -23,14 +23,11 @@ HC_SCENARIO ?= rampup
 HC_RATE ?= 1500
 HC_DURATION ?= 240s
 HC_WORKERS ?= 6
-HC_METRIC_CARDINALITY ?= 35000
-HC_METRIC_EXPORT_INTERVAL ?= 100ms
 SCENARIO_FILE_1 := scenario-1.yaml
 SCENARIO_FILE_2 := high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_RECEIVER := scenario-receiver.yaml
 SCENARIO_FILE_TAIL := tail-sampling.yaml
 SCENARIO_FILE_TAIL_OPT := tail-sampling-optimized.yaml
-SCENARIO_FILE_HC_METRICS := scenario-high-cardinality-metrics.yaml
 TELEMETRYGEN_VERSION ?= v0.146.0
 TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:$(TELEMETRYGEN_VERSION)
 
@@ -446,31 +443,3 @@ scenario-2: wait-collector prepare-pyloadgen
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
 	echo "✅ [pyloadgen] scenario-2 completed."
-# シナリオ: メトリクスラベル爆発 [Prometheus scrape]
-# loadgen が stateless HTTP サーバを起動し、Collector の prometheus receiver が scrape
-scenario-high-cardinality-metrics: wait-collector wait-loadgen
-	@echo "=== [prom-scrape] Scenario: High Cardinality Metrics ==="
-	@COLLECTOR_IP=$$($(GET_COLLECTOR_IP)); \
-	LOADGEN_IP=$$(gcloud compute instances describe otel-loadgen \
-		--zone=$(ZONE) --project=$(PROJECT_ID) \
-		--format='get(networkInterfaces[0].networkIP)'); \
-	echo "1. Applying scenario config with LOADGEN_IP=$$LOADGEN_IP to Collector VM..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
-		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
-		 fi && \
-		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_HC_METRICS) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 sudo sed -i 's/LOADGEN_IP/$$LOADGEN_IP/' /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting Prometheus metrics server on Loadgen VM (port 9091)..."; \
-	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory && python3 pyloadgen/high_cardinality_prom_server.py --port 9091 --series-per-scrape 5000 --duration 240 || true"; \
-	echo "3. Restoring Collector config..."; \
-	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
-		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
-		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
-		 fi && \
-		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ [prom-scrape] scenario-high-cardinality-metrics completed."

@@ -151,7 +151,6 @@ help-scenario:
 	@echo "  scenario-receiver                [流量軸] 受信過多 [telemetrygen]"
 	@echo "  scenario-1                       [参考] 下流停止 [telemetrygen]"
 	@echo "  scenario-2                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
-	@echo "  scenario-high-cardinality-metrics [空間軸] メトリクスラベル爆発 [Prometheus scrape]"
 
 help-config:
 	@echo "=== 設定管理 ==="
@@ -195,7 +194,6 @@ help-pprof:
 	@echo "  run-receiver                receiver 受信過多を実行"
 	@echo "  run-scenario-1              scenario-1 下流停止を実行"
 	@echo "  run-scenario-2              scenario-2 Python版を実行"
-	@echo "  run-high-cardinality-metrics 高カーディナリティ Prometheus scrape版を実行"
 
 # =====================================
 # 環境操作
@@ -262,7 +260,7 @@ tgen-help:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-receiver scenario-1 scenario-2 scenario-high-cardinality-metrics
+.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-receiver scenario-1 scenario-2
 
 # Tail Sampling（時間軸: 保持遅延型）
 # telemetrygen 1500 traces/s × (1 root + 5 child) = 約9,000 spans/s
@@ -304,12 +302,6 @@ scenario-2:
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
 		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_2))
 
-# 高カーディナリティ metrics [Prometheus scrape]
-# loadgen が stateless HTTP サーバを起動し、Collector の prometheus receiver が scrape
-scenario-high-cardinality-metrics:
-	$(call run_scenario,high-cardinality-metrics,高カーディナリティ metrics [Prometheus scrape],\
-		python3 pyloadgen/high_cardinality_prom_server.py \
-		--port 9091 --series-per-scrape 5000 --duration 240,0,0,otel-collector/scenarios/scenario-high-cardinality-metrics.yaml)
 
 # =====================================
 # 設定管理
@@ -543,7 +535,7 @@ pprof-report:
 # =====================================
 # シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: run-scenario run-scenario-1 run-scenario-2 run-tail-sampling run-tail-sampling-optimized run-receiver run-high-cardinality-metrics
+.PHONY: run-scenario run-scenario-1 run-scenario-2 run-tail-sampling run-tail-sampling-optimized run-receiver
 
 run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -567,10 +559,6 @@ run-scenario:
 	if [ "$(SCENARIO)" = "scenario-2" ]; then \
 		echo "=== Prepare pyloadgen (pip install) ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform prepare-pyloadgen; \
-	fi; \
-	if [ "$(SCENARIO)" = "scenario-high-cardinality-metrics" ]; then \
-		echo "=== Sync loadgen for Prometheus server ==="; \
-		PROJECT_ID="$(PROJECT_ID)" make -C terraform sync-loadgen; \
 	fi; \
 	echo "=== Start port-forward (background) ==="; \
 	echo "    Grafana:    http://localhost:3000"; \
@@ -641,5 +629,3 @@ run-tail-sampling-optimized:
 run-receiver:
 	$(MAKE) run-scenario SCENARIO=scenario-receiver
 
-run-high-cardinality-metrics:
-	$(MAKE) run-scenario SCENARIO=scenario-high-cardinality-metrics

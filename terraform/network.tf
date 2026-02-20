@@ -25,17 +25,3 @@ resource "google_compute_firewall" "allow_otlp_internal" {
     ports    = ["4317"]
   }
 }
-
-// Prometheus scrape: Collector VM → Loadgen VM (高カーディナリティ scrape シナリオ用)
-resource "google_compute_firewall" "allow_prom_scrape_internal" {
-  name          = "otel-debug-allow-prom-scrape-internal"
-  description   = "Allow Prometheus scrape from Collector VM to Loadgen VM"
-  network       = "default"
-  source_ranges = ["10.128.0.0/9"]
-  target_tags   = ["otel-loadgen"]
-
-  allow {
-    protocol = "tcp"
-    ports    = ["9091"]
-  }
-}
