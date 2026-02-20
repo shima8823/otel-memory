@@ -10,7 +10,8 @@ ENDPOINT := localhost:4317
 RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
 
 SCENARIO_FILE_1 := otel-collector/scenarios/scenario-1.yaml
-SCENARIO_FILE_2 := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
+SCENARIO_FILE_SPANMETRICS := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
+SCENARIO_FILE_SPANMETRICS_OPT := otel-collector/scenarios/high-cardinality-spanmetrics-optimized.yaml
 SCENARIO_FILE_RECEIVER := otel-collector/scenarios/scenario-receiver.yaml
 SCENARIO_FILE_TAIL := otel-collector/scenarios/tail-sampling.yaml
 
@@ -150,7 +151,8 @@ help-scenario:
 	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版 [telemetrygen]"
 	@echo "  scenario-receiver                [流量軸] 受信過多 [telemetrygen]"
 	@echo "  scenario-1                       [参考] 下流停止 [telemetrygen]"
-	@echo "  scenario-2                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
+	@echo "  scenario-spanmetrics                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
+	@echo "  scenario-spanmetrics-optimized              [空間軸] spanmetrics 最適化版 [Python + OTel SDK]"
 
 help-config:
 	@echo "=== 設定管理 ==="
@@ -193,7 +195,8 @@ help-pprof:
 	@echo "  run-tail-sampling-optimized tail-sampling 最適化版を実行"
 	@echo "  run-receiver                receiver 受信過多を実行"
 	@echo "  run-scenario-1              scenario-1 下流停止を実行"
-	@echo "  run-scenario-2              scenario-2 Python版を実行"
+	@echo "  run-scenario-spanmetrics              scenario-spanmetrics Python版を実行"
+	@echo "  run-scenario-spanmetrics-optimized    scenario-spanmetrics 最適化版を実行"
 
 # =====================================
 # 環境操作
@@ -260,7 +263,7 @@ tgen-help:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-receiver scenario-1 scenario-2
+.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-receiver scenario-1 scenario-spanmetrics scenario-spanmetrics-optimized
 
 # Tail Sampling（時間軸: 保持遅延型）
 # telemetrygen 1500 traces/s × (1 root + 5 child) = 約9,000 spans/s
@@ -296,11 +299,19 @@ scenario-1:
 
 # 高カーディナリティ spanmetrics [Python + OTel SDK]
 # telemetrygen ではランダム属性生成ができないため Python を使用
-scenario-2:
+scenario-spanmetrics:
 	$(call run_scenario,2,高カーディナリティ spanmetrics [Python],\
 		python3 pyloadgen/high_cardinality_traces.py \
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
-		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_2))
+		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS))
+
+# 高カーディナリティ spanmetrics 最適化版 [Python + OTel SDK]
+# 問題版と同じ負荷だが、dimensions から高カーディナリティ属性を除外
+scenario-spanmetrics-optimized:
+	$(call run_scenario,2-optimized,高カーディナリティ spanmetrics 最適化版 [Python],\
+		python3 pyloadgen/high_cardinality_traces.py \
+		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
+		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
 
 
 # =====================================
@@ -535,7 +546,7 @@ pprof-report:
 # =====================================
 # シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: run-scenario run-scenario-1 run-scenario-2 run-tail-sampling run-tail-sampling-optimized run-receiver
+.PHONY: run-scenario run-scenario-1 run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-receiver
 
 run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -556,7 +567,7 @@ run-scenario:
 		echo "=== Restart services on VM ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform restart; \
 	fi; \
-	if [ "$(SCENARIO)" = "scenario-2" ]; then \
+	if [ "$(SCENARIO)" = "scenario-spanmetrics" ] || [ "$(SCENARIO)" = "scenario-spanmetrics-optimized" ]; then \
 		echo "=== Prepare pyloadgen (pip install) ==="; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform prepare-pyloadgen; \
 	fi; \
@@ -617,8 +628,11 @@ run-scenario:
 run-scenario-1:
 	$(MAKE) run-scenario SCENARIO=scenario-1
 
-run-scenario-2:
-	$(MAKE) run-scenario SCENARIO=scenario-2
+run-scenario-spanmetrics:
+	$(MAKE) run-scenario SCENARIO=scenario-spanmetrics
+
+run-scenario-spanmetrics-optimized:
+	$(MAKE) run-scenario SCENARIO=scenario-spanmetrics-optimized
 
 run-tail-sampling:
 	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling

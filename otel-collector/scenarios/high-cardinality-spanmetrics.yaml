@@ -1,3 +1,26 @@
+# 高カーディナリティ spanmetrics シナリオ
+#
+# アーキテクチャ:
+#   [Loadgen VM]                         [Collector VM]
+#     pyloadgen (traces)           →     otlp receiver
+#     attr_0〜attr_7 に UUID              ↓
+#                                      memory_limiter, batch
+#                                         ↓
+#                                      spanmetrics connector (内部マップ膨張 → OOM)
+#                                         ↓
+#                                      debug exporter
+#
+# メモリ膨張のメカニズム:
+#   1. loadgen が各スパンに 8 個の UUID 属性を付与して送信
+#   2. spanmetrics connector が dimension ごとにメトリクス時系列を生成
+#   3. CUMULATIVE temporality のため、全ユニーク組み合わせを内部マップに永久保持
+#   4. 内部マップが無限膨張 → memory_limiter 発火 → データドロップ
+#
+# 単因子性の確保:
+#   - Jaeger exporter (sending_queue) を除外 → キュー滞留によるメモリ消費を排除
+#   - Prometheus exporter を除外 → メトリクスの二重保持を排除
+#   - spanmetrics の内部マップが唯一のメモリ消費源
+#
 receivers:
   otlp:
     protocols:
@@ -44,21 +67,6 @@ connectors:
     aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
 
 exporters:
-  otlp:
-    endpoint: jaeger:4317
-    tls:
-      insecure: true
-    sending_queue:
-      enabled: true
-      num_consumers: 10
-      queue_size: 5000
-    retry_on_failure:
-      enabled: true
-
-  prometheus:
-    endpoint: 0.0.0.0:9090
-    namespace: testapp
-
   debug:
     verbosity: basic
 
@@ -80,12 +88,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [spanmetrics, otlp, debug]  # spanmetrics connector に出力
+      exporters: [spanmetrics, debug]
     metrics:
-      receivers: [otlp, spanmetrics]  # spanmetrics からメトリクスを受信
+      receivers: [spanmetrics]
       processors: [memory_limiter, batch]
-      exporters: [prometheus, debug]
-    logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlp, debug]
+      exporters: [debug]

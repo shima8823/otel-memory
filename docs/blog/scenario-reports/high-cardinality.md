@@ -87,14 +87,14 @@ Phase 4 (280-295秒):  150-2,800 spans/sec   💥 崩壊（OOM間近）
 
 `groupbyattrs` processor は、指定された keys の値ごとに内部マップを作成し、スパンをグループ化する。
 
-**正常系（シナリオ3a）**:
+**通常カーディナリティ（正常系）**:
 ```
 keys: ["attr_0", "attr_1", "attr_2"]
 値の種類: 10種類程度（固定）
 内部マップのサイズ: 最大 10 エントリ → メモリ安定
 ```
 
-**異常系（シナリオ2b）**:
+**高カーディナリティシナリオ**:
 ```
 keys: ["attr_0", "attr_1", "attr_2"]
 値の種類: UUID（無限）
@@ -137,11 +137,40 @@ Collector が落ちる前に送信された約143万スパンを受信。各ス�
 
 **重要な教訓**: 高カーディナリティ問題は Collector だけでなく、下流のバックエンドにも波及する。
 
+### 5.4 pprof による内部構造の確認
+
+pprof の `inuse_space` で、以下の関数がメモリ消費の上位に現れる。
+
+| 関数 | 役割 | 消費パターン |
+|------|------|------------|
+| `spanmetricsconnector.(*connectorImp).consume*` | spanmetrics の集計処理 | dimensions の組み合わせ数に比例 |
+| `spanmetricsconnector.(*connectorImp).updateHistogramMetrics` | ヒストグラム更新 | bucket数 × dimension カーディナリティ |
+| `map[string]*internal.histogramData` 等の内部マップ | 集計結果の保持 | エントリ数が無限増加 |
+| `pdata.Metrics` / `pdata.NumberDataPoint` | メトリクスデータ構造 | 時系列ごとに DataPoint を保持 |
+
+#### 鑑別ポイント
+
+- **通常カーディナリティ**: 上記マップが一定サイズで安定。GC 後にメモリが戻る。
+- **高カーディナリティ**: マップが成長し続け、GC 後もメモリが高止まり。
+  pprof の `inuse_space` top に `spanmetricsconnector` の関数が上位を占める。
+
+flame graph では、`spanmetricsconnector` 配下の `map` 操作が幅広い帯として表示される。
+この帯の幅が時間とともに増大していく場合、高カーディナリティを強く疑う。
+<!-- TODO: flame graph の比較画像を追加（通常カーディナリティ vs 高カーディナリティ） -->
+
+取得コマンド:
+```bash
+make pprof-capture-bg
+make scenario-spanmetrics
+make pprof-capture-stop
+make pprof-diff-auto DIR=$(cat captures/last_capture.txt)
+```
+
 ---
 
-## 6. シナリオ3a（正常系）との比較
+## 6. 通常カーディナリティ（正常系）との比較
 
-| 項目 | 3a（正常系） | 3b（異常系） | 差分 |
+| 項目 | 通常カーディナリティ（正常系） | 高カーディナリティ | 差分 |
 |------|-------------|-------------|------|
 | **loadgen フラグ** | なし | `-high-cardinality` | **唯一の違い** |
 | **カーディナリティ** | 低（10種類） | 高（UUID無限） | - |
@@ -287,8 +316,8 @@ rate(otelcol_receiver_accepted_spans_total[5m] offset 5m) * 0.8
 | 症状 | 原因 |
 |------|------|
 | Queue 100% 張り付き | シナリオ1（下流停止） |
-| Queue 高位で乱高下 | シナリオ2（キャパシティ不足） |
-| **スループット段階的低下** + **Heap右肩上がり** | **シナリオ2b（高カーディナリティ）** ← 本シナリオ |
+| Queue 高位で乱高下 | 受信過多シナリオ |
+| **スループット段階的低下** + **Heap右肩上がり** | **高カーディナリティシナリオ（本シナリオ）** |
 
 ### 9.4 本番投入チェックリスト
 
@@ -301,6 +330,17 @@ rate(otelcol_receiver_accepted_spans_total[5m] offset 5m) * 0.8
 - [ ] 緊急時のロールバック手順を準備した（設定ファイルのバックアップ）
 - [ ] 本番相当のトラフィックで負荷テストを実施した
 
+### 9.5 Tail Sampling シナリオとの鑑別
+
+| 指標 | 高カーディナリティ（本シナリオ） | Tail Sampling |
+|------|-------------------------------|--------------|
+| Heap パターン | 右肩上がり（戻らない） | 急騰→高止まり→解放 |
+| 負荷停止後 | 回復しない（マップが残る） | 回復する（decision_wait 経過後） |
+| GC の効果 | ほぼ効かない（参照が生きている） | 一時的に下がる |
+| 主因 | 空間軸の状態膨張 | 時間軸のバッファリング |
+| pprof top | spanmetrics / groupbyattrs のマップ | tailsamplingprocessor のバッファ |
+| 対処 | カーディナリティの削減 | decision_wait の短縮 |
+
 ---
 
 ## 10. 参考情報
@@ -308,9 +348,14 @@ rate(otelcol_receiver_accepted_spans_total[5m] offset 5m) * 0.8
 ### 関連ドキュメント
 - [groupbyattrs processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/groupbyattrsprocessor)
 - [memory_limiter processor](https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md)
-- [scenarios.md](../scenarios.md) - シナリオ2b の再現手順
+- [scenarios.md](../scenarios.md) - 高カーディナリティシナリオの再現手順
+
+### 関連シナリオ
+- **scenario-spanmetrics（本シナリオ）**: `spanmetrics` connector に高カーディナリティ属性を dimension として渡す。trace → metrics 変換で発生。
+- **scenario-high-cardinality-metrics**: メトリクスパイプラインの `prometheus` exporter に直接高カーディナリティラベル付きメトリクスを送信。loadgen が高カーディナリティメトリクスを生成する。spanmetrics を使わない「最も一般的な」高カーディナリティ問題。
+  - 実行: `make scenario-high-cardinality-metrics`（GCP環境が必要）
 
 ### 実行コマンド
 ```bash
-make scenario-2   # 高カーディナリティシナリオ
+make scenario-spanmetrics   # spanmetrics 高カーディナリティシナリオ
 ```

@@ -60,7 +60,7 @@ grep -m1 "保存先:" captures/logs/pprof_capture.log
 ### 変数で調整
 
 ```
-SCENARIO=scenario-2 SYNC=0 RESTART=0 make pprof-scenario-full
+SCENARIO=scenario-spanmetrics SYNC=0 RESTART=0 make run-scenario
 ```
 
 ## ワンコマンド（シナリオ1専用スクリプト）
