@@ -9,10 +9,8 @@
 ENDPOINT := localhost:4317
 RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
 
-SCENARIO_FILE_1 := otel-collector/scenarios/scenario-1.yaml
 SCENARIO_FILE_SPANMETRICS := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_SPANMETRICS_OPT := otel-collector/scenarios/high-cardinality-spanmetrics-optimized.yaml
-SCENARIO_FILE_RECEIVER := otel-collector/scenarios/scenario-receiver.yaml
 SCENARIO_FILE_TAIL := otel-collector/scenarios/tail-sampling.yaml
 
 # === telemetrygen設定 ===
@@ -25,15 +23,6 @@ TGEN_TAIL_DURATION := 120s
 TGEN_TAIL_WORKERS := 10
 TGEN_TAIL_CHILD_SPANS := 5
 
-TGEN_RECEIVER_RATE := 8750
-TGEN_RECEIVER_DURATION := 180s
-TGEN_RECEIVER_WORKERS := 10
-TGEN_RECEIVER_CHILD_SPANS := 3
-
-TGEN_S1_RATE := 3000
-TGEN_S1_DURATION := 180s
-TGEN_S1_WORKERS := 10
-TGEN_S1_CHILD_SPANS := 3
 
 # === メトリクスエクスポート設定 ===
 DURATION ?= 15
@@ -56,7 +45,7 @@ PPROF_DIFF_PORT ?= 8081
 PPROF_CAPTURE_READY_WAIT ?= 60
 PPROF_WAIT ?= 60
 PPROF_URL ?= http://localhost:$(PPROF_TUNNEL_PORT)/debug/pprof/heap
-SCENARIO ?= scenario-1
+SCENARIO ?= scenario-tail-sampling
 SYNC ?= 1
 RESTART ?= 1
 APPLY ?= 1
@@ -76,7 +65,7 @@ endif
 
 # telemetrygen シナリオ実行マクロ
 # $(1): シナリオ名, $(2): メッセージ, $(3): telemetrygenコマンド（完全形）
-# $(4): 下流停止秒, $(5): 観察秒, $(6): シナリオファイルパス
+# $(4): Jaeger停止秒, $(5): 観察秒, $(6): シナリオファイルパス
 define run_scenario
 	@echo "========================================"
 	@echo "シナリオ $(1): $(2) [telemetrygen]"
@@ -149,8 +138,6 @@ help-scenario:
 	@echo "=== シナリオテスト ==="
 	@echo "  scenario-tail-sampling           [時間軸] Tail Sampling [telemetrygen]"
 	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版 [telemetrygen]"
-	@echo "  scenario-receiver                [流量軸] 受信過多 [telemetrygen]"
-	@echo "  scenario-1                       [参考] 下流停止 [telemetrygen]"
 	@echo "  scenario-spanmetrics                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
 	@echo "  scenario-spanmetrics-optimized              [空間軸] spanmetrics 最適化版 [Python + OTel SDK]"
 
@@ -190,11 +177,9 @@ help-pprof:
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
 	@echo ""
 	@echo "=== シナリオ統合実行 ==="
-	@echo "  run-scenario                全自動実行 (SCENARIO=scenario-1 SYNC=1 RESTART=1)"
+	@echo "  run-scenario                全自動実行 (SCENARIO=scenario-tail-sampling SYNC=1 RESTART=1)"
 	@echo "  run-tail-sampling           tail-sampling を実行"
 	@echo "  run-tail-sampling-optimized tail-sampling 最適化版を実行"
-	@echo "  run-receiver                receiver 受信過多を実行"
-	@echo "  run-scenario-1              scenario-1 下流停止を実行"
 	@echo "  run-scenario-spanmetrics              scenario-spanmetrics Python版を実行"
 	@echo "  run-scenario-spanmetrics-optimized    scenario-spanmetrics 最適化版を実行"
 
@@ -263,7 +248,7 @@ tgen-help:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-receiver scenario-1 scenario-spanmetrics scenario-spanmetrics-optimized
+.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-spanmetrics scenario-spanmetrics-optimized
 
 # Tail Sampling（時間軸: 保持遅延型）
 # telemetrygen 1500 traces/s × (1 root + 5 child) = 約9,000 spans/s
@@ -279,23 +264,6 @@ scenario-tail-sampling-optimized:
 		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_TAIL_RATE) --duration $(TGEN_TAIL_DURATION) \
 		--workers $(TGEN_TAIL_WORKERS) --child-spans $(TGEN_TAIL_CHILD_SPANS),0,0,otel-collector/scenarios/tail-sampling-optimized.yaml)
-
-# 受信過多（流量軸: キュー滞留型）
-# telemetrygen 8,750 traces/s × (1 root + 3 child) = 約35,000 spans/s
-scenario-receiver:
-	$(call run_scenario,receiver,受信過多（流量軸）,\
-		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
-		--rate $(TGEN_RECEIVER_RATE) --duration $(TGEN_RECEIVER_DURATION) \
-		--workers $(TGEN_RECEIVER_WORKERS) --child-spans $(TGEN_RECEIVER_CHILD_SPANS),0,0,$(SCENARIO_FILE_RECEIVER))
-
-# 下流停止（Jaeger停止→復旧パターン）
-# telemetrygen 3,000 traces/s × (1 root + 3 child) = 約12,000 spans/s
-# 30秒後にJaeger停止、60秒間観察後に復旧
-scenario-1:
-	$(call run_scenario,1,下流停止,\
-		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
-		--rate $(TGEN_S1_RATE) --duration $(TGEN_S1_DURATION) \
-		--workers $(TGEN_S1_WORKERS) --child-spans $(TGEN_S1_CHILD_SPANS),30,60,$(SCENARIO_FILE_1))
 
 # 高カーディナリティ spanmetrics [Python + OTel SDK]
 # telemetrygen ではランダム属性生成ができないため Python を使用
@@ -546,7 +514,7 @@ pprof-report:
 # =====================================
 # シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: run-scenario run-scenario-1 run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-receiver
+.PHONY: run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized
 
 run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -625,9 +593,6 @@ run-scenario:
 	echo "=== Peak profile ==="; \
 	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
 
-run-scenario-1:
-	$(MAKE) run-scenario SCENARIO=scenario-1
-
 run-scenario-spanmetrics:
 	$(MAKE) run-scenario SCENARIO=scenario-spanmetrics
 
@@ -640,6 +605,4 @@ run-tail-sampling:
 run-tail-sampling-optimized:
 	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-optimized
 
-run-receiver:
-	$(MAKE) run-scenario SCENARIO=scenario-receiver
 
