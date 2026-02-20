@@ -1,60 +1,40 @@
-# 王道の高カーディナリティメトリクス シナリオ
+# 高カーディナリティメトリクス シナリオ（Prometheus scrape 方式）
 #
-# これは最も一般的な高カーディナリティ問題を再現するシナリオです。
-# spanmetricsなどの特殊なコンポーネントを使わず、基本的なメトリクスパイプラインで発生します。
+# アーキテクチャ:
+#   [Loadgen VM]                         [Collector VM]
+#     HTTP :9091 /metrics          ←── prometheus receiver (scrape)
+#     (stateless: 毎回テキスト生成)         ↓
+#                                      memory_limiter, batch
+#                                         ↓
+#                                      prometheus exporter (時系列蓄積 → OOM)
 #
-# 問題のメカニズム（空間軸）:
-#   1. loadgen が高カーディナリティラベル付きメトリクスを送信
-#      - request_id: 各リクエストごとにユニーク（最も危険）
-#      - user_id: ユーザーIDをラベルに含める（実務でよくある間違い）
-#      - session_id: セッションIDをラベルに含める
-#      - endpoint: URLパスにIDを含める（例: /api/users/12345）
+# メモリ膨張のメカニズム:
+#   1. loadgen が /metrics で毎回ユニークなラベル（uuid）付きメトリクスを返す
+#   2. prometheus receiver が 2秒ごとに scrape
+#   3. prometheus exporter が全時系列をメモリに保持（metric_expiration: 0s）
+#   4. 120 scrape × 5000 series/scrape = 600,000 ユニーク時系列 → メモリ膨張
 #
-#   2. Collectorのprometheus exporterが時系列をメモリに保持
-#      - 各ユニークなラベル組み合わせ = 1時系列
-#      - 時系列数 = ラベル値の組み合わせ（指数関数的増加）
-#
-#   3. メモリ増加パターン
-#      - スパン属性の高カーディナリティ: トレースが流れれば解放される
-#      - メトリクスの高カーディナリティ: 時系列は永続的に保持される ← ここが危険
-#
-# なぜこれが「王道」か:
-#   - Prometheus/OTelコミュニティで最も警告される問題
-#   - 「request_idをラベルに入れてはいけない」は基本中の基本
-#   - 特殊なprocessorなしで発生する
-#   - 実務で最も遭遇する高カーディナリティ問題
-#
-# メモリ計算式:
-#   メモリ ≈ 時系列数 × 1時系列あたりのサイズ（約1-2KB）
-#   時系列数 = request_id種類 × user_id種類 × session_id種類 × endpoint種類 × method種類 × status種類
-#
-#   例: 10000 request × 1000 user × 10000 session × 100 endpoint × 5 method × 10 status
-#      = 5 × 10^17 時系列（理論上の最大値、実際はメモリが先に枯渇）
-#
-# pprof で確認すべき箇所:
-#   - prometheusexporter.(*collector).Collect
-#   - prometheus/prometheus のメトリクスストレージ
-#   - pdata.Metrics のデータ構造
+# なぜこの方式か:
+#   - loadgen は完全に stateless（OOM しない）
+#   - Collector 側の prometheus exporter がメモリ消費の主犯（意図通り）
+#   - 実務で最も一般的な高カーディナリティパターン（Prometheus エコシステム全般）
 
 receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
-        max_recv_msg_size_mib: 64
-      http:
-        endpoint: 0.0.0.0:4318
+  # prometheus receiver: loadgen の /metrics を scrape
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'high-cardinality-loadgen'
+          scrape_interval: 2s
+          static_configs:
+            - targets: ['LOADGEN_IP:9091']
 
 processors:
   memory_limiter:
-    # 検知を細かくしてオーバーシュートを抑える
     check_interval: 200ms
-    # 実運用の推奨寄り設定（意図的に厳しくしない）
     limit_percentage: 80
     spike_limit_percentage: 20
 
-  # batch processor: 特に大きな設定変更なし
-  # 高カーディナリティの問題は batch ではなく exporter で発生
   batch:
     send_batch_size: 1000
     send_batch_max_size: 2000
@@ -62,22 +42,11 @@ processors:
 
 exporters:
   # prometheus exporter がメモリ消費の主犯
-  # 受け取った全ての時系列をメモリに保持してスクレイプに備える
+  # 受け取った全時系列をメモリに保持してスクレイプに備える
   prometheus:
     endpoint: 0.0.0.0:9090
     namespace: loadgen
-    # enable_open_metrics: true  # OpenMetrics形式（ヒストグラムのバケット追加でさらにメモリ消費）
-    resource_to_telemetry_conversion:
-      enabled: false  # リソース属性ラベルは無効化（高カーディナリティ要因を絞る）
-
-  # トレース用（高カーディナリティ問題とは無関係）
-  otlp:
-    endpoint: jaeger:4317
-    tls:
-      insecure: true
-    sending_queue:
-      enabled: true
-      queue_size: 1000
+    metric_expiration: 0s
 
 extensions:
   pprof:
@@ -94,17 +63,7 @@ service:
                 port: 8888
   extensions: [pprof]
   pipelines:
-    # メトリクスパイプライン: ここが問題の発生箇所
     metrics:
-      receivers: [otlp]
+      receivers: [prometheus]
       processors: [memory_limiter, batch]
       exporters: [prometheus]
-    # トレースとログは通常通り
-    traces:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlp]
-    logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlp]

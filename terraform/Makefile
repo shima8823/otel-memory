@@ -446,22 +446,26 @@ scenario-2: wait-collector prepare-pyloadgen
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
 	echo "✅ [pyloadgen] scenario-2 completed."
-
-# シナリオ: メトリクスラベル爆発 [Python + OTel SDK]
-scenario-high-cardinality-metrics: wait-collector prepare-pyloadgen
-	@echo "=== [pyloadgen] Scenario: High Cardinality Metrics ==="
-	@IP=$$($(GET_COLLECTOR_IP)); \
-	echo "1. Applying scenario-high-cardinality-metrics config to Collector VM (IP: $$IP)..."; \
+# シナリオ: メトリクスラベル爆発 [Prometheus scrape]
+# loadgen が stateless HTTP サーバを起動し、Collector の prometheus receiver が scrape
+scenario-high-cardinality-metrics: wait-collector wait-loadgen
+	@echo "=== [prom-scrape] Scenario: High Cardinality Metrics ==="
+	@COLLECTOR_IP=$$($(GET_COLLECTOR_IP)); \
+	LOADGEN_IP=$$(gcloud compute instances describe otel-loadgen \
+		--zone=$(ZONE) --project=$(PROJECT_ID) \
+		--format='get(networkInterfaces[0].networkIP)'); \
+	echo "1. Applying scenario config with LOADGEN_IP=$$LOADGEN_IP to Collector VM..."; \
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
 		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
 		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
 		 fi && \
 		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_HC_METRICS) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 sudo sed -i 's/LOADGEN_IP/$$LOADGEN_IP/' /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "2. Starting Python load from Loadgen VM (high-cardinality metrics)..."; \
+	echo "2. Starting Prometheus metrics server on Loadgen VM (port 9091)..."; \
 	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
-		"cd /home/ubuntu/otel-memory && python3 pyloadgen/high_cardinality_metrics.py --endpoint $$IP:4317 --rate 1500 --duration 240 --cardinality 35000 || true"; \
+		"cd /home/ubuntu/otel-memory && python3 pyloadgen/high_cardinality_prom_server.py --port 9091 --series-per-scrape 5000 --duration 240 || true"; \
 	echo "3. Restoring Collector config..."; \
 	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
 		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
@@ -469,4 +473,4 @@ scenario-high-cardinality-metrics: wait-collector prepare-pyloadgen
 		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
-	echo "✅ [pyloadgen] scenario-high-cardinality-metrics completed."
+	echo "✅ [prom-scrape] scenario-high-cardinality-metrics completed."
