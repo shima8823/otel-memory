@@ -1,9 +1,14 @@
 # OTel Collector Memory 負荷テスト環境
 # =====================================
+SHELL := /bin/bash
 
 # =====================================
 # 変数定義
 # =====================================
+
+# === Python 実行環境 ===
+# .venv が存在すればそちらを優先（ローカル venv 対応）
+PYTHON := $(shell [ -x .venv/bin/python3 ] && echo .venv/bin/python3 || echo python3)
 
 # === 基本設定 ===
 ENDPOINT := localhost:4317
@@ -186,6 +191,9 @@ help-pprof:
 	@echo "  pprof-ui            単一のプロファイルを表示 (FILE=...)"
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
 	@echo ""
+	@echo "=== ローカル統合実行 ==="
+	@echo "  run-local SCENARIO=scenario-xxx    ローカルでシナリオ実行 + pprof + メトリクス自動収集"
+	@echo ""
 	@echo "=== シナリオ統合実行 ==="
 	@echo "  run-scenario                全自動実行 (SCENARIO=scenario-tail-sampling SYNC=1 RESTART=1)"
 	@echo "  run-tail-sampling           tail-sampling を実行"
@@ -281,7 +289,7 @@ scenario-tail-sampling-optimized:
 # telemetrygen ではランダム属性生成ができないため Python を使用
 scenario-spanmetrics:
 	$(call run_scenario,2,高カーディナリティ spanmetrics [Python],\
-		python3 pyloadgen/high_cardinality_traces.py \
+		$(PYTHON) pyloadgen/high_cardinality_traces.py \
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
 		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS))
 
@@ -289,7 +297,7 @@ scenario-spanmetrics:
 # 問題版と同じ負荷だが、dimensions から高カーディナリティ属性を除外
 scenario-spanmetrics-optimized:
 	$(call run_scenario,2-optimized,高カーディナリティ spanmetrics 最適化版 [Python],\
-		python3 pyloadgen/high_cardinality_traces.py \
+		$(PYTHON) pyloadgen/high_cardinality_traces.py \
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
 		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
 
@@ -541,9 +549,54 @@ pprof-report:
 	@go tool pprof -tree -nodecount=30 --diff_base $(BASE) $(NEW)
 
 # =====================================
+# ローカル統合実行 (run-local)
+# =====================================
+
+run-local:
+	@echo "=== Start pprof capture (background) ==="; \
+	$(MAKE) pprof-capture-bg || { \
+		echo "❌ pprof capture failed to start"; \
+		exit 1; \
+	}; \
+	$(MAKE) pprof-capture-wait || { \
+		echo "❌ pprof capture not ready"; \
+		$(MAKE) pprof-capture-stop; \
+		exit 1; \
+	}; \
+	OUT_FILE="$(CAPTURE_LAST_DIR_FILE)"; \
+	if [ ! -f "$$OUT_FILE" ]; then \
+		echo "❌ pprof output dir file not found: $$OUT_FILE"; \
+		$(MAKE) pprof-capture-stop; \
+		exit 1; \
+	fi; \
+	DIR=$$(cat "$$OUT_FILE"); \
+	if [ -z "$$DIR" ]; then \
+		echo "❌ pprof output dir file is empty: $$OUT_FILE"; \
+		$(MAKE) pprof-capture-stop; \
+		exit 1; \
+	fi; \
+	echo "=== Run $(SCENARIO) ==="; \
+	$(MAKE) "$(SCENARIO)" 2>&1 | tee "$$DIR/scenario.log"; \
+	SCENARIO_EXIT=$${PIPESTATUS[0]}; \
+	if [ "$$SCENARIO_EXIT" -ne 0 ]; then \
+		echo "❌ Scenario failed (exit=$$SCENARIO_EXIT)"; \
+		$(MAKE) pprof-capture-stop; \
+		exit 1; \
+	fi; \
+	echo "=== Stop pprof capture ==="; \
+	$(MAKE) pprof-capture-stop; \
+	echo "=== Export metrics & images ==="; \
+	python3 scripts/export_grafana_metrics.py \
+		--duration 5 --step 15 --images \
+		--output "$$DIR/metrics" \
+		--image-output "$$DIR/images"; \
+	echo "=== Peak profile ==="; \
+	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
+
+# =====================================
 # シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-batch-queue run-batch-queue-optimized
+.PHONY: run-local run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-batch-queue run-batch-queue-optimized
 
 run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
