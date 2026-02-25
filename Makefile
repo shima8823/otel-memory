@@ -12,6 +12,8 @@ RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
 SCENARIO_FILE_SPANMETRICS := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_SPANMETRICS_OPT := otel-collector/scenarios/high-cardinality-spanmetrics-optimized.yaml
 SCENARIO_FILE_TAIL := otel-collector/scenarios/tail-sampling.yaml
+SCENARIO_FILE_BQ := otel-collector/scenarios/batch-queue-amplification.yaml
+SCENARIO_FILE_BQ_OPT := otel-collector/scenarios/batch-queue-amplification-optimized.yaml
 
 # === telemetrygen設定 ===
 TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
@@ -23,6 +25,12 @@ TGEN_TAIL_DURATION := 120s
 TGEN_TAIL_WORKERS := 10
 TGEN_TAIL_CHILD_SPANS := 5
 
+TGEN_BQ_RATE := 2000
+TGEN_BQ_DURATION := 180s
+TGEN_BQ_WORKERS := 10
+TGEN_BQ_CHILD_SPANS := 3
+# 本番スパンのサイズを模倣（デフォルト ~280B → ~540B に増大）
+TGEN_BQ_ATTRS := --telemetry-attributes 'padding="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"'
 
 # === メトリクスエクスポート設定 ===
 DURATION ?= 15
@@ -140,6 +148,8 @@ help-scenario:
 	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版 [telemetrygen]"
 	@echo "  scenario-spanmetrics                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
 	@echo "  scenario-spanmetrics-optimized              [空間軸] spanmetrics 最適化版 [Python + OTel SDK]"
+	@echo "  scenario-batch-queue              [流量軸] Batch × Queue メモリ増幅 [telemetrygen]"
+	@echo "  scenario-batch-queue-optimized    [流量軸] Batch × Queue 最適化版 [telemetrygen]"
 
 help-config:
 	@echo "=== 設定管理 ==="
@@ -182,6 +192,8 @@ help-pprof:
 	@echo "  run-tail-sampling-optimized tail-sampling 最適化版を実行"
 	@echo "  run-scenario-spanmetrics              scenario-spanmetrics Python版を実行"
 	@echo "  run-scenario-spanmetrics-optimized    scenario-spanmetrics 最適化版を実行"
+	@echo "  run-batch-queue             batch-queue メモリ増幅を実行"
+	@echo "  run-batch-queue-optimized   batch-queue 最適化版を実行"
 
 # =====================================
 # 環境操作
@@ -248,7 +260,7 @@ tgen-help:
 # =====================================
 # シナリオテスト
 # =====================================
-.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-spanmetrics scenario-spanmetrics-optimized
+.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-spanmetrics scenario-spanmetrics-optimized scenario-batch-queue scenario-batch-queue-optimized
 
 # Tail Sampling（時間軸: 保持遅延型）
 # telemetrygen 1500 traces/s × (1 root + 5 child) = 約9,000 spans/s
@@ -281,6 +293,23 @@ scenario-spanmetrics-optimized:
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
 		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
 
+# Batch × Queue メモリ増幅（流量軸: キュー滞留型）
+# telemetrygen 2,000 traces/s × (1 root + 3 child) = 約8,000 spans/s
+# send_batch_size: 8192 × queue_size: 500 の掛け算効果でメモリ膨張
+scenario-batch-queue:
+	$(call run_scenario,batch-queue,Batch × Queue メモリ増幅（流量軸の罠）,\
+		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
+		--rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) \
+		--workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) \
+		$(TGEN_BQ_ATTRS),0,0,$(SCENARIO_FILE_BQ))
+
+# Batch × Queue 最適化版（send_batch_size + queue_size 縮小）
+scenario-batch-queue-optimized:
+	$(call run_scenario,batch-queue-optimized,Batch × Queue 最適化版,\
+		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
+		--rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) \
+		--workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) \
+		$(TGEN_BQ_ATTRS),0,0,$(SCENARIO_FILE_BQ_OPT))
 
 # =====================================
 # 設定管理
@@ -514,7 +543,7 @@ pprof-report:
 # =====================================
 # シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized
+.PHONY: run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-batch-queue run-batch-queue-optimized
 
 run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -605,4 +634,8 @@ run-tail-sampling:
 run-tail-sampling-optimized:
 	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-optimized
 
+run-batch-queue:
+	$(MAKE) run-scenario SCENARIO=scenario-batch-queue
 
+run-batch-queue-optimized:
+	$(MAKE) run-scenario SCENARIO=scenario-batch-queue-optimized

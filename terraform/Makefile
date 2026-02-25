@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh scenario-spanmetrics scenario-spanmetrics-optimized scenario-tail-sampling scenario-tail-sampling-optimized wait-collector wait-loadgen
+.PHONY: set-project-id ssh grafana pprof forward forward-bg forward-stop forward-status forward-pprof forward-pprof-bg forward-pprof-stop forward-pprof-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh scenario-spanmetrics scenario-spanmetrics-optimized scenario-tail-sampling scenario-tail-sampling-optimized wait-collector wait-loadgen scenario-batch-queue scenario-batch-queue-optimized
 
 # --- terraform ---
 
@@ -27,6 +27,8 @@ SCENARIO_FILE_SPANMETRICS := high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_SPANMETRICS_OPT := high-cardinality-spanmetrics-optimized.yaml
 SCENARIO_FILE_TAIL := tail-sampling.yaml
 SCENARIO_FILE_TAIL_OPT := tail-sampling-optimized.yaml
+SCENARIO_FILE_BQ := batch-queue-amplification.yaml
+SCENARIO_FILE_BQ_OPT := batch-queue-amplification-optimized.yaml
 TELEMETRYGEN_VERSION ?= v0.146.0
 TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:$(TELEMETRYGEN_VERSION)
 
@@ -404,3 +406,63 @@ scenario-spanmetrics-optimized: wait-collector prepare-pyloadgen
 		 fi && \
 		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
 	echo "✅ [pyloadgen] scenario-spanmetrics-optimized completed."
+
+# Batch × Queue メモリ増幅（telemetrygen版）
+scenario-batch-queue: wait-collector prepare-telemetrygen
+	@echo "=== [tgen] Scenario: Batch × Queue Memory Amplification ==="
+	@IP=$$($(GET_COLLECTOR_IP)); \
+	echo "1. Applying batch-queue config to Collector VM (IP: $$IP)..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
+		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
+		 fi && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_BQ) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "2. Stopping Jaeger to simulate downstream failure..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo docker compose -f /home/ubuntu/otel-memory/docker-compose.yaml stop jaeger"; \
+	echo "3. Starting telemetrygen ..."; \
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"telemetrygen traces --otlp-endpoint $$IP:4317 --otlp-insecure --rate 2000 --duration 180s --workers 10 --child-spans 3 --telemetry-attributes 'padding=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"' || true"; \
+	echo "4. Restarting Jaeger..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo docker compose -f /home/ubuntu/otel-memory/docker-compose.yaml start jaeger"; \
+	echo "5. Restoring Collector config..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
+		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
+		 fi && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "✅ [tgen] Scenario-batch-queue completed."
+
+# Batch × Queue 最適化版（telemetrygen版）
+scenario-batch-queue-optimized: wait-collector prepare-telemetrygen
+	@echo "=== [tgen] Scenario: Batch × Queue Optimized ==="
+	@IP=$$($(GET_COLLECTOR_IP)); \
+	echo "1. Applying batch-queue-optimized config to Collector VM (IP: $$IP)..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
+		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
+		 fi && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(SCENARIO_FILE_BQ_OPT) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "2. Stopping Jaeger to simulate downstream failure..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo docker compose -f /home/ubuntu/otel-memory/docker-compose.yaml stop jaeger"; \
+	echo "3. Starting telemetrygen ..."; \
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"telemetrygen traces --otlp-endpoint $$IP:4317 --otlp-insecure --rate 2000 --duration 180s --workers 10 --child-spans 3 --telemetry-attributes 'padding=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"' || true"; \
+	echo "4. Restarting Jaeger..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo docker compose -f /home/ubuntu/otel-memory/docker-compose.yaml start jaeger"; \
+	echo "5. Restoring Collector config..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
+		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
+		 fi && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "✅ [tgen] Scenario-batch-queue-optimized completed."
