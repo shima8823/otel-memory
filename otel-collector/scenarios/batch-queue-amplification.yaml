@@ -1,0 +1,101 @@
+# Batch × Queue メモリ増幅シナリオ（流量軸: キュー滞留型）
+#
+# メカニズム（掛け算の罠）:
+#   - Exporter の sending_queue は batch 単位でエントリを保持
+#   - 理論最大メモリ = send_batch_size × queue_size × 1スパンあたりのサイズ
+#   - 8192 × 500 × ~580B ≈ 2.4GB（コンテナ制限 512MB の約5倍）
+#   - memory_limiter は ~86 batches 蓄積時点（≈410MB）で発火
+#
+# 本番スパンの再現:
+#   - telemetrygen デフォルトスパンは ~280B（属性なし）
+#   - 本番スパンは http.url, db.statement 等で 500-1000B が一般的
+#   - --telemetry-attributes で ~300B の属性を付加し本番サイズを模倣
+#
+# 入力レートは処理能力内だが、batch_size × queue_size の掛け算でメモリ膨張
+#   - batch-queue: 設定の掛け算がメモリ上限を支配（設定が主因）
+#   - 同じレートでも queue_size × batch_size が大きいとメモリ爆発
+#
+# block_on_overflow: false（デフォルト）の挙動:
+#   - queue 満杯時はサイレントドロップ（ブロックしない）
+#   - receiver は受け続けるため queue は常に満杯状態を維持
+#   - queue 保持メモリ = send_batch_size × queue_size × span_size
+#   - 掛け算の結果が memory_limiter 閾値を超えるとデータ欠損が顕在化
+#
+# pprof で確認すべき箇所:
+#   - exporterhelper.(*boundedMemoryQueue).Offer
+#   - exporterhelper.(*reusableBatch)
+#   - batch processor の内部バッファ
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # memory_limiter
+  # https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md#best-practices
+  # best practices
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  # batch
+  # https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
+  # send_batch_size はデフォルト値
+  # timeout はバッチを満杯にするための意図的な設定（効率重視の誤設定）
+  batch:
+    send_batch_size: 8192
+    timeout: 5s
+
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    # sending_queue
+    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md#sending-queue
+    # default settings
+    sending_queue:
+      num_consumers: 3 # consumer を減らして queue 滞留を促進（デフォルト10）
+      queue_size: 500 # 「余裕を持たせた」設定（罠: batch_size との掛け算を考慮していない）
+    retry_on_failure:
+      enabled: true
+
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+
+  debug:
+    verbosity: basic
+
+extensions:
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [pprof]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]
