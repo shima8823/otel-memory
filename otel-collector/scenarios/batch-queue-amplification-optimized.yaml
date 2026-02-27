@@ -3,19 +3,19 @@
 # 非最適化版との差分:
 #   - send_batch_size: 8192 → 2048（4倍削減）
 #   - send_batch_max_size: 4096（oversized batch 防止）
-#   - queue_size: 500 → 200（2.5倍削減）
+#   - queue_size: 500 → 50（10倍削減）
 #   - block_on_overflow: false（デフォルト。満杯時はドロップ）
 #   - num_consumers: 10（デフォルト。drain 速度を確保）
 #   - timeout, max_elapsed_time もデフォルトに戻す
 #
 # 最適化後の理論最大メモリ:
-#   - 2048 × 200 × ~580B ≈ 238MB（512MB コンテナに収まる）
+#   - 2048 × 50 × ~580B ≈ 59MB（GC スパイク込みで soft_limit 307MB 以下）
 #   - memory_limiter 発火なし
 #
 # 掛け算の計算（最適化の根拠）:
 #   非最適化: 8192 × 500 × 580B = 2.4GB → コンテナ超過 → memory_limiter 発火
-#   最適化:   2048 × 200 × 580B = 238MB → コンテナ内 → 安全
-#   削減率: 約10倍
+#   最適化:   2048 × 50 × 580B = 59MB → soft_limit 以下 → 安全
+#   削減率: 約40倍
 
 receivers:
   otlp:
@@ -53,7 +53,7 @@ exporters:
     # default settings
     sending_queue:
       num_consumers: 10
-      queue_size: 200 # 500 → 200（2.5倍削減）
+      queue_size: 50 # 500 → 50（10倍削減。GC スパイク込みで soft_limit 307MB 以下を維持）
     retry_on_failure:
       enabled: true
 

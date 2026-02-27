@@ -1,0 +1,27 @@
+# Batch × Queue シナリオ用 Docker Compose オーバーライド
+#
+# --memory.max-traces でメモリを固定し、cpus 制限で処理速度を下げることで
+# 「バックエンドが遅いが完全停止はしない」状態を模擬する。
+#
+# なぜこの組み合わせか:
+#   - --memory.max-traces なし: Jaeger が受信データを蓄積し続けてメモリ制限に達して完全停止
+#     → Collector 側のどんな設定でも同様に詰まってしまい、最適化の効果が出ない
+#   - --memory.max-traces あり: 古いトレースを捨てて gRPC を受け入れ続けるためメモリが安定
+#     → CPU 制限による処理遅延のみが残り、batch/queue 設定の差が現れやすくなる
+#
+# 本番環境でよくある状況:
+#   - Kubernetes の CPU throttle (resources.limits.cpu)
+#   - Noisy Neighbor による CPU 競合
+#   - ストレージ I/O 待ちによる処理遅延
+#
+# 使い方:
+#   docker compose -f docker-compose.yaml -f docker-compose.batch-queue.yaml up -d jaeger
+
+services:
+  jaeger:
+    command: ["--memory.max-traces=50000"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 2G

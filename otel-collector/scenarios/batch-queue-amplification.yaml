@@ -4,7 +4,7 @@
 #   - Exporter の sending_queue は batch 単位でエントリを保持
 #   - 理論最大メモリ = send_batch_size × queue_size × 1スパンあたりのサイズ
 #   - 8192 × 500 × ~580B ≈ 2.4GB（コンテナ制限 512MB の約5倍）
-#   - memory_limiter は ~86 batches 蓄積時点（≈410MB）で発火
+#   - memory_limiter soft_limit = 512MB × 60% ≈ 307MB（~65 batches で発火）
 #
 # 本番スパンの再現:
 #   - telemetrygen デフォルトスパンは ~280B（属性なし）
@@ -60,7 +60,7 @@ exporters:
     # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md#sending-queue
     # default settings
     sending_queue:
-      num_consumers: 3 # consumer を減らして queue 滞留を促進（デフォルト10）
+      num_consumers: 10 # デフォルト値。ボトルネックは consumer 数ではなく batch_size × queue_size の掛け算
       queue_size: 500 # 「余裕を持たせた」設定（罠: batch_size との掛け算を考慮していない）
     retry_on_failure:
       enabled: true
