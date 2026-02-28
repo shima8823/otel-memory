@@ -8,7 +8,6 @@
 
 - internal metrics（Grafana）
 - pprof
-<!-- TODO: zpages -->
 
 ## 3. シナリオ選定の設計思想
 

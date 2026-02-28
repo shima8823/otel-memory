@@ -1,59 +1,93 @@
 # ブログ構成メモ
 
-このファイルは、ブログの構成と「各セクションで何を書くか」を整理するためのファイルです。  
+このファイルは、ブログの構成と「各セクションで何を書くか」を整理するためのファイルです。
 
 ## セクションリンク
 
 - デバッグの基本技法と環境準備: `docs/blog/debug-basics.md`
 - シナリオの選定: `docs/blog/scenario-reports/why-these-scenarios.md`
-- 実践検証: `docs/blog/scenario-reports/*.md`
+- 実践検証（Tail Sampling）: `docs/blog/scenario-reports/tail-sampling/report.md`
+- 実践検証（高カーディナリティ）: `docs/blog/scenario-reports/high-cardinality.md`
+- 実践検証（Batch × Queue メモリ増幅）: `docs/blog/scenario-reports/batch-queue-amplification.md`
 - ベストプラクティス: `docs/blog/best-practices.md`
 
-## 各セクションで書くこと
+## 記事全体の構成
 
 ### はじめに
-モチベーションと背景(データ欠損リスク)
+モチベーションと背景（データ欠損リスク）
 
 ### デバッグの基本技法と環境準備
-- 観測方法
-  - otelcol_* の内部メトリクスをgrafanaで表示
-    - 内部メトリクスは変更される可能性が高いので公式docで確認すること
-  - pprof（heap profile）
-  - TODO: zpages
-- 負荷生成ツール
-    - loadgen
-    - TODO: telemetrygen
-- 環境構築
-  - local
-  - google cloud での環境構築
+- 観測方法（internal metrics / pprof）
+- 負荷生成ツール（loadgen / telemetrygen）
+- 環境構築（ローカル / GCP）
+- 診断の基本フロー
 
-### デバッグ例（シナリオ別メモリ挙動と解析）
-- シナリオの選定理由
+### シナリオ選定の設計思想
+- なぜ複数シナリオが必要か（原因の切り分け）
+- 選定に使う7つの視点
+- 原因分類（キュー滞留型 / 状態膨張型 / 保持遅延型）
+- 代表シナリオ: Tail Sampling（時間軸）、高カーディナリティ（空間軸）、Batch × Queue メモリ増幅（流量軸）
 
-- 【シナリオX: 〇〇】
-  1. 再現手順
-    - 設定ファイル
-    - 負荷生成コマンド
-    - 期待される症状
-  2. prometheus && grafanaで観測
-    - 内部メトリクスの観測
-  3. メモリ肥大化のメカニズム解明
-    - pprof heap profile の取得
-    - どのデータ構造が肥大化しているか
-    - なぜその設定がその構造を肥大化させるのか
-  4. パラメータ最適化
-    - どのパラメータをどう変更すべきか
-    - その変更がメモリ構造にどう影響するか（pprofで検証）
-    - トレードオフの明示（スループット vs メモリ）
-  5. 監視ポイント
-    - otelcol_* メトリクスのどれを見るべきか
-    - アラート閾値の根拠
+### 実践検証: Tail Sampling（保持遅延型）
+1. 再現手順（decision_wait: 30s, always_sample）
+2. Grafana 観測（Heap の急騰→高止まり→解放パターン）
+3. pprof 解析（tailsamplingprocessor のバッファ）
+4. メカニズム解明（概算式と実測検算）
+5. パラメータ最適化（decision_wait 短縮）
+6. 他シナリオとの鑑別
+
+### 実践検証: 高カーディナリティ（状態膨張型）
+1. 再現手順（spanmetrics + UUID 属性）
+2. タイムライン（60秒で memory_limiter 発火 → 295秒で OOM）
+3. メトリクス観測（スループット段階的低下 + Heap 右肩上がり）
+4. メカニズム解明（内部マップの無限膨張 + GC の死のスパイラル）
+5. pprof 解析（spanmetricsconnector の map 操作）
+6. 実務パターンと対処法
+7. Tail Sampling との鑑別
+
+### 実践検証: Batch × Queue メモリ増幅（キュー滞留型）
+1. 再現手順（send_batch_size: 8192, queue_size: 5000 + 高負荷）
+2. Grafana 観測（exporter queue メトリクスと Heap の階段状増加パターン）
+3. pprof 解析（batch processor + exporter queue のバッファ）
+4. メカニズム解明（掛け算効果の概算式と実測検算）
+5. パラメータ最適化（send_batch_size + queue_size チューニング）
+6. Batch Processor の今後（exporter-level batching への移行動向）
+7. 他シナリオとの鑑別
 
 ### ベストプラクティス
-主要コンポーネント（Memory Limiter, Batch, Queue）
-- メモリ高騰を防ぐために公式ドキュメントを参照した値を確認する
-- 設定テンプレート
-- 監視アラート設定
+- Memory Limiter / Batch / Sending Queue の設定指針
+- ステートフル Processor の注意事項
+- 監視アラート設定テンプレート
+- 安全なベースライン設定テンプレート
 
 ### まとめ
 
+## 完成状態
+
+| セクション | ファイル | 状態 |
+|-----------|--------|------|
+| デバッグ基本技法 | `debug-basics.md` | 完成 |
+| シナリオ選定 | `why-these-scenarios.md` | 完成 |
+| Tail Sampling | `tail-sampling/report.md` | 完成（画像・最適化実測は TODO） |
+| 高カーディナリティ | `high-cardinality.md` | 完成（flame graph 画像は TODO） |
+| Batch × Queue メモリ増幅 | `batch-queue-amplification.md` | 未着手 |
+| ベストプラクティス | `best-practices.md` | 完成 |
+
+## paper.md の方針
+
+`docs/blog/paper.md` は各詳細レポートの要約を集約したブログ本文です。
+
+### 現在のスコープ（PR 用）
+
+- **Tail Sampling（保持遅延型）のみ**を記載
+- 高カーディナリティ（状態膨張型）は記載しない
+
+### 理由
+
+PR のレビュー負担を軽減するため、まず Tail Sampling シナリオ単体で完成させてレビューに出す。
+高カーディナリティなど追加シナリオは後続 PR で追加する。
+
+### 今後の予定
+
+- 高カーディナリティ（状態膨張型）を追加（別 PR）
+- Batch × Queue メモリ増幅（キュー滞留型）を追加（別 PR）
