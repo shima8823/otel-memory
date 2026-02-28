@@ -39,7 +39,7 @@ make pprof-capture-stop
 
 ```
 export PROJECT_ID=$(gcloud config get-value project)
-make pprof-scenario1-full
+make run-tail-sampling
 ```
 
 このターゲットは以下をまとめて実行します。
@@ -61,22 +61,6 @@ grep -m1 "保存先:" captures/logs/pprof_capture.log
 
 ```
 SCENARIO=scenario-spanmetrics SYNC=0 RESTART=0 make run-scenario
-```
-
-## ワンコマンド（シナリオ1専用スクリプト）
-
-```
-export PROJECT_ID=$(gcloud config get-value project)
-bash scripts/run_scenario1_capture.sh
-```
-
-よく使う調整例:
-
-```
-CAPTURE_INTERVAL=3 \
-CAPTURE_BASE_DIR=captures/01-23 \
-KEEP_FORWARD=1 \
-bash scripts/run_scenario1_capture.sh
 ```
 
 ## pprof の比較
