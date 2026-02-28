@@ -63,10 +63,10 @@ Container Memory: 512 MB
 
 ```bash
 # 非最適化（decision_wait: 30s）
-make pprof-tail-sampling-full
+make run-tail-sampling
 
 # 最適化（decision_wait: 10s）
-make pprof-tail-sampling-optimized-full
+make run-tail-sampling-optimized
 ```
 
 ## 3. Grafana での観測
