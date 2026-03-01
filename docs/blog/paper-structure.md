@@ -7,8 +7,8 @@
 - デバッグの基本技法と環境準備: `docs/blog/debug-basics.md`
 - シナリオの選定: `docs/blog/scenario-reports/why-these-scenarios.md`
 - 実践検証（Tail Sampling）: `docs/blog/scenario-reports/tail-sampling/report.md`
-- 実践検証（高カーディナリティ）: `docs/blog/scenario-reports/high-cardinality.md`
-- 実践検証（Batch × Queue メモリ増幅）: `docs/blog/scenario-reports/batch-queue-amplification.md`
+- 実践検証（高カーディナリティ）: `docs/blog/scenario-reports/high-cardinality/report.md`
+- 実践検証（Batch × Queue メモリ増幅）: `docs/blog/scenario-reports/batch-queue/report.md`
 - ベストプラクティス: `docs/blog/best-practices.md`
 
 ## 記事全体の構成
@@ -46,8 +46,8 @@
 7. Tail Sampling との鑑別
 
 ### 実践検証: Batch × Queue メモリ増幅（キュー滞留型）
-1. 再現手順（send_batch_size: 8192, queue_size: 5000 + 高負荷）
-2. Grafana 観測（exporter queue メトリクスと Heap の階段状増加パターン）
+1. 再現手順（send_batch_size: 8192, queue_size: 500 + 下流遅延）
+2. Grafana 観測（exporter queue メトリクスと Heap の soft_limit 付近での振動パターン）
 3. pprof 解析（batch processor + exporter queue のバッファ）
 4. メカニズム解明（掛け算効果の概算式と実測検算）
 5. パラメータ最適化（send_batch_size + queue_size チューニング）
@@ -68,9 +68,9 @@
 |-----------|--------|------|
 | デバッグ基本技法 | `debug-basics.md` | 完成 |
 | シナリオ選定 | `why-these-scenarios.md` | 完成 |
-| Tail Sampling | `tail-sampling/report.md` | 完成（画像・最適化実測は TODO） |
-| 高カーディナリティ | `high-cardinality.md` | 完成（flame graph 画像は TODO） |
-| Batch × Queue メモリ増幅 | `batch-queue-amplification.md` | 未着手 |
+| Tail Sampling | `tail-sampling/report.md` | 完成 |
+| 高カーディナリティ | `high-cardinality/report.md` | 完成 |
+| Batch × Queue メモリ増幅 | `batch-queue/report.md` | 完成 |
 | ベストプラクティス | `best-practices.md` | 完成 |
 
 ## paper.md の方針

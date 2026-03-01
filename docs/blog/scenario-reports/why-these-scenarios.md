@@ -121,14 +121,14 @@ GC後もメモリが戻らないという特徴的なシグネチャで、診断
 ### Batch × Queue メモリ増幅（流量軸: キュー滞留型）
 
 **選定理由**: `batch` processor の `send_batch_size` と `sending_queue` の `queue_size` の掛け算が、
-理論上のメモリ消費量を決定する。デフォルト値（`send_batch_size: 8192` × `queue_size: 5000`）では
-最大約4,100万スパン ≈ 20GB のメモリ消費ポテンシャルがあり、
+理論上のメモリ消費量を決定する。本シナリオの設定（`send_batch_size: 8192` × `queue_size: 500`）では
+理論最大約 2.4GB のメモリ消費ポテンシャルがあり、コンテナ制限 512MB の約5倍に達する。
 開発環境の低トラフィックでは顕在化せず本番の traffic spike で初めて OOM に至るパターンが多い。
 
 ```
 メモリ消費（理論最大値）≈ send_batch_size × queue_size × avg_span_size
-                        = 8192 × 5000 × 500B
-                        ≈ 20GB
+                        = 8192 × 500 × 580B
+                        ≈ 2.4GB
 ```
 
 パラメータ2つの変更（`send_batch_size` 縮小 + `queue_size` 適正化）で改善を示せるため、
@@ -152,7 +152,7 @@ exporter-level batching でも `queue_size` チューニングとして引き続
 |---------|-------------|------------|
 | Tail Sampling | 急騰→高止まり→解放 | 負荷停止後にメモリが回復する |
 | 高カーディナリティ | 右肩上がり（GC後も戻らない） | 負荷停止後もメモリが戻らない |
-| Batch × Queue | 階段状に増加→queue排出で急降下 | exporter queue メトリクスと連動する |
+| Batch × Queue | soft_limit 付近で GC 振動→負荷終了後に急降下 | exporter queue メトリクスと連動する |
 
 
 ## 5. 各シナリオを説明するときの共通フォーマット
