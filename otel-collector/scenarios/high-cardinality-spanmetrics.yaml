@@ -3,17 +3,17 @@
 # アーキテクチャ:
 #   [Loadgen VM]                         [Collector VM]
 #     pyloadgen (traces)           →     otlp receiver
-#     attr_0〜attr_7 に UUID              ↓
-#                                      memory_limiter, batch
+#     attr_0〜attr_4 に UUID（user_id, session_id, request_id, transaction_id, correlation_id 相当）              ↓
+#                                      memory_limiter
 #                                         ↓
 #                                      spanmetrics connector (内部マップ膨張 → OOM)
 #                                         ↓
 #                                      debug exporter
 #
 # メモリ膨張のメカニズム:
-#   1. loadgen が各スパンに 8 個の UUID 属性を付与して送信
+#   1. loadgen が各スパンに 5 個の UUID 属性を付与して送信
 #   2. spanmetrics connector が dimension ごとにメトリクス時系列を生成
-#   3. CUMULATIVE temporality のため、全ユニーク組み合わせを内部マップに永久保持
+#   3. CUMULATIVE temporality のため、metrics_expiration のデフォルトが 0（無期限）のため、エントリは一方向に増加し続ける
 #   4. 内部マップが無限膨張 → memory_limiter 発火 → データドロップ
 #
 # 単因子性の確保:
@@ -36,12 +36,6 @@ processors:
     limit_percentage: 80
     spike_limit_percentage: 20
 
-  # batch
-  batch:
-    send_batch_size: 2000
-    send_batch_max_size: 4000
-    timeout: 200ms
-
 connectors:
   # spanmetrics connector
   # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector
@@ -52,18 +46,13 @@ connectors:
       explicit:
         buckets: [1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s]
     # 高カーディナリティ属性を dimension に含める
-    # loadgen の -high-cardinality フラグで、attr_0〜attr_7 の値に UUID が含まれる
+    # loadgen の -high-cardinality フラグで、attr_0〜attr_4 の値に UUID が含まれる
     dimensions:
-      - name: attr_0
-      - name: attr_1
-      - name: attr_2
-      - name: attr_3
-      - name: attr_4
-      - name: attr_5
-      - name: attr_6
-      - name: attr_7
-    # 時系列の期限切れを無効化（メモリに保持し続ける）
-    dimensions_cache_size: 10000000
+      - name: attr_0    # user_id 相当
+      - name: attr_1    # session_id 相当
+      - name: attr_2    # request_id 相当
+      - name: attr_3    # transaction_id 相当
+      - name: attr_4    # correlation_id 相当
     aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
 
 exporters:
@@ -87,9 +76,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter]
       exporters: [spanmetrics, debug]
     metrics:
       receivers: [spanmetrics]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter]
       exporters: [debug]

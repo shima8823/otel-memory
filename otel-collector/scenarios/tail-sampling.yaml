@@ -48,21 +48,11 @@ processors:
       - name: always-sample
         type: always_sample
 
-  # batch は tail_sampling の後
-  batch:
-    send_batch_size: 2000
-    send_batch_max_size: 4000
-    timeout: 200ms
-
 exporters:
   otlp:
     endpoint: jaeger:4317
     tls:
       insecure: true
-    sending_queue:
-      enabled: true
-      num_consumers: 10
-      queue_size: 5000
     retry_on_failure:
       enabled: true
 
@@ -90,13 +80,13 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, tail_sampling, batch]
+      processors: [memory_limiter, tail_sampling]
       exporters: [otlp, debug]
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter]
       exporters: [prometheus, debug]
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter]
       exporters: [debug]

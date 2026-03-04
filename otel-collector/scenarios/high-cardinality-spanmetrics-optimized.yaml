@@ -1,10 +1,10 @@
 # 高カーディナリティ spanmetrics シナリオ（最適化版）
 #
 # 問題版との唯一の違い:
-#   dimensions から高カーディナリティ属性 (attr_0〜attr_7) を除外
+#   dimensions から高カーディナリティ属性 (attr_0〜attr_4) を除外
 #
 # 期待される挙動:
-#   - 同じ負荷（1300 traces/sec, 8 UUID属性, depth 5）を与えても
+#   - 同じ負荷（1300 traces/sec, 5 UUID属性, depth 5）を与えても
 #   - spanmetrics はデフォルトキー（service.name, span.name 等）のみで集計
 #   - ユニーク組み合わせ数が有界 → 内部マップのサイズが安定
 #   - memory_limiter が発火しない → データドロップなし
@@ -28,23 +28,17 @@ processors:
     limit_percentage: 80
     spike_limit_percentage: 20
 
-  # batch
-  batch:
-    send_batch_size: 2000
-    send_batch_max_size: 4000
-    timeout: 200ms
-
 connectors:
   # spanmetrics connector
   # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector
   # 最適化版: dimensions を空にし、デフォルトキーのみで集計
-  # loadgen は attr_0〜attr_7 に UUID を付与して送信するが、dimensions に含めないため
+  # loadgen は attr_0〜attr_4 に UUID を付与して送信するが、dimensions に含めないため
   # 内部マップのサイズが有界に保たれる
   spanmetrics:
     histogram:
       explicit:
         buckets: [1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s]
-    # 高カーディナリティ属性 (attr_0〜attr_7) を dimensions から除外
+    # 高カーディナリティ属性 (attr_0〜attr_4) を dimensions から除外
     # デフォルトキー (service.name, span.name, span.kind, status.code) のみで集計
     dimensions: []
     aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
@@ -70,9 +64,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter]
       exporters: [spanmetrics, debug]
     metrics:
       receivers: [spanmetrics]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter]
       exporters: [debug]
