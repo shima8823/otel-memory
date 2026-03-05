@@ -4,6 +4,7 @@ import logging
 import signal
 import threading
 import time
+import random
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -45,8 +46,17 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+# 中カーディナリティ属性の固定プール
+# 個々の値は妥当だが、dimensions に全て含めると掛け算で組み合わせ爆発する
+# attr_0(50) × attr_1(30) × attr_2(20) × attr_3(10) × attr_4(5) = 1,500,000 時系列
+CARDINALITIES = [50, 30, 20, 10, 5, 3, 3, 3]
+
+
 def build_attrs(attr_count: int) -> dict[str, str]:
-    return {f"attr_{idx}": str(uuid.uuid4()) for idx in range(attr_count)}
+    return {
+        f"attr_{idx}": f"val_{random.randint(0, CARDINALITIES[idx] - 1)}"
+        for idx in range(attr_count)
+    }
 
 
 def add_span_count(value: int) -> None:
