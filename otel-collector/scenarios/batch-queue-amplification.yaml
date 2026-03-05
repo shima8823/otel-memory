@@ -3,8 +3,8 @@
 # メカニズム（掛け算の罠）:
 #   - Exporter の sending_queue は batch 単位でエントリを保持
 #   - 理論最大メモリ = send_batch_size × queue_size × 1スパンあたりのサイズ
-#   - 8192 × 500 × ~580B ≈ 2.4GB（コンテナ制限 512MB の約5倍）
-#   - memory_limiter soft_limit = 512MB × 60% ≈ 307MB（~65 batches で発火）
+#   - 8192 × 1000 × ~580B ≈ 4.75GB（コンテナ制限 512MB の約9倍）
+#   - memory_limiter soft_limit = 512MB × 60% ≈ 307MB（~37 batches で発火）
 #
 # 本番スパンの再現:
 #   - telemetrygen デフォルトスパンは ~280B（属性なし）
@@ -46,10 +46,10 @@ processors:
   # batch
   # https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
   # send_batch_size はデフォルト値
-  # timeout はバッチを満杯にするための意図的な設定（効率重視の誤設定）
+  # timeout はデフォルト 200ms の5倍。バッチ効率を上げようとした設定（ありがちな誤設定）
   batch:
     send_batch_size: 8192
-    timeout: 5s
+    timeout: 1s
 
 exporters:
   otlp:
@@ -61,7 +61,7 @@ exporters:
     # default settings
     sending_queue:
       num_consumers: 10 # デフォルト値。ボトルネックは consumer 数ではなく batch_size × queue_size の掛け算
-      queue_size: 500 # 「余裕を持たせた」設定（罠: batch_size との掛け算を考慮していない）
+      queue_size: 1000 # デフォルト値そのまま（罠: batch_size との掛け算を考慮していない）
     retry_on_failure:
       enabled: true
 

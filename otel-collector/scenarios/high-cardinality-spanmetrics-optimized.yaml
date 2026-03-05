@@ -1,17 +1,17 @@
 # 高カーディナリティ spanmetrics シナリオ（最適化版）
 #
-# 問題版との唯一の違い:
-#   dimensions から高カーディナリティ属性 (attr_0〜attr_4) を除外
+# 問題版との違い:
+#   dimensions から高カーディナリティ属性 (attr_0, attr_1) を除外し、
+#   低カーディナリティ属性 (attr_2, attr_3, attr_4) のみ残す
 #
 # 期待される挙動:
-#   - 同じ負荷（1300 traces/sec, 5 UUID属性, depth 5）を与えても
-#   - spanmetrics はデフォルトキー（service.name, span.name 等）のみで集計
-#   - ユニーク組み合わせ数が有界 → 内部マップのサイズが安定
-#   - memory_limiter が発火しない → データドロップなし
+#   - 同じ負荷（1300 traces/sec, 8属性, depth 5）を与えても
+#   - dimensions の組み合わせ数が 20 × 10 × 5 = 1,000 に抑えられる
+#   - 内部マップのサイズが安定 → memory_limiter が発火しない
 #
 # 教訓:
-#   高カーディナリティ属性を dimensions に含めないだけで
-#   同じトラフィックでもメモリ問題が完全に解消される
+#   個々の属性のカーディナリティを確認し、掛け算の結果を見積もること
+#   高カーディナリティ属性を dimensions から外すだけで解消される
 #
 receivers:
   otlp:
@@ -31,16 +31,17 @@ processors:
 connectors:
   # spanmetrics connector
   # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector
-  # 最適化版: dimensions を空にし、デフォルトキーのみで集計
-  # loadgen は attr_0〜attr_4 に UUID を付与して送信するが、dimensions に含めないため
-  # 内部マップのサイズが有界に保たれる
+  # 最適化版: 高カーディナリティ属性 (attr_0, attr_1) を dimensions から除外
+  # 低カーディナリティ属性 (attr_2, attr_3, attr_4) のみ残す
+  # 組み合わせ数: 20 × 10 × 5 = 1,000（有界）
   spanmetrics:
     histogram:
       explicit:
         buckets: [1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s]
-    # 高カーディナリティ属性 (attr_0〜attr_4) を dimensions から除外
-    # デフォルトキー (service.name, span.name, span.kind, status.code) のみで集計
-    dimensions: []
+    dimensions:
+      - name: attr_2    # deployment version 相当 (20種類)
+      - name: attr_3    # client region 相当 (10種類)
+      - name: attr_4    # HTTP method 相当 (5種類)
     aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
 
 exporters:

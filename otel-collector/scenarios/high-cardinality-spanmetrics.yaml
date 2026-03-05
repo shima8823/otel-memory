@@ -1,20 +1,22 @@
-# 高カーディナリティ spanmetrics シナリオ
+# 高カーディナリティ spanmetrics シナリオ（組み合わせ爆発）
 #
 # アーキテクチャ:
 #   [Loadgen VM]                         [Collector VM]
 #     pyloadgen (traces)           →     otlp receiver
-#     attr_0〜attr_4 に UUID（user_id, session_id, request_id, transaction_id, correlation_id 相当）              ↓
-#                                      memory_limiter
+#     attr_0〜attr_4 に中カーディナリティ値                ↓
+#     (50, 30, 20, 10, 5 種類)          memory_limiter
 #                                         ↓
-#                                      spanmetrics connector (内部マップ膨張 → OOM)
+#                                      spanmetrics connector (組み合わせ爆発 → OOM)
 #                                         ↓
 #                                      debug exporter
 #
 # メモリ膨張のメカニズム:
-#   1. loadgen が各スパンに 5 個の UUID 属性を付与して送信
-#   2. spanmetrics connector が dimension ごとにメトリクス時系列を生成
-#   3. CUMULATIVE temporality のため、metrics_expiration のデフォルトが 0（無期限）のため、エントリは一方向に増加し続ける
-#   4. 内部マップが無限膨張 → memory_limiter 発火 → データドロップ
+#   1. loadgen が各スパンに 5 個の中カーディナリティ属性を付与
+#      個々の属性値は妥当（API endpoint 50種, region 30種 等）
+#   2. spanmetrics が 5 属性すべてを dimensions に含めて集計
+#   3. 時系列数 = 50 × 30 × 20 × 10 × 5 = 1,500,000（組み合わせ爆発）
+#   4. CUMULATIVE temporality + metrics_expiration: 0 → エントリは減らない
+#   5. 内部マップが膨張 → OOM
 #
 # 単因子性の確保:
 #   - Jaeger exporter (sending_queue) を除外 → キュー滞留によるメモリ消費を排除
@@ -39,20 +41,21 @@ processors:
 connectors:
   # spanmetrics connector
   # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector
-  # 高カーディナリティ属性を dimension に含めることで、メトリクス時系列が爆発的に増加
-  # これにより内部マップが膨張し、メモリを消費し続ける
+  # 5 属性すべてを dimensions に含めることで、組み合わせ爆発が発生
+  # 個々の属性のカーディナリティは妥当だが、掛け算で 1,500,000 時系列になる
   spanmetrics:
     histogram:
       explicit:
         buckets: [1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s]
-    # 高カーディナリティ属性を dimension に含める
-    # loadgen の -high-cardinality フラグで、attr_0〜attr_4 の値に UUID が含まれる
+    # 5 属性すべてを dimensions に含める
+    # 個別: 50, 30, 20, 10, 5 → どれも妥当
+    # 掛け算: 50 × 30 × 20 × 10 × 5 = 1,500,000 → 組み合わせ爆発
     dimensions:
-      - name: attr_0    # user_id 相当
-      - name: attr_1    # session_id 相当
-      - name: attr_2    # request_id 相当
-      - name: attr_3    # transaction_id 相当
-      - name: attr_4    # correlation_id 相当
+      - name: attr_0    # API endpoint 相当 (50種類)
+      - name: attr_1    # backend host 相当 (30種類)
+      - name: attr_2    # deploy version 相当 (20種類)
+      - name: attr_3    # client region 相当 (10種類)
+      - name: attr_4    # HTTP method 相当 (5種類)
     aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
 
 exporters:
