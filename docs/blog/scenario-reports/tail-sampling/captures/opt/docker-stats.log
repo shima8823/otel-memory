@@ -1,0 +1,407 @@
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.38%     14.93MiB / 3.819GiB   0.38%     3kB / 1.51kB      4.1kB / 0B
+otel-memory-grafana-1          89.33%    66.36MiB / 3.819GiB   1.70%     13.5kB / 5.99kB   209kB / 28.7MB
+otel-memory-jaeger-1           0.07%     9.621MiB / 3.819GiB   0.25%     2.43kB / 1kB      0B / 0B
+otel-memory-renderer-1         0.12%     3.254MiB / 512MiB     0.64%     1.55kB / 502B     0B / 0B
+otel-memory-otel-collector-1   0.53%     40.83MiB / 512MiB     7.98%     4.06kB / 31.1kB   12.4MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.40%     15.04MiB / 3.819GiB   0.38%     3.62kB / 2.21kB   4.1kB / 0B
+otel-memory-grafana-1          20.66%    94.59MiB / 3.819GiB   2.42%     13.4MB / 95.8kB   209kB / 29.7MB
+otel-memory-jaeger-1           0.02%     9.621MiB / 3.819GiB   0.25%     2.5kB / 1kB       0B / 0B
+otel-memory-renderer-1         0.00%     3.285MiB / 512MiB     0.64%     1.62kB / 502B     0B / 0B
+otel-memory-otel-collector-1   0.22%     42.04MiB / 512MiB     8.21%     5.54kB / 48.3kB   12.4MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.28%     15.12MiB / 3.819GiB   0.39%     5.24kB / 3.48kB   4.1kB / 0B
+otel-memory-grafana-1          31.46%    102.1MiB / 3.819GiB   2.61%     22.4MB / 135kB    209kB / 29.7MB
+otel-memory-jaeger-1           0.02%     9.621MiB / 3.819GiB   0.25%     2.64kB / 1.13kB   0B / 0B
+otel-memory-renderer-1         0.00%     3.281MiB / 512MiB     0.64%     1.66kB / 544B     0B / 0B
+otel-memory-otel-collector-1   0.23%     42.58MiB / 512MiB     8.32%     7.64kB / 67.1kB   12.4MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.00%     14.94MiB / 3.819GiB   0.38%     6.37kB / 3.98kB   4.1kB / 0B
+otel-memory-grafana-1          0.55%     102.8MiB / 3.819GiB   2.63%     22.4MB / 135kB    209kB / 29.7MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     2.64kB / 1.13kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.301MiB / 512MiB     0.64%     1.66kB / 544B     0B / 0B
+otel-memory-otel-collector-1   0.21%     43.61MiB / 512MiB     8.52%     9.67kB / 85.8kB   12.4MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.00%     15.21MiB / 3.819GiB   0.39%     8.06kB / 5.18kB   4.1kB / 0B
+otel-memory-grafana-1          0.68%     102.7MiB / 3.819GiB   2.63%     22.4MB / 136kB    209kB / 29.7MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     2.64kB / 1.13kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.289MiB / 512MiB     0.64%     1.79kB / 676B     0B / 0B
+otel-memory-otel-collector-1   1.48%     44.53MiB / 512MiB     8.70%     11.6kB / 105kB    12.4MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.00%     14.76MiB / 3.819GiB   0.38%     8.61kB / 5.89kB   4.1kB / 0B
+otel-memory-grafana-1          1.33%     103.3MiB / 3.819GiB   2.64%     22.4MB / 136kB    209kB / 39MB
+otel-memory-jaeger-1           0.04%     9.621MiB / 3.819GiB   0.25%     2.64kB / 1.13kB   0B / 0B
+otel-memory-renderer-1         5.77%     3.539MiB / 512MiB     0.69%     1.86kB / 676B     0B / 0B
+otel-memory-otel-collector-1   0.26%     44.54MiB / 512MiB     8.70%     12.5kB / 105kB    12.4MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.37%     15.27MiB / 3.819GiB   0.39%     10.4kB / 7.09kB   4.1kB / 4.1kB
+otel-memory-grafana-1          0.46%     103MiB / 3.819GiB     2.63%     22.4MB / 136kB    209kB / 79.7MB
+otel-memory-jaeger-1           0.08%     9.621MiB / 3.819GiB   0.25%     2.84kB / 1.26kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.531MiB / 512MiB     0.69%     1.86kB / 676B     0B / 0B
+otel-memory-otel-collector-1   1.16%     46.61MiB / 512MiB     9.10%     15.6kB / 143kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.39%     15.07MiB / 3.819GiB   0.39%     12.1kB / 8.29kB   4.1kB / 4.1kB
+otel-memory-grafana-1          0.54%     103.3MiB / 3.819GiB   2.64%     22.4MB / 136kB    209kB / 104MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     2.84kB / 1.26kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.297MiB / 512MiB     0.64%     1.86kB / 676B     0B / 0B
+otel-memory-otel-collector-1   0.28%     46.37MiB / 512MiB     9.06%     15.8kB / 143kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.43%     15.38MiB / 3.819GiB   0.39%     13.7kB / 9.49kB   4.1kB / 4.1kB
+otel-memory-grafana-1          0.53%     104.1MiB / 3.819GiB   2.66%     22.4MB / 136kB    209kB / 104MB
+otel-memory-jaeger-1           0.02%     9.621MiB / 3.819GiB   0.25%     2.84kB / 1.26kB   0B / 0B
+otel-memory-renderer-1         0.00%     3.301MiB / 512MiB     0.64%     1.99kB / 808B     0B / 0B
+otel-memory-otel-collector-1   0.20%     47.18MiB / 512MiB     9.22%     17.7kB / 162kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.00%     15.16MiB / 3.819GiB   0.39%     14.9kB / 9.99kB   4.1kB / 4.1kB
+otel-memory-grafana-1          0.54%     103.9MiB / 3.819GiB   2.66%     22.4MB / 136kB    209kB / 104MB
+otel-memory-jaeger-1           0.04%     9.621MiB / 3.819GiB   0.25%     2.97kB / 1.4kB    0B / 0B
+otel-memory-renderer-1         0.01%     3.301MiB / 512MiB     0.64%     1.99kB / 808B     0B / 0B
+otel-memory-otel-collector-1   0.29%     48.12MiB / 512MiB     9.40%     19.8kB / 181kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.30%     15.18MiB / 3.819GiB   0.39%     16.6kB / 11.2kB   4.1kB / 4.1kB
+otel-memory-grafana-1          7.78%     104.1MiB / 3.819GiB   2.66%     22.4MB / 136kB    209kB / 104MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     3.05kB / 1.48kB   0B / 0B
+otel-memory-renderer-1         4.99%     3.324MiB / 512MiB     0.65%     1.99kB / 808B     0B / 0B
+otel-memory-otel-collector-1   0.25%     48.63MiB / 512MiB     9.50%     21.9kB / 201kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.28%     15.22MiB / 3.819GiB   0.39%     18.2kB / 12.4kB   4.1kB / 4.1kB
+otel-memory-grafana-1          0.74%     104MiB / 3.819GiB     2.66%     22.4MB / 136kB    209kB / 104MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     3.05kB / 1.48kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.32MiB / 512MiB      0.65%     2.12kB / 940B     0B / 0B
+otel-memory-otel-collector-1   0.23%     48.71MiB / 512MiB     9.51%     22.6kB / 201kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.34%     15.24MiB / 3.819GiB   0.39%     18.8kB / 13.1kB   4.1kB / 4.1kB
+otel-memory-grafana-1          0.51%     103.7MiB / 3.819GiB   2.65%     22.4MB / 136kB    209kB / 104MB
+otel-memory-jaeger-1           0.02%     9.621MiB / 3.819GiB   0.25%     3.05kB / 1.48kB   0B / 0B
+otel-memory-renderer-1         0.02%     3.32MiB / 512MiB      0.65%     2.12kB / 940B     0B / 0B
+otel-memory-otel-collector-1   0.38%     49MiB / 512MiB        9.57%     24.5kB / 220kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.28%     15.49MiB / 3.819GiB   0.40%     20.5kB / 14.3kB   4.1kB / 8.19kB
+otel-memory-grafana-1          0.62%     104.1MiB / 3.819GiB   2.66%     22.4MB / 136kB    242kB / 104MB
+otel-memory-jaeger-1           0.02%     9.621MiB / 3.819GiB   0.25%     3.19kB / 1.61kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.383MiB / 512MiB     0.66%     2.24kB / 982B     0B / 0B
+otel-memory-otel-collector-1   0.25%     50.3MiB / 512MiB      9.82%     26kB / 239kB      12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.34%     15.27MiB / 3.819GiB   0.39%     22.2kB / 15.5kB   4.1kB / 8.19kB
+otel-memory-grafana-1          0.53%     103.9MiB / 3.819GiB   2.66%     22.4MB / 136kB    242kB / 104MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     3.26kB / 1.61kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.383MiB / 512MiB     0.66%     2.24kB / 982B     0B / 0B
+otel-memory-otel-collector-1   0.26%     51.09MiB / 512MiB     9.98%     28kB / 259kB      12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.00%     15.28MiB / 3.819GiB   0.39%     23.4kB / 16kB     4.1kB / 8.19kB
+otel-memory-grafana-1          0.55%     104.1MiB / 3.819GiB   2.66%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1           0.03%     9.621MiB / 3.819GiB   0.25%     3.26kB / 1.61kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.844MiB / 512MiB     0.75%     2.37kB / 1.11kB   0B / 0B
+otel-memory-otel-collector-1   1.20%     51.73MiB / 512MiB     10.10%    29.9kB / 278kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.00%     15.3MiB / 3.819GiB    0.39%     25.1kB / 17.2kB   4.1kB / 8.19kB
+otel-memory-grafana-1          0.88%     104.4MiB / 3.819GiB   2.67%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1           0.04%     9.621MiB / 3.819GiB   0.25%     3.26kB / 1.61kB   0B / 0B
+otel-memory-renderer-1         0.00%     3.594MiB / 512MiB     0.70%     2.41kB / 1.16kB   0B / 0B
+otel-memory-otel-collector-1   0.65%     51.98MiB / 512MiB     10.15%    31.1kB / 280kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1       0.20%     15.88MiB / 3.819GiB   0.41%     26.8kB / 18.4kB   4.1kB / 8.19kB
+otel-memory-grafana-1          1.01%     104.3MiB / 3.819GiB   2.67%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1           0.02%     9.621MiB / 3.819GiB   0.25%     3.39kB / 1.74kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.383MiB / 512MiB     0.66%     2.41kB / 1.16kB   0B / 0B
+otel-memory-otel-collector-1   0.23%     52.95MiB / 512MiB     10.34%    32.7kB / 298kB    12.6MB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                       CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1   0.27%     15.53MiB / 3.819GiB   0.40%     27.5kB / 19.2kB   4.1kB / 16.4kB
+otel-memory-grafana-1      0.31%     104.1MiB / 3.819GiB   2.66%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1       0.15%     9.613MiB / 3.819GiB   0.25%     3.87kB / 1.88kB   0B / 0B
+otel-memory-renderer-1     0.00%     3.383MiB / 512MiB     0.66%     2.41kB / 1.16kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   1.62%     32.24MiB / 512MiB     6.30%     98.5kB / 16.6kB   4.96MB / 0B
+otel-memory-prometheus-1       0.00%     15.77MiB / 3.819GiB   0.40%     28.3kB / 20kB     4.1kB / 16.4kB
+otel-memory-grafana-1          0.58%     104.1MiB / 3.819GiB   2.66%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1           0.02%     10.36MiB / 3.819GiB   0.27%     4.63kB / 2.35kB   0B / 0B
+otel-memory-renderer-1         0.01%     3.383MiB / 512MiB     0.66%     2.79kB / 1.29kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   28.11%    66.47MiB / 512MiB     12.98%    6.9MB / 187kB     4.99MB / 0B
+otel-memory-prometheus-1       0.29%     16.05MiB / 3.819GiB   0.41%     30.9kB / 21.3kB   4.1kB / 16.4kB
+otel-memory-grafana-1          0.49%     104.1MiB / 3.819GiB   2.66%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1           0.01%     10.11MiB / 3.819GiB   0.26%     4.67kB / 2.39kB   0B / 0B
+otel-memory-renderer-1         0.02%     3.414MiB / 512MiB     0.67%     2.79kB / 1.29kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   48.59%    116.2MiB / 512MiB     22.69%    18.1MB / 455kB    4.99MB / 0B
+otel-memory-prometheus-1       0.00%     15.68MiB / 3.819GiB   0.40%     32.8kB / 21.8kB   4.1kB / 16.4kB
+otel-memory-grafana-1          0.38%     104.4MiB / 3.819GiB   2.67%     22.4MB / 137kB    319kB / 104MB
+otel-memory-jaeger-1           0.02%     10.11MiB / 3.819GiB   0.26%     4.67kB / 2.39kB   0B / 0B
+otel-memory-renderer-1         0.00%     3.414MiB / 512MiB     0.67%     2.79kB / 1.29kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   64.85%    168.8MiB / 512MiB     32.97%    27.2MB / 1.53MB   5.26MB / 0B
+otel-memory-prometheus-1       0.18%     15.93MiB / 3.819GiB   0.41%     35.3kB / 23kB     4.1kB / 16.4kB
+otel-memory-grafana-1          0.44%     104.1MiB / 3.819GiB   2.66%     22.4MB / 138kB    319kB / 104MB
+otel-memory-jaeger-1           44.72%    40.96MiB / 3.819GiB   1.05%     895kB / 243kB     0B / 0B
+otel-memory-renderer-1         5.93%     3.457MiB / 512MiB     0.68%     2.93kB / 1.42kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   62.48%    229.1MiB / 512MiB     44.74%    37.7MB / 3.96MB   5.57MB / 0B
+otel-memory-prometheus-1       0.30%     16.03MiB / 3.819GiB   0.41%     38.1kB / 24.3kB   4.1kB / 16.4kB
+otel-memory-grafana-1          0.49%     104.3MiB / 3.819GiB   2.67%     22.4MB / 138kB    319kB / 104MB
+otel-memory-jaeger-1           49.44%    105.6MiB / 3.819GiB   2.70%     3.1MB / 853kB     0B / 0B
+otel-memory-renderer-1         0.00%     3.414MiB / 512MiB     0.67%     2.93kB / 1.42kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   68.86%    231.8MiB / 512MiB     45.28%    47.2MB / 5.92MB   7.68MB / 0B
+otel-memory-prometheus-1       0.22%     16.14MiB / 3.819GiB   0.41%     41kB / 25.5kB     4.1kB / 16.4kB
+otel-memory-grafana-1          0.39%     104MiB / 3.819GiB     2.66%     22.4MB / 139kB    319kB / 104MB
+otel-memory-jaeger-1           59.02%    160.5MiB / 3.819GiB   4.10%     4.86MB / 1.33MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.414MiB / 512MiB     0.67%     2.97kB / 1.46kB   0B / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   63.00%    234MiB / 512MiB       45.70%    54.4MB / 7.43MB   8.8MB / 0B
+otel-memory-prometheus-1       0.15%     16.16MiB / 3.819GiB   0.41%     43.9kB / 26.7kB   4.1kB / 16.4kB
+otel-memory-grafana-1          0.46%     104MiB / 3.819GiB     2.66%     22.4MB / 139kB    381kB / 104MB
+otel-memory-jaeger-1           41.21%    212.4MiB / 3.819GiB   5.43%     6.65MB / 1.82MB   0B / 0B
+otel-memory-renderer-1         0.01%     3.633MiB / 512MiB     0.71%     2.97kB / 1.46kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   101.07%   234.8MiB / 512MiB     45.85%    66.6MB / 10.2MB   8.8MB / 0B
+otel-memory-prometheus-1       0.19%     16.16MiB / 3.819GiB   0.41%     44.5kB / 27.4kB   4.1kB / 16.4kB
+otel-memory-grafana-1          0.33%     104MiB / 3.819GiB     2.66%     22.4MB / 139kB    381kB / 104MB
+otel-memory-jaeger-1           45.02%    288.2MiB / 3.819GiB   7.37%     8.74MB / 2.38MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.633MiB / 512MiB     0.71%     3.1kB / 1.59kB    221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   110.35%   265.8MiB / 512MiB     51.91%    74.2MB / 11.8MB   8.8MB / 0B
+otel-memory-prometheus-1       0.20%     16.16MiB / 3.819GiB   0.41%     47.4kB / 28.6kB   4.1kB / 28.7kB
+otel-memory-grafana-1          0.38%     104.1MiB / 3.819GiB   2.66%     22.4MB / 139kB    381kB / 104MB
+otel-memory-jaeger-1           41.87%    356.4MiB / 3.819GiB   9.11%     10.6MB / 2.88MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.727MiB / 512MiB     0.73%     3.14kB / 1.64kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   64.84%    302.9MiB / 512MiB     59.15%    86MB / 14.3MB     8.8MB / 0B
+otel-memory-prometheus-1       0.00%     16.17MiB / 3.819GiB   0.41%     49.8kB / 29.1kB   4.1kB / 28.7kB
+otel-memory-grafana-1          0.25%     103.9MiB / 3.819GiB   2.66%     22.4MB / 139kB    381kB / 104MB
+otel-memory-jaeger-1           87.92%    435.9MiB / 3.819GiB   11.15%    12.4MB / 3.36MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.641MiB / 512MiB     0.71%     3.14kB / 1.64kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   119.00%   307MiB / 512MiB       59.96%    93.5MB / 16.1MB   9.22MB / 0B
+otel-memory-prometheus-1       0.00%     15.97MiB / 3.819GiB   0.41%     52.7kB / 30.3kB   4.1kB / 28.7kB
+otel-memory-grafana-1          0.37%     103.5MiB / 3.819GiB   2.65%     22.4MB / 139kB    414kB / 104MB
+otel-memory-jaeger-1           46.01%    455.5MiB / 3.819GiB   11.65%    14.5MB / 3.96MB   0B / 0B
+otel-memory-renderer-1         5.26%     3.707MiB / 512MiB     0.72%     3.21kB / 1.64kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   97.32%    322.7MiB / 512MiB     63.03%    103MB / 18.1MB    9.22MB / 0B
+otel-memory-prometheus-1       0.00%     15.98MiB / 3.819GiB   0.41%     55.6kB / 31.6kB   4.1kB / 28.7kB
+otel-memory-grafana-1          0.31%     103.5MiB / 3.819GiB   2.65%     22.4MB / 139kB    414kB / 104MB
+otel-memory-jaeger-1           94.56%    538.4MiB / 3.819GiB   13.77%    15.9MB / 4.33MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.641MiB / 512MiB     0.71%     3.35kB / 1.77kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   72.22%    287.9MiB / 512MiB     56.23%    115MB / 20.6MB    9.49MB / 0B
+otel-memory-prometheus-1       0.26%     16.49MiB / 3.819GiB   0.42%     58.5kB / 32.8kB   4.1kB / 28.7kB
+otel-memory-grafana-1          1.05%     103.7MiB / 3.819GiB   2.65%     22.4MB / 139kB    418kB / 104MB
+otel-memory-jaeger-1           49.50%    549.4MiB / 3.819GiB   14.05%    18.1MB / 4.96MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.641MiB / 512MiB     0.71%     3.35kB / 1.77kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   115.43%   288.2MiB / 512MiB     56.29%    124MB / 22.7MB    9.49MB / 0B
+otel-memory-prometheus-1       0.23%     16.25MiB / 3.819GiB   0.42%     61.4kB / 34.1kB   4.1kB / 28.7kB
+otel-memory-grafana-1          0.34%     103.4MiB / 3.819GiB   2.64%     22.4MB / 139kB    418kB / 104MB
+otel-memory-jaeger-1           107.33%   649.2MiB / 3.819GiB   16.60%    19.5MB / 5.32MB   0B / 0B
+otel-memory-renderer-1         0.00%     3.652MiB / 512MiB     0.71%     3.35kB / 1.77kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   122.42%   282MiB / 512MiB       55.07%    131MB / 24.4MB    9.49MB / 0B
+otel-memory-prometheus-1       0.06%     16.28MiB / 3.819GiB   0.42%     61.9kB / 34.8kB   4.1kB / 28.7kB
+otel-memory-grafana-1          0.47%     103.4MiB / 3.819GiB   2.64%     22.4MB / 139kB    418kB / 104MB
+otel-memory-jaeger-1           44.65%    651.2MiB / 3.819GiB   16.65%    22MB / 6MB        0B / 0B
+otel-memory-renderer-1         0.00%     3.652MiB / 512MiB     0.71%     3.48kB / 1.9kB    221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   63.29%    283.5MiB / 512MiB     55.37%    144MB / 27MB      9.7MB / 0B
+otel-memory-prometheus-1       0.21%     16.06MiB / 3.819GiB   0.41%     64.9kB / 36kB     4.1kB / 36.9kB
+otel-memory-grafana-1          0.36%     103.8MiB / 3.819GiB   2.65%     22.4MB / 139kB    418kB / 104MB
+otel-memory-jaeger-1           68.39%    775.5MiB / 3.819GiB   19.83%    23.9MB / 6.53MB   303kB / 0B
+otel-memory-renderer-1         0.00%     3.91MiB / 512MiB      0.76%     3.48kB / 1.9kB    221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   66.35%    309.8MiB / 512MiB     60.51%    153MB / 29MB      10.1MB / 0B
+otel-memory-prometheus-1       0.00%     16.31MiB / 3.819GiB   0.42%     67.2kB / 36.5kB   4.1kB / 36.9kB
+otel-memory-grafana-1          0.27%     103.5MiB / 3.819GiB   2.65%     22.4MB / 139kB    418kB / 104MB
+otel-memory-jaeger-1           41.85%    776.2MiB / 3.819GiB   19.85%    25.7MB / 7.02MB   303kB / 0B
+otel-memory-renderer-1         0.00%     3.672MiB / 512MiB     0.72%     3.48kB / 1.9kB    221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   66.70%    314.8MiB / 512MiB     61.49%    163MB / 31.1MB    10.1MB / 0B
+otel-memory-prometheus-1       0.00%     16.31MiB / 3.819GiB   0.42%     70.1kB / 37.7kB   4.1kB / 36.9kB
+otel-memory-grafana-1          0.39%     103.7MiB / 3.819GiB   2.65%     22.4MB / 139kB    418kB / 104MB
+otel-memory-jaeger-1           49.08%    802.4MiB / 3.819GiB   20.52%    27.5MB / 7.54MB   303kB / 0B
+otel-memory-renderer-1         0.00%     3.672MiB / 512MiB     0.72%     3.48kB / 1.9kB    221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   68.77%    322MiB / 512MiB       62.88%    172MB / 33.3MB    10.1MB / 0B
+otel-memory-prometheus-1       0.00%     16.32MiB / 3.819GiB   0.42%     73kB / 38.9kB     4.1kB / 36.9kB
+otel-memory-grafana-1          0.53%     103.4MiB / 3.819GiB   2.64%     22.4MB / 140kB    418kB / 104MB
+otel-memory-jaeger-1           43.16%    948.7MiB / 3.819GiB   24.26%    29.5MB / 8.09MB   303kB / 0B
+otel-memory-renderer-1         0.00%     3.684MiB / 512MiB     0.72%     3.61kB / 2.03kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   63.89%    334.4MiB / 512MiB     65.32%    182MB / 35.4MB    10.1MB / 0B
+otel-memory-prometheus-1       0.28%     16.32MiB / 3.819GiB   0.42%     75.9kB / 40.1kB   4.1kB / 36.9kB
+otel-memory-grafana-1          0.37%     103.3MiB / 3.819GiB   2.64%     22.4MB / 140kB    418kB / 104MB
+otel-memory-jaeger-1           41.25%    980.6MiB / 3.819GiB   25.08%    31.4MB / 8.6MB    422kB / 0B
+otel-memory-renderer-1         0.00%     3.684MiB / 512MiB     0.72%     3.69kB / 2.12kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   61.54%    352.4MiB / 512MiB     68.82%    189MB / 36.9MB    10.1MB / 0B
+otel-memory-prometheus-1       0.00%     16.34MiB / 3.819GiB   0.42%     76.5kB / 40.8kB   4.1kB / 36.9kB
+otel-memory-grafana-1          0.45%     95.91MiB / 3.819GiB   2.45%     22.4MB / 140kB    745kB / 104MB
+otel-memory-jaeger-1           42.83%    980.6MiB / 3.819GiB   25.08%    33.2MB / 9.11MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.887MiB / 512MiB     0.76%     3.69kB / 2.12kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   64.67%    325.5MiB / 512MiB     63.57%    201MB / 39.4MB    10.2MB / 0B
+otel-memory-prometheus-1       0.23%     16.34MiB / 3.819GiB   0.42%     79.4kB / 42kB     4.1kB / 36.9kB
+otel-memory-grafana-1          0.32%     95.86MiB / 3.819GiB   2.45%     22.4MB / 140kB    745kB / 104MB
+otel-memory-jaeger-1           47.47%    1.038GiB / 3.819GiB   27.18%    35MB / 9.61MB     422kB / 0B
+otel-memory-renderer-1         0.00%     3.688MiB / 512MiB     0.72%     3.69kB / 2.12kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   62.82%    332MiB / 512MiB       64.85%    210MB / 41.6MB    10.2MB / 0B
+otel-memory-prometheus-1       0.00%     16.12MiB / 3.819GiB   0.41%     81.8kB / 42.5kB   4.1kB / 36.9kB
+otel-memory-grafana-1          0.36%     96MiB / 3.819GiB      2.46%     22.4MB / 140kB    745kB / 104MB
+otel-memory-jaeger-1           47.87%    1.185GiB / 3.819GiB   31.03%    37MB / 10.2MB     422kB / 0B
+otel-memory-renderer-1         0.00%     3.688MiB / 512MiB     0.72%     3.83kB / 2.25kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   73.65%    325.8MiB / 512MiB     63.64%    218MB / 43.4MB    10.2MB / 0B
+otel-memory-prometheus-1       0.00%     16.15MiB / 3.819GiB   0.41%     84.6kB / 43.8kB   4.1kB / 45.1kB
+otel-memory-grafana-1          0.37%     95.88MiB / 3.819GiB   2.45%     22.4MB / 140kB    745kB / 104MB
+otel-memory-jaeger-1           40.83%    1.26GiB / 3.819GiB    33.00%    39MB / 10.7MB     422kB / 0B
+otel-memory-renderer-1         0.01%     3.688MiB / 512MiB     0.72%     3.83kB / 2.25kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   134.99%   335.8MiB / 512MiB     65.58%    229MB / 45.8MB    10.2MB / 0B
+otel-memory-prometheus-1       0.00%     16.58MiB / 3.819GiB   0.42%     87.5kB / 45.1kB   442kB / 45.1kB
+otel-memory-grafana-1          0.35%     96.29MiB / 3.819GiB   2.46%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           41.19%    1.26GiB / 3.819GiB    33.00%    40.8MB / 11.2MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.688MiB / 512MiB     0.72%     3.83kB / 2.25kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   138.84%   336.5MiB / 512MiB     65.72%    239MB / 47.9MB    10.2MB / 0B
+otel-memory-prometheus-1       0.02%     16.62MiB / 3.819GiB   0.42%     90.4kB / 46.3kB   442kB / 45.1kB
+otel-memory-grafana-1          0.43%     96.08MiB / 3.819GiB   2.46%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           42.40%    1.26GiB / 3.819GiB    33.00%    42.6MB / 11.7MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.703MiB / 512MiB     0.72%     3.96kB / 2.38kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   153.52%   346.5MiB / 512MiB     67.68%    248MB / 50MB      10.2MB / 0B
+otel-memory-prometheus-1       0.25%     16.34MiB / 3.819GiB   0.42%     93.3kB / 47.5kB   442kB / 45.1kB
+otel-memory-grafana-1          0.32%     96.04MiB / 3.819GiB   2.46%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           42.80%    1.327GiB / 3.819GiB   34.74%    44.5MB / 12.2MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.703MiB / 512MiB     0.72%     3.96kB / 2.38kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   76.16%    348MiB / 512MiB       67.96%    258MB / 52.2MB    10.7MB / 0B
+otel-memory-prometheus-1       0.22%     16.6MiB / 3.819GiB    0.42%     93.9kB / 48.2kB   442kB / 45.1kB
+otel-memory-grafana-1          0.47%     95.97MiB / 3.819GiB   2.45%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           62.67%    1.477GiB / 3.819GiB   38.67%    46.5MB / 12.8MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.949MiB / 512MiB     0.77%     3.96kB / 2.38kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   89.92%    414.4MiB / 512MiB     80.94%    259MB / 53.9MB    10.7MB / 0B
+otel-memory-prometheus-1       0.00%     16.18MiB / 3.819GiB   0.41%     96.3kB / 48.7kB   442kB / 45.1kB
+otel-memory-grafana-1          0.24%     95.88MiB / 3.819GiB   2.45%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           101.41%   1.6GiB / 3.819GiB     41.90%    48.2MB / 13.2MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.703MiB / 512MiB     0.72%     3.96kB / 2.38kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   39.71%    414.8MiB / 512MiB     81.01%    260MB / 56MB      10.7MB / 0B
+otel-memory-prometheus-1       0.25%     16.23MiB / 3.819GiB   0.41%     99.7kB / 50.6kB   442kB / 45.1kB
+otel-memory-grafana-1          0.46%     95.82MiB / 3.819GiB   2.45%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           35.02%    1.627GiB / 3.819GiB   42.60%    50.2MB / 13.7MB   422kB / 0B
+otel-memory-renderer-1         0.00%     3.703MiB / 512MiB     0.72%     4.09kB / 2.51kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                       CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-prometheus-1   0.03%     16.23MiB / 3.819GiB   0.41%     102kB / 51.2kB    442kB / 53.2kB
+otel-memory-grafana-1      0.46%     95.79MiB / 3.819GiB   2.45%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1       0.03%     1.626GiB / 3.819GiB   42.59%    51.3MB / 14MB     422kB / 0B
+otel-memory-renderer-1     0.01%     3.703MiB / 512MiB     0.72%     4.13kB / 2.55kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O
+otel-memory-otel-collector-1   4.50%     44.21MiB / 512MiB     8.63%     2.9kB / 16.6kB    16.4MB / 0B
+otel-memory-prometheus-1       0.00%     16.27MiB / 3.819GiB   0.42%     104kB / 52kB      442kB / 53.2kB
+otel-memory-grafana-1          0.54%     95.8MiB / 3.819GiB    2.45%     22.4MB / 140kB    1.22MB / 104MB
+otel-memory-jaeger-1           0.02%     1.626GiB / 3.819GiB   42.59%    51.3MB / 14MB     422kB / 0B
+otel-memory-renderer-1         0.01%     3.703MiB / 512MiB     0.72%     4.38kB / 2.55kB   221kB / 0B
+
+=== %Y-%m-%dT%H:%M:%S ===
