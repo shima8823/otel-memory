@@ -1,3 +1,5 @@
+<!-- Generated Claude Code -->
+
 # OpenTelemetry Collector のメモリ高騰をデバッグする — シナリオで学ぶ実践ガイド
 
 ## 1. はじめに
@@ -346,6 +348,20 @@ queue_size × send_batch_size × span_size < soft_limit − オーバーヘッ�
 
 `memory_limiter` はパイプラインの **最初の processor** に配置する。[OpenTelemetry 公式ドキュメント](https://opentelemetry.io/docs/collector/configuration/#recommended-processors)でも推奨されている配置である。後段に置くと、ステートフル processor がメモリを確保した後でしか発火せず、手遅れになる。ただし高カーディナリティシナリオで見たとおり、memory_limiter は受信拒否しかできない。既にステートフルな内部状態に蓄積されたデータには無力であるため、次の原則 2 が不可欠である。
 
+```yaml
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+```
+
+| パラメータ | 推奨値 | 根拠 |
+|-----------|--------|------|
+| `check_interval` | `1s` | 1秒間隔で十分。短くしすぎると CPU 消費が増える |
+| `limit_percentage` | `80` | 残り 20% を GC とスパイク吸収に確保 |
+| `spike_limit_percentage` | `20` | 急増時の余裕。soft_limit = `limit_percentage - spike_limit_percentage` |
+
 ### 原則 2: ステートフルを疑う
 
 `tail_sampling`、`spanmetrics`、`groupbyattrs` を導入する際は、内部状態のカーディナリティ上限を事前に確認する。固定閾値ではなく、以下の予算式で判断する。
@@ -356,9 +372,46 @@ queue_size × send_batch_size × span_size < soft_limit − オーバーヘッ�
 
 本検証環境では 1,500,000 組み合わせ × 数百 B → 302 MB に達し、512 MB コンテナで OOM Kill に至った。CUMULATIVE temporality の場合、`UUID`、`request_id`、`session_id` のような高カーディナリティ属性は含めない方がよい。DELTA temporality であれば TTL で回収されるケースもあるが、安全側に倒すなら除外が無難だ。
 
+Tail Sampling の場合は以下の式でメモリを見積もる。
+
+```
+メモリ ≈ decision_wait × スループット × 平均スパンサイズ × ~6（Go runtime 倍率）
+```
+
+`decision_wait` は必要最小限に設定し（推奨: 10s 以下）、`num_traces` はメモリ予算から逆算する。100% サンプリング（`always_sample`）は検証用であり、実運用では目的に応じたポリシーを使う。
+
 ### 原則 3: バッファを見積もる
 
-`send_batch_size × queue_size × span_size` を計算してみてほしい。Tail Sampling なら `decision_wait × 流量 × スパンサイズ`。設定変更前にメモリ予算との突合を行い、理論最大がコンテナ制限の 60% 以下に収まることを確認する。
+`send_batch_size × queue_size × span_size` を計算してみてほしい。設定変更前にメモリ予算との突合を行い、理論最大がコンテナ制限の 60% 以下に収まることを確認する。
+
+```yaml
+processors:
+  batch:
+    send_batch_size: 8192
+    timeout: 200ms
+
+exporters:
+  otlp:
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
+    retry_on_failure:
+      enabled: true
+```
+
+| パラメータ | トレードオフ |
+|-----------|------------|
+| `send_batch_size` | 大きくするとスループット向上だがメモリ消費増 |
+| `timeout` | 短くするとレイテンシ向上だがバッチ効率低下 |
+| `queue_size` | 大きくすると下流障害時のバッファ増だがメモリ消費増 |
+| `num_consumers` | 並列送信数。大きくすると下流への負荷増 |
+
+下流が停止すると `queue_size` まで蓄積されるため、最悪ケースのメモリを見積もること。
+
+```
+queue_size × send_batch_size × span_size < soft_limit − オーバーヘッド
+```
 
 ### 監視アラート
 
@@ -371,11 +424,67 @@ rate(otelcol_receiver_refused_spans_total[5m]) > 0
 
 # Queue 飽和（90% 以上）
 otelcol_exporter_queue_size / otelcol_exporter_queue_capacity > 0.9
+
+# スループット低下（直近1分が5分前と比べて20%以上低下）
+rate(otelcol_receiver_accepted_spans_total[1m])
+  <
+rate(otelcol_receiver_accepted_spans_total[5m] offset 5m) * 0.8
 ```
 
-この 3 つのアラートを設定しておけば、メモリ高騰の兆候を早期に検知できる。Heap 上昇で異常を察知し、Refused で実害発生を確認し、Queue 飽和で下流障害の影響を把握する。
+この 4 つのアラートを設定しておけば、メモリ高騰の兆候を早期に検知できる。Heap 上昇で異常を察知し、Refused で実害発生を確認し、Queue 飽和で下流障害の影響を把握し、スループット低下でパイプライン全体の劣化を検知する。
 
-> 詳細: [ベストプラクティス](./best-practices.md)
+### 安全なベースライン設定
+
+以下は本検証で使用したベースライン設定である。ステートフル processor を含まず、メモリ制約のあるコンテナ環境で安定稼働する構成である。
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+  batch:
+    send_batch_size: 8192
+    timeout: 200ms
+
+exporters:
+  otlp:
+    endpoint: backend:4317
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
+    retry_on_failure:
+      enabled: true
+
+extensions:
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  extensions: [pprof]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp]
+```
+
+ポイント:
+- `memory_limiter` が最初の processor
+- ステートフル processor なし（安全なベースライン）
+- `pprof` extension を有効化（本番でも有効にしておくと障害時に助かる）
+- `sending_queue` + `retry_on_failure` でキュー制御
 
 ## 8. まとめ
 

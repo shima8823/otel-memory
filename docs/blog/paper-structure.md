@@ -4,12 +4,11 @@
 
 ## セクションリンク
 
-- デバッグの基本技法と環境準備: `docs/blog/debug-basics.md`
+- ブログ本文: `docs/blog/paper.md`（デバッグ基本技法・ベストプラクティスを含む）
 - シナリオの選定: `docs/blog/scenario-reports/why-these-scenarios.md`
 - 実践検証（Tail Sampling）: `docs/blog/scenario-reports/tail-sampling/report.md`
 - 実践検証（高カーディナリティ）: `docs/blog/scenario-reports/high-cardinality/report.md`
 - 実践検証（Batch × Queue メモリ増幅）: `docs/blog/scenario-reports/batch-queue/report.md`
-- ベストプラクティス: `docs/blog/best-practices.md`
 
 ## 記事全体の構成
 
@@ -66,12 +65,12 @@
 
 | セクション | ファイル | 状態 |
 |-----------|--------|------|
-| デバッグ基本技法 | `debug-basics.md` | 完成 |
+| デバッグ基本技法 | `paper.md` セクション2に統合 | 完成 |
 | シナリオ選定 | `why-these-scenarios.md` | 完成 |
 | Tail Sampling | `tail-sampling/report.md` | 完成 |
 | 高カーディナリティ | `high-cardinality/report.md` | 完成 |
 | Batch × Queue メモリ増幅 | `batch-queue/report.md` | 完成 |
-| ベストプラクティス | `best-practices.md` | 完成 |
+| ベストプラクティス | `paper.md` セクション7に統合 | 完成 |
 
 ## paper.md の方針
 
