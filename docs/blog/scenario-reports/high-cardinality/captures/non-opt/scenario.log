@@ -1,0 +1,275 @@
+⏳ Waiting for collector VM to be ready...
+✅ Collector VM ready
+⏳ Waiting for loadgen VM to be ready...
+✅ Loadgen VM ready
+🚀 Syncing local project to Loadgen VM...
+COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf "/tmp/otel-memory-project.tar.gz" \
+		--exclude='.git' \
+		--exclude='.terraform' \
+		--exclude='*.tfstate*' \
+		--exclude='._*' \
+		-C .. .
+gcloud compute scp "/tmp/otel-memory-project.tar.gz" otel-loadgen:~/project.tar.gz --project otel-memory-debug --zone asia-northeast1-a
+gcloud compute ssh otel-loadgen --project otel-memory-debug --zone asia-northeast1-a -- \
+		"sudo mkdir -p /home/ubuntu/otel-memory && \
+		 sudo tar --warning=no-unknown-keyword -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
+		 sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 rm ~/project.tar.gz"
+Connection to 35.243.125.78 closed.
+✅ Loadgen sync completed!
+🐍 Installing Python dependencies on Loadgen VM...
+gcloud compute ssh otel-loadgen --project otel-memory-debug --zone asia-northeast1-a -- \
+		"sudo apt-get install -y python3-pip > /dev/null 2>&1 && \
+		 pip3 install --break-system-packages -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt"
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: opentelemetry-api in ./.local/lib/python3.12/site-packages (from -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (1.40.0)
+Requirement already satisfied: opentelemetry-sdk in ./.local/lib/python3.12/site-packages (from -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 2)) (1.40.0)
+Requirement already satisfied: opentelemetry-exporter-otlp-proto-grpc in ./.local/lib/python3.12/site-packages (from -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.40.0)
+Requirement already satisfied: importlib-metadata<8.8.0,>=6.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-api->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (8.7.1)
+Requirement already satisfied: typing-extensions>=4.5.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-api->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (4.15.0)
+Requirement already satisfied: opentelemetry-semantic-conventions==0.61b0 in ./.local/lib/python3.12/site-packages (from opentelemetry-sdk->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 2)) (0.61b0)
+Requirement already satisfied: googleapis-common-protos~=1.57 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.73.0)
+Requirement already satisfied: grpcio<2.0.0,>=1.63.2 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.78.0)
+Requirement already satisfied: opentelemetry-exporter-otlp-proto-common==1.40.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.40.0)
+Requirement already satisfied: opentelemetry-proto==1.40.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.40.0)
+Requirement already satisfied: protobuf<7.0,>=5.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-proto==1.40.0->opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (6.33.5)
+Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.12/dist-packages (from importlib-metadata<8.8.0,>=6.0->opentelemetry-api->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (3.23.0)
+Connection to 35.243.125.78 closed.
+✅ Python loadgen prep completed!
+=== Scenario: SpanMetrics High Cardinality ===
+1. Applying high-cardinality-spanmetrics.yaml config to Collector VM (IP: 10.146.0.21)...
+[?25l[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.0s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.7s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Starting                            [34m0.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠏[0m Container otel-memory-otel-collector-1 Starting                            [34m0.9s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Starting                            [34m1.0s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Starting                            [34m1.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Starting                            [34m1.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Starting                            [34m1.3s[0m
+[?25h[?25l[2A[0G[+] up 1/1
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m                             [34m1.4s[0m
+[?25hConnection to 34.146.51.92 closed.
+2. Starting load command on Loadgen VM...
+[INFO] ========================================
+[INFO] PyLoadgen (Traces) starting...
+[INFO]   Endpoint:    10.146.0.21:4317
+[INFO]   Rate:        1300 traces/sec
+[INFO]   Duration:    300s
+[INFO]   Workers:     10
+[INFO]   Attr Count:  8
+[INFO]   Depth:       5
+[INFO] ========================================
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 36384 (rate: 7255/sec), Remaining: 294s
+[INFO] [PROGRESS] Spans: 66684 (rate: 6053/sec), Remaining: 289s
+[INFO] [PROGRESS] Spans: 97386 (rate: 6078/sec), Remaining: 284s
+[INFO] [PROGRESS] Spans: 114930 (rate: 3404/sec), Remaining: 279s
+[INFO] [PROGRESS] Spans: 122490 (rate: 1510/sec), Remaining: 274s
+[INFO] [PROGRESS] Spans: 130158 (rate: 1532/sec), Remaining: 269s
+[INFO] [PROGRESS] Spans: 137448 (rate: 1453/sec), Remaining: 264s
+[INFO] [PROGRESS] Spans: 144546 (rate: 1417/sec), Remaining: 259s
+[INFO] [PROGRESS] Spans: 152052 (rate: 1496/sec), Remaining: 254s
+[INFO] [PROGRESS] Spans: 159336 (rate: 1397/sec), Remaining: 249s
+[INFO] [PROGRESS] Spans: 166164 (rate: 1360/sec), Remaining: 244s
+[INFO] [PROGRESS] Spans: 173166 (rate: 1397/sec), Remaining: 239s
+[INFO] [PROGRESS] Spans: 180330 (rate: 1432/sec), Remaining: 234s
+[INFO] [PROGRESS] Spans: 187794 (rate: 1434/sec), Remaining: 229s
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.91s.
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 195126 (rate: 1464/sec), Remaining: 224s
+[INFO] [PROGRESS] Spans: 201000 (rate: 1174/sec), Remaining: 219s
+[WARNING] Queue full, dropping Span.
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 2.03s.
+[INFO] [PROGRESS] Spans: 206586 (rate: 1116/sec), Remaining: 214s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.99s.
+[INFO] [PROGRESS] Spans: 212178 (rate: 1118/sec), Remaining: 209s
+[INFO] [PROGRESS] Spans: 217638 (rate: 1091/sec), Remaining: 204s
+[INFO] [PROGRESS] Spans: 223638 (rate: 1199/sec), Remaining: 199s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.09s.
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 228492 (rate: 969/sec), Remaining: 194s
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.07s.
+[INFO] [PROGRESS] Spans: 234462 (rate: 1192/sec), Remaining: 189s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.14s.
+[INFO] [PROGRESS] Spans: 240348 (rate: 1176/sec), Remaining: 184s
+[INFO] [PROGRESS] Spans: 245664 (rate: 1062/sec), Remaining: 179s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.18s.
+[WARNING] Queue full, dropping Span.
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 3.61s.
+[INFO] [PROGRESS] Spans: 250782 (rate: 1023/sec), Remaining: 174s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.98s.
+[INFO] [PROGRESS] Spans: 256362 (rate: 1115/sec), Remaining: 169s
+[INFO] [PROGRESS] Spans: 262242 (rate: 1175/sec), Remaining: 164s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.14s.
+[INFO] [PROGRESS] Spans: 267618 (rate: 1075/sec), Remaining: 159s
+[WARNING] Queue full, dropping Span.
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.81s.
+[INFO] [PROGRESS] Spans: 273084 (rate: 1092/sec), Remaining: 154s
+[INFO] [PROGRESS] Spans: 278670 (rate: 1117/sec), Remaining: 149s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.15s.
+[INFO] [PROGRESS] Spans: 284172 (rate: 1100/sec), Remaining: 144s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.17s.
+[INFO] [PROGRESS] Spans: 290208 (rate: 1207/sec), Remaining: 139s
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 295974 (rate: 1152/sec), Remaining: 134s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.82s.
+[INFO] [PROGRESS] Spans: 301554 (rate: 1115/sec), Remaining: 129s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.13s.
+[INFO] [PROGRESS] Spans: 307170 (rate: 1123/sec), Remaining: 124s
+[INFO] [PROGRESS] Spans: 312912 (rate: 1148/sec), Remaining: 119s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.09s.
+[WARNING] Queue full, dropping Span.
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 2.29s.
+[INFO] [PROGRESS] Spans: 318558 (rate: 1128/sec), Remaining: 114s
+[INFO] [PROGRESS] Spans: 324312 (rate: 1150/sec), Remaining: 109s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.18s.
+[INFO] [PROGRESS] Spans: 329454 (rate: 1028/sec), Remaining: 104s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.19s.
+[INFO] [PROGRESS] Spans: 334980 (rate: 1105/sec), Remaining: 99s
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 340686 (rate: 1138/sec), Remaining: 94s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.97s.
+[INFO] [PROGRESS] Spans: 346290 (rate: 1078/sec), Remaining: 89s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.89s.
+[INFO] [PROGRESS] Spans: 351912 (rate: 1124/sec), Remaining: 84s
+[INFO] [PROGRESS] Spans: 357798 (rate: 1176/sec), Remaining: 79s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.12s.
+[WARNING] Queue full, dropping Span.
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 4.20s.
+[INFO] [PROGRESS] Spans: 363090 (rate: 1058/sec), Remaining: 74s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.95s.
+[INFO] [PROGRESS] Spans: 368646 (rate: 1110/sec), Remaining: 69s
+[INFO] [PROGRESS] Spans: 374622 (rate: 1194/sec), Remaining: 64s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.10s.
+[INFO] [PROGRESS] Spans: 380088 (rate: 1092/sec), Remaining: 59s
+[WARNING] Queue full, dropping Span.
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.11s.
+[INFO] [PROGRESS] Spans: 386004 (rate: 1182/sec), Remaining: 54s
+[INFO] [PROGRESS] Spans: 391926 (rate: 1183/sec), Remaining: 49s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.85s.
+[INFO] [PROGRESS] Spans: 397422 (rate: 1098/sec), Remaining: 44s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.13s.
+[INFO] [PROGRESS] Spans: 403164 (rate: 1148/sec), Remaining: 39s
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 408690 (rate: 1103/sec), Remaining: 34s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.82s.
+[INFO] [PROGRESS] Spans: 414282 (rate: 1115/sec), Remaining: 28s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.88s.
+[INFO] [PROGRESS] Spans: 417036 (rate: 549/sec), Remaining: 23s
+[INFO] [PROGRESS] Spans: 419172 (rate: 410/sec), Remaining: 18s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.87s.
+[WARNING] Queue full, dropping Span.
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 2.23s.
+[INFO] [PROGRESS] Spans: 424686 (rate: 1102/sec), Remaining: 13s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.19s.
+[INFO] [PROGRESS] Spans: 429960 (rate: 1054/sec), Remaining: 8s
+[INFO] [PROGRESS] Spans: 435462 (rate: 1100/sec), Remaining: 3s
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.03s.
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 1.19s.
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.89s.
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.90s.
+[ERROR] Failed to export traces to 10.146.0.21:4317, error code: StatusCode.UNAVAILABLE
+[WARNING] Transient error StatusCode.UNAVAILABLE encountered while exporting traces to 10.146.0.21:4317, retrying in 0.92s.
+[INFO] ========================================
+[INFO] PyLoadgen finished
+[INFO]   Total spans sent: 439938
+[INFO] ========================================
+[WARNING] Shutdown in progress, aborting retry.
+Connection to 35.243.125.78 closed.
+3. Restoring Collector config...
+[?25l[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.7s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.9s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠏[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.0s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                            [34m1.7s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Starting                            [34m1.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Starting                            [34m1.9s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠏[0m Container otel-memory-otel-collector-1 Starting                            [34m2.0s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Starting                            [34m2.1s[0m
+[?25h[?25l[2A[0G[+] up 1/1
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m                             [34m2.2s[0m
+[?25hConnection to 34.146.51.92 closed.
+✅ Scenario SpanMetrics High Cardinality completed.
