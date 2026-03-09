@@ -19,6 +19,7 @@ metrics_export/
 .gcloud/
 
 captures/
+!docs/blog/scenario-reports/*/captures/
 .forward.pid
 .pprof_capture.pid
 
