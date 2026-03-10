@@ -13,6 +13,7 @@ PYTHON := $(shell [ -x .venv/bin/python3 ] && echo .venv/bin/python3 || echo pyt
 # === 基本設定 ===
 ENDPOINT := localhost:4317
 RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
+COMPOSE_BQ := docker compose -f docker-compose.yaml -f docker-compose.batch-queue.yaml
 
 SCENARIO_FILE_SPANMETRICS := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
 SCENARIO_FILE_SPANMETRICS_OPT := otel-collector/scenarios/high-cardinality-spanmetrics-optimized.yaml
@@ -30,7 +31,7 @@ TGEN_TAIL_DURATION := 120s
 TGEN_TAIL_WORKERS := 10
 TGEN_TAIL_CHILD_SPANS := 5
 
-TGEN_BQ_RATE := 2000
+TGEN_BQ_RATE := 4000
 TGEN_BQ_DURATION := 180s
 TGEN_BQ_WORKERS := 10
 TGEN_BQ_CHILD_SPANS := 3
@@ -301,23 +302,54 @@ scenario-spanmetrics-optimized:
 		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
 		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
 
-# Batch × Queue メモリ増幅（流量軸: キュー滞留型）
-# telemetrygen 2,000 traces/s × (1 root + 3 child) = 約8,000 spans/s
-# send_batch_size: 8192 × queue_size: 500 の掛け算効果でメモリ膨張
+# Jaeger に CPU 制限をかけてバックエンドのスローダウンを模擬
 scenario-batch-queue:
-	$(call run_scenario,batch-queue,Batch × Queue メモリ増幅（流量軸の罠）,\
-		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
+	@echo "========================================"
+	@echo "シナリオ batch-queue: Batch × Queue メモリ増幅（流量軸の罠） [telemetrygen]"
+	@echo "========================================"
+	@echo "📌 Collector 設定を適用中..."
+	@cp $(SCENARIO_FILE_BQ) otel-collector/otel-collector.yaml
+	@$(RESTART_COLLECTOR)
+	@echo "✅ Collector 設定適用完了"
+	@echo "📌 Jaeger CPU 制限を適用中（バックエンドスローダウン模擬）..."
+	@$(COMPOSE_BQ) up -d jaeger
+	@echo "✅ Jaeger CPU 制限適用完了"
+	@echo ""
+	@$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) \
 		--workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) \
-		$(TGEN_BQ_ATTRS),0,0,$(SCENARIO_FILE_BQ))
+		$(TGEN_BQ_ATTRS) || true
+	@echo ""
+	@echo "📌 設定を復元中..."
+	@docker compose up -d jaeger
+	@git restore otel-collector/otel-collector.yaml
+	@$(RESTART_COLLECTOR)
+	@echo "✅ 設定の復元完了"
 
 # Batch × Queue 最適化版（send_batch_size + queue_size 縮小）
+# 同じ Jaeger CPU 制限下で最適化版の設定がメモリ内に収まることを示す
 scenario-batch-queue-optimized:
-	$(call run_scenario,batch-queue-optimized,Batch × Queue 最適化版,\
-		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
+	@echo "========================================"
+	@echo "シナリオ batch-queue-optimized: Batch × Queue 最適化版 [telemetrygen]"
+	@echo "========================================"
+	@echo "📌 Collector 設定を適用中..."
+	@cp $(SCENARIO_FILE_BQ_OPT) otel-collector/otel-collector.yaml
+	@$(RESTART_COLLECTOR)
+	@echo "✅ Collector 設定適用完了"
+	@echo "📌 Jaeger CPU 制限を適用中（バックエンドスローダウン模擬）..."
+	@$(COMPOSE_BQ) up -d jaeger
+	@echo "✅ Jaeger CPU 制限適用完了"
+	@echo ""
+	@$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
 		--rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) \
 		--workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) \
-		$(TGEN_BQ_ATTRS),0,0,$(SCENARIO_FILE_BQ_OPT))
+		$(TGEN_BQ_ATTRS) || true
+	@echo ""
+	@echo "📌 設定を復元中..."
+	@docker compose up -d jaeger
+	@git restore otel-collector/otel-collector.yaml
+	@$(RESTART_COLLECTOR)
+	@echo "✅ 設定の復元完了"
 
 # =====================================
 # 設定管理
@@ -639,15 +671,24 @@ run-scenario:
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
 		exit 1; \
 	}; \
-	echo "=== Run $(SCENARIO) ==="; \
 	DIR=$$(cat "$(CAPTURE_LAST_DIR_FILE)"); \
+	DSTATS_LOG="$$DIR/docker-stats-capture.log"; \
+	echo "=== Start docker stats capture ===" | tee "$$DSTATS_LOG"; \
+	PROJECT_ID="$(PROJECT_ID)" make -C terraform docker-stats-start 2>&1 | tee -a "$$DSTATS_LOG" || echo "⚠️  docker stats capture start failed" | tee -a "$$DSTATS_LOG"; \
+	echo "=== Run $(SCENARIO) ==="; \
 	PROJECT_ID="$(PROJECT_ID)" make -C terraform "$(SCENARIO)" 2>&1 | tee "$$DIR/scenario.log"; \
 	SCENARIO_EXIT=$${PIPESTATUS[0]}; \
 	if [ "$$SCENARIO_EXIT" -ne 0 ]; then \
 		echo "❌ Scenario failed (exit=$$SCENARIO_EXIT)"; \
+		PROJECT_ID="$(PROJECT_ID)" make -C terraform docker-stats-stop 2>&1 | tee -a "$$DSTATS_LOG" || true; \
 		make pprof-capture-stop; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
 		exit 1; \
+	fi; \
+	echo "=== Stop docker stats capture ===" | tee -a "$$DSTATS_LOG"; \
+	PROJECT_ID="$(PROJECT_ID)" make -C terraform docker-stats-stop 2>&1 | tee -a "$$DSTATS_LOG" || echo "⚠️  docker stats capture stop failed" | tee -a "$$DSTATS_LOG"; \
+	if [ -n "$$DIR" ]; then \
+		PROJECT_ID="$(PROJECT_ID)" make -C terraform docker-stats-fetch DOCKER_STATS_DEST="$(CURDIR)/$$DIR" 2>&1 | tee -a "$$DSTATS_LOG" || echo "⚠️  docker stats fetch failed" | tee -a "$$DSTATS_LOG"; \
 	fi; \
 	echo "=== Stop background processes ==="; \
 	make pprof-capture-stop; \
