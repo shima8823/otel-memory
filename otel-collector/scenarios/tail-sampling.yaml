@@ -37,11 +37,11 @@ processors:
   # 意図的にメモリを肥大化させる設定:
   # - decision_wait: 30s（長い待機時間）
   # - num_traces: 1000000（上限を実質無制限に）
-  # - expected_new_traces_per_sec: 10000（高スループットを想定）
+  # - expected_new_traces_per_sec: 10000（内部マップの初期サイズのヒント。スループットを制限するものではない）
   tail_sampling:
     decision_wait: 30s
     num_traces: 1000000
-    expected_new_traces_per_sec: 10000
+    expected_new_traces_per_sec: 10000  # 内部マップの初期容量ヒント（スループット制限ではない）
     policies:
       # すべてのトレースをサンプリング（100%）
       # 実際の運用では確率サンプリングやレイテンシベースを使用

@@ -29,11 +29,11 @@ processors:
   # 最適化設定（tail-sampling.yaml からの変更点）:
   # - decision_wait: 10s（30s から短縮 — 唯一の差分）
   # - num_traces: 1000000（変更なし）
-  # - expected_new_traces_per_sec: 10000（変更なし）
+  # - expected_new_traces_per_sec: 10000（内部マップの初期サイズのヒント。変更なし）
   tail_sampling:
     decision_wait: 10s
     num_traces: 1000000
-    expected_new_traces_per_sec: 10000
+    expected_new_traces_per_sec: 10000  # 内部マップの初期容量ヒント（スループット制限ではない）
     policies:
       # すべてのトレースをサンプリング（100%）
       # 実際の運用では確率サンプリングやレイテンシベースを使用
