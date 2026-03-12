@@ -25,18 +25,9 @@ SCENARIO_FILE_BQ_OPT := otel-collector/scenarios/batch-queue-amplification-optim
 TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
 TGEN := docker run --rm --network host $(TELEMETRYGEN_IMAGE)
 
-# === telemetrygen シナリオレート設定 ===
-TGEN_TAIL_RATE := 1500
-TGEN_TAIL_DURATION := 120s
-TGEN_TAIL_WORKERS := 10
-TGEN_TAIL_CHILD_SPANS := 5
-
-TGEN_BQ_RATE := 4000
-TGEN_BQ_DURATION := 180s
-TGEN_BQ_WORKERS := 10
-TGEN_BQ_CHILD_SPANS := 3
-# 本番スパンのサイズを模倣（デフォルト ~280B → ~540B に増大）
-TGEN_BQ_ATTRS := --telemetry-attributes 'padding="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"'
+# === telemetrygen シナリオレート設定（config.mk から読み込み） ===
+include config.mk
+TGEN_BQ_ATTRS := --telemetry-attributes 'padding="$(TGEN_BQ_PADDING)"'
 
 # === メトリクスエクスポート設定 ===
 DURATION ?= 15
@@ -291,16 +282,16 @@ scenario-tail-sampling-optimized:
 scenario-spanmetrics:
 	$(call run_scenario,2,高カーディナリティ spanmetrics [Python],\
 		$(PYTHON) pyloadgen/high_cardinality_traces.py \
-		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
-		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS))
+		--endpoint $(ENDPOINT) --rate $(TGEN_SM_RATE) --duration $(TGEN_SM_DURATION) \
+		--workers $(TGEN_SM_WORKERS) --attr-count $(TGEN_SM_ATTR_COUNT),0,0,$(SCENARIO_FILE_SPANMETRICS))
 
 # 高カーディナリティ spanmetrics 最適化版 [Python + OTel SDK]
 # 問題版と同じ負荷だが、dimensions から高カーディナリティ属性を除外
 scenario-spanmetrics-optimized:
 	$(call run_scenario,2-optimized,高カーディナリティ spanmetrics 最適化版 [Python],\
 		$(PYTHON) pyloadgen/high_cardinality_traces.py \
-		--endpoint $(ENDPOINT) --rate 1300 --duration 300 \
-		--workers 10 --attr-count 8,0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
+		--endpoint $(ENDPOINT) --rate $(TGEN_SM_RATE) --duration $(TGEN_SM_DURATION) \
+		--workers $(TGEN_SM_WORKERS) --attr-count $(TGEN_SM_ATTR_COUNT),0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
 
 # Jaeger に CPU 制限をかけてバックエンドのスローダウンを模擬
 scenario-batch-queue:

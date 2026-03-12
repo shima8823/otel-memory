@@ -25,9 +25,10 @@ SCENARIO_FILE_TAIL := tail-sampling.yaml
 SCENARIO_FILE_TAIL_OPT := tail-sampling-optimized.yaml
 SCENARIO_FILE_BQ := batch-queue-amplification.yaml
 SCENARIO_FILE_BQ_OPT := batch-queue-amplification-optimized.yaml
-LOAD_CMD_TAIL = telemetrygen traces --otlp-endpoint $$IP:4317 --otlp-insecure --rate 1500 --duration 120s --workers 10 --child-spans 5
-LOAD_CMD_SPANMETRICS = cd /home/ubuntu/otel-memory && python3 pyloadgen/high_cardinality_traces.py --endpoint $$IP:4317 --rate 1300 --duration 300 --workers 10 --attr-count 8
-LOAD_CMD_BQ = telemetrygen traces --otlp-endpoint $$IP:4317 --otlp-insecure --rate 4000 --duration 180s --workers 10 --child-spans 3 --telemetry-attributes 'padding=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"'
+include ../config.mk
+LOAD_CMD_TAIL = telemetrygen traces --otlp-endpoint $$IP:4317 --otlp-insecure --rate $(TGEN_TAIL_RATE) --duration $(TGEN_TAIL_DURATION) --workers $(TGEN_TAIL_WORKERS) --child-spans $(TGEN_TAIL_CHILD_SPANS)
+LOAD_CMD_SPANMETRICS = cd /home/ubuntu/otel-memory && python3 pyloadgen/high_cardinality_traces.py --endpoint $$IP:4317 --rate $(TGEN_SM_RATE) --duration $(TGEN_SM_DURATION) --workers $(TGEN_SM_WORKERS) --attr-count $(TGEN_SM_ATTR_COUNT)
+LOAD_CMD_BQ = telemetrygen traces --otlp-endpoint $$IP:4317 --otlp-insecure --rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) --workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) --telemetry-attributes 'padding=\"$(TGEN_BQ_PADDING)\"'
 TELEMETRYGEN_VERSION ?= v0.146.0
 TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:$(TELEMETRYGEN_VERSION)
 DOCKER_STATS_LOG := /tmp/docker-stats.log
