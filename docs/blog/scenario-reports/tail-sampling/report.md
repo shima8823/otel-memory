@@ -153,7 +153,7 @@ make run-tail-sampling-optimized
 |------|-----|-----|------|
 | Refused rate ピーク | 7.29/s | 0/s | **-100%** |
 | Refused 累計 | 732 spans | 0 spans | **-100%** |
-| loadgen gRPC エラー回数 | 2回 | 0回 | **-100%** |
+| loadgen gRPC エラー回数 | 3回 | 0回 | **-100%** |
 
 30s では `memory_limiter` が持続的に発火し、ピーク 7.29/s のスパンを拒否。Heap が 440 MB に達した時点で発火が始まり、テスト終了まで継続する。
 
@@ -187,7 +187,7 @@ Receiver の rate メトリクスや loadgen のエラーログだけでは、�
 Receiver Refused（memory_limiter の直接拒否）は 30s でも **0.05%** に過ぎず、データ損失の主要因ではない。
 損失の大部分は、Collector がメモリ圧力により gRPC エラーを返した際の**クライアント側タイムアウト**（`data refused due to high memory usage`）で発生している。
 
-- 30s: クライアント側で 39.1%（~624,000 spans）が消失。loadgen ログでは gRPC エラー 2回のみ
+- 30s: クライアント側で 39.1%（~624,000 spans）が消失。loadgen ログでは gRPC エラー 3回のみ
 - 10s: クライアント側損失 **ゼロ**。gRPC エラーも発生しない
 
 loadgen のエラーログ回数（2回 vs 0回）だけでは、30s で 60 万スパンが失われている事実は見えない。
@@ -356,7 +356,7 @@ Tail Sampling は「全スパンが揃うまで判定を待つ」ため、
 | pdata 消費 | 166 MB | 79 MB | **53% 削減** |
 | Refused rate ピーク | 7.29/s | 0/s | **100% 削減** |
 | Refused 累計 | 732 | 0 | **100% 削減** |
-| loadgen gRPC エラー | 2回 | 0回 | **100% 削減** |
+| loadgen gRPC エラー | 3回 | 0回 | **100% 削減** |
 
 `decision_wait` の短縮は、最も即効性が高く、副作用が小さい最適化手段である。
 パイプラインスループットが 53% → 96% に改善され、スパン拒否が完全にゼロになるという効果は、
