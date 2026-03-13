@@ -3,13 +3,13 @@
 ## このリポジトリについて
 - OpenTelemetry Collector のメモリ高騰パターンを再現し、デバッグ手法を検証するための検証環境です。
 - 3つのシナリオ（Tail Sampling / SpanMetrics 高カーディナリティ / Batch × Queue メモリ増幅）を用意しています。
-- ローカル（Docker Compose）と GCP（Terraform, 2VM構成）の両方で実行できます。
+- ローカル（Docker Compose）と Google Cloud（Terraform, 2VM構成）の両方で実行できます。
 
 ## 前提条件
 - Docker Compose V2
 - Go（`go tool pprof` が使えること。推奨: 1.21+）
 - Python 3.10+（`scenario-spanmetrics*` 実行時に使用）
-- GCP 利用時:
+- Google Cloud 利用時:
   - gcloud CLI
   - Terraform v1.14+
 
@@ -23,14 +23,14 @@
 4. `make pprof-heap`
 5. `make down`
 
-## クイックスタート（GCP）
+## クイックスタート（Google Cloud）
 1. `cd terraform && make apply PROJECT_ID=your-project`
 2. ルートに戻って `make run-tail-sampling PROJECT_ID=your-project`
    - 全自動: Terraform apply（必要時）→ VM同期 → 再起動 → シナリオ実行 → pprofキャプチャ → メトリクス収集
 3. ポートフォワード（手動確認したい場合）: `make -C terraform forward PROJECT_ID=your-project`
 4. 後片付け: `make -C terraform destroy PROJECT_ID=your-project`
 
-### GCP アーキテクチャ（terraform/README.md より）
+### Google Cloud アーキテクチャ（terraform/README.md より）
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                 Google Cloud VPC (default)                      │
@@ -47,7 +47,7 @@
 
 ## シナリオ一覧
 
-| シナリオ | 軸 | 原因 | ローカル | GCP（統合実行） |
+| シナリオ | 軸 | 原因 | ローカル | Google Cloud（統合実行） |
 |---------|-----|------|---------|-----|
 | Tail Sampling | 時間軸 | `decision_wait` 中のトレースバッファ保持 | `make scenario-tail-sampling` | `make run-tail-sampling PROJECT_ID=...` |
 | SpanMetrics 高カーディナリティ | 空間軸 | `spanmetrics` 内部マップのエントリ数膨張 | `make scenario-spanmetrics` | `make run-scenario-spanmetrics PROJECT_ID=...` |
@@ -87,14 +87,14 @@
 .
 ├── docker-compose.yaml                    # ローカル検証環境（Collector/Prometheus/Jaeger/Grafana）
 ├── docker-compose.batch-queue.yaml        # Batch×Queue用オーバーレイ（Jaeger CPU制限）
-├── Makefile                               # ローカル実行 + GCP統合実行ターゲット
+├── Makefile                               # ローカル実行 + Google Cloud 統合実行ターゲット
 ├── otel-collector/                        # Collector本体設定とシナリオ設定
 │   └── scenarios/
 ├── pyloadgen/                             # Python 負荷生成（高カーディナリティ属性付きトレース）
 ├── scripts/                               # pprofキャプチャ/比較、Grafanaメトリクスエクスポート
 ├── grafana/                               # ダッシュボード/データソース定義
 ├── prometheus/                            # Prometheus 設定
-├── terraform/                             # GCP環境（2VM構成）と運用 Makefile
+├── terraform/                             # Google Cloud 環境（2VM構成）と運用 Makefile
 ├── docs/blog/                             # 記事草案・構成・シナリオレポート
 └── captures/                              # pprof/メトリクス取得結果（git管理外）
 ```
@@ -105,7 +105,7 @@
   - `make reset-config` で設定を戻して再起動
 - pprof に接続できない
   - `otel-collector` 設定で `extensions.pprof`（`0.0.0.0:1777`）が有効か確認
-- GCP で VM に接続/実行できない
+- Google Cloud で VM に接続/実行できない
   - `make -C terraform wait-collector PROJECT_ID=...` で準備完了待ち
 - メトリクスが見えない
   - Prometheus（http://localhost:9090）で `otelcol_` を検索
