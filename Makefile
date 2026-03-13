@@ -610,7 +610,7 @@ run-local:
 	$(MAKE) pprof-capture-stop; \
 	echo "=== Export metrics & images ==="; \
 	python3 scripts/export_grafana_metrics.py \
-		--duration 5 --step 15 --images \
+		--duration $(EXPORT_DURATION) --step 15 --images \
 		--output "$$DIR/metrics" \
 		--image-output "$$DIR/images"; \
 	echo "=== Peak profile ==="; \
@@ -687,7 +687,7 @@ run-scenario:
 	DIR=$$(cat "$(CAPTURE_LAST_DIR_FILE)"); \
 	if [ -n "$$DIR" ]; then \
 		python3 scripts/export_grafana_metrics.py \
-			--duration 5 --step 15 --images \
+			--duration $(EXPORT_DURATION) --step 15 --images \
 			--output "$$DIR/metrics" \
 			--image-output "$$DIR/images"; \
 	else \
@@ -720,7 +720,7 @@ run-tail-sampling-optimized:
 	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-optimized
 
 run-batch-queue:
-	$(MAKE) run-scenario SCENARIO=scenario-batch-queue
+	$(MAKE) run-scenario SCENARIO=scenario-batch-queue EXPORT_DURATION=$(EXPORT_DURATION_BQ)
 
 run-batch-queue-optimized:
-	$(MAKE) run-scenario SCENARIO=scenario-batch-queue-optimized
+	$(MAKE) run-scenario SCENARIO=scenario-batch-queue-optimized EXPORT_DURATION=$(EXPORT_DURATION_BQ)
