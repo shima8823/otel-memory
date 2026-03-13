@@ -24,11 +24,28 @@
 5. `make down`
 
 ## クイックスタート（Google Cloud）
-1. `cd terraform && make apply PROJECT_ID=your-project`
-2. ルートに戻って `make run-tail-sampling PROJECT_ID=your-project`
-   - 全自動: Terraform apply（必要時）→ VM同期 → 再起動 → シナリオ実行 → pprofキャプチャ → メトリクス収集
-3. ポートフォワード（手動確認したい場合）: `make -C terraform forward PROJECT_ID=your-project`
-4. 後片付け: `make -C terraform destroy PROJECT_ID=your-project`
+
+```bash
+export PROJECT_ID=$(gcloud config get-value project)
+```
+
+最短で実行する場合は `run-*` コマンドだけで完結します。
+
+```bash
+make run-tail-sampling          # Tail Sampling シナリオを実行
+```
+
+> **注意**: `run-*` コマンドは内部で Terraform apply（`-auto-approve`）→ VM同期 → サービス再起動 → シナリオ実行 → pprofキャプチャ → メトリクス収集を自動で行います。初回はインフラが確認なしで作成されるため、意図せずリソースが作成されないよう `PROJECT_ID` を確認してから実行してください。
+
+結果は `captures/<MM-DD>/<HHMMSS>/` 以下に保存されます（pprof: `pprof/`、メトリクス: `metrics/`、Grafana画像: `images/`）。
+
+個別に操作したい場合:
+
+```bash
+make -C terraform apply         # インフラ作成のみ
+make -C terraform forward       # ポートフォワード（Grafana: :3000、Prometheus: :9090、Jaeger: :16686）
+make -C terraform destroy       # 後片付け
+```
 
 ### Google Cloud アーキテクチャ（terraform/README.md より）
 ```text
@@ -57,23 +74,23 @@
 
 ## 各シナリオの詳細
 
-### Tail Sampling（時間軸: 保持遅延型）
+### Tail Sampling
 - 何が起きるか: `tail_sampling.decision_wait` の間、スパンを保持するため高スループット時にメモリが急増
 - ローカル実行: `make scenario-tail-sampling`
 - 最適化版: `make scenario-tail-sampling-optimized`（`decision_wait: 30s -> 10s`）
 - 期待される挙動: Heap 上昇、`memory_limiter` 発動、Refused 増加の観察
 
-### SpanMetrics 高カーディナリティ（空間軸: 状態膨張型）
-- 何が起きるか: `spanmetrics` の `dimensions` に高カーディナリティ属性を入れると組み合わせ爆発で内部マップが膨張
-- ローカル実行: `make scenario-spanmetrics`
-- 最適化版: `make scenario-spanmetrics-optimized`（`attr_0`, `attr_1` を `dimensions` から除外）
-- 注意: `pip3 install -r pyloadgen/requirements.txt` が必要
-
-### Batch × Queue メモリ増幅（流量軸: キュー滞留型）
+### Batch × Queue メモリ増幅
 - 何が起きるか: バックエンド遅延時に exporter queue が滞留し、`batch_size × queue_size` 分のデータがメモリを圧迫
 - ローカル実行: `make scenario-batch-queue`
 - 最適化版: `make scenario-batch-queue-optimized`（`send_batch_size: 8192 -> 2048`, `queue_size: 1000 -> 50`）
 - 注意: `docker-compose.batch-queue.yaml` で Jaeger に CPU 制限をかけて遅延を再現
+
+### SpanMetrics 高カーディナリティ
+- 何が起きるか: `spanmetrics` の `dimensions` に高カーディナリティ属性を入れると組み合わせ爆発で内部マップが膨張
+- ローカル実行: `make scenario-spanmetrics`
+- 最適化版: `make scenario-spanmetrics-optimized`（`attr_0`, `attr_1` を `dimensions` から除外）
+- 注意: `pip3 install -r pyloadgen/requirements.txt` が必要
 
 ## pprof の使い方
 - `make pprof-heap` — ヒーププロファイルを取得してブラウザ表示
@@ -98,16 +115,3 @@
 ├── docs/blog/                             # 記事草案・構成・シナリオレポート
 └── captures/                              # pprof/メトリクス取得結果（git管理外）
 ```
-
-## トラブルシューティング
-- Collector が起動しない
-  - `make logs-f` でログ確認
-  - `make reset-config` で設定を戻して再起動
-- pprof に接続できない
-  - `otel-collector` 設定で `extensions.pprof`（`0.0.0.0:1777`）が有効か確認
-- Google Cloud で VM に接続/実行できない
-  - `make -C terraform wait-collector PROJECT_ID=...` で準備完了待ち
-- メトリクスが見えない
-  - Prometheus（http://localhost:9090）で `otelcol_` を検索
-- pyloadgen 依存エラー
-  - `pip3 install -r pyloadgen/requirements.txt`
