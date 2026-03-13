@@ -64,11 +64,11 @@ make -C terraform destroy       # 後片付け
 
 ## シナリオ一覧
 
-| シナリオ | 軸 | 原因 | ローカル | Google Cloud（統合実行） |
-|---------|-----|------|---------|-----|
-| Tail Sampling | 時間軸 | `decision_wait` 中のトレースバッファ保持 | `make scenario-tail-sampling` | `make run-tail-sampling PROJECT_ID=...` |
-| SpanMetrics 高カーディナリティ | 空間軸 | `spanmetrics` 内部マップのエントリ数膨張 | `make scenario-spanmetrics` | `make run-scenario-spanmetrics PROJECT_ID=...` |
-| Batch × Queue メモリ増幅 | 流量軸 | `send_batch_size × queue_size` の掛け算 | `make scenario-batch-queue` | `make run-batch-queue PROJECT_ID=...` |
+| シナリオ | 原因 | ローカル | Google Cloud（統合実行） |
+|---------|-----|------|-----|
+| Tail Sampling | `decision_wait` 中のトレースバッファ保持 | `make scenario-tail-sampling` | `make run-tail-sampling PROJECT_ID=...` |
+| SpanMetrics 高カーディナリティ | `spanmetrics` 内部マップのエントリ数膨張 | `make scenario-spanmetrics` | `make run-scenario-spanmetrics PROJECT_ID=...` |
+| Batch × Queue メモリ増幅 | `send_batch_size × queue_size` の掛け算 | `make scenario-batch-queue` | `make run-batch-queue PROJECT_ID=...` |
 
 ※ 各シナリオに最適化版（`*-optimized`）があります。
 
