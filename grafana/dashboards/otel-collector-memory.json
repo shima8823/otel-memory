@@ -90,7 +90,32 @@
           },
           "unit": "bytes"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "soft_limit (307 MB)"
+            },
+            "properties": [
+              {"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}},
+              {"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}},
+              {"id": "custom.lineWidth", "value": 1},
+              {"id": "custom.fillOpacity", "value": 0}
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hard_limit (410 MB)"
+            },
+            "properties": [
+              {"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}},
+              {"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}},
+              {"id": "custom.lineWidth", "value": 1},
+              {"id": "custom.fillOpacity", "value": 0}
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -135,6 +160,24 @@
           "expr": "otelcol_process_runtime_total_alloc_bytes_total{job=\"otel-collector-self\"}",
           "legendFormat": "Total Alloc (cumulative)",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "vector(321912832)",
+          "legendFormat": "soft_limit (307 MB)",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "vector(429496730)",
+          "legendFormat": "hard_limit (410 MB)",
+          "refId": "D"
         }
       ],
       "title": "Collector Heap Memory",
