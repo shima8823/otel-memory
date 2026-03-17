@@ -7,7 +7,7 @@
 # make pprof
 # cd ../ && make pprof-heap
 
-.PHONY: set-project-id ssh forward forward-bg forward-stop forward-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh docker-stats-start docker-stats-stop docker-stats-fetch scenario-spanmetrics scenario-spanmetrics-optimized scenario-tail-sampling scenario-tail-sampling-optimized wait-collector wait-loadgen scenario-batch-queue scenario-batch-queue-optimized
+.PHONY: set-project-id ssh forward forward-bg forward-stop forward-status sync sync-loadgen restart prepare-telemetrygen prepare-pyloadgen loadgen-ssh docker-stats-start docker-stats-stop docker-stats-fetch scenario-spanmetrics scenario-spanmetrics-optimized scenario-tail-sampling scenario-tail-sampling-optimized scenario-tail-sampling-buffered scenario-tail-sampling-buffered-optimized wait-collector wait-loadgen scenario-batch-queue scenario-batch-queue-optimized
 
 # --- terraform ---
 
@@ -347,3 +347,40 @@ scenario-batch-queue: wait-collector prepare-telemetrygen
 
 scenario-batch-queue-optimized: wait-collector prepare-telemetrygen
 	$(call run_remote_scenario_bq,Batch x Queue Optimized,$(SCENARIO_FILE_BQ_OPT),$(LOAD_CMD_BQ))
+
+# --- Tail Sampling only (Jaeger CPU制限なし、POST_LOAD_BUFFER付き) ---
+# tail_sampling のメモリ影響を純粋に観測するためのシナリオ
+# Jaeger は通常動作、負荷終了後に POST_LOAD_BUFFER で drain 待機
+
+# $(1): シナリオ表示名, $(2): シナリオ設定ファイル名, $(3): Loadgen VM上の負荷コマンド, $(4): POST_LOAD_BUFFER秒数
+define run_remote_scenario_buffered
+	@echo "=== Scenario: $(1) ==="
+	@IP=$$($(GET_COLLECTOR_IP)); \
+	echo "1. Applying $(2) config to Collector VM (IP: $$IP)..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml ]; then \
+		   sudo cp /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak; \
+		 fi && \
+		 sudo cp /home/ubuntu/otel-memory/otel-collector/scenarios/$(2) /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "2. Starting load command on Loadgen VM..."; \
+	gcloud compute ssh otel-loadgen --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"$(3) || true"; \
+	echo "3. Waiting $(4)s for tail_sampling buffer to drain..."; \
+	sleep $(4); \
+	echo "4. Restoring Collector config..."; \
+	gcloud compute ssh $(INSTANCE_NAME) --project $(PROJECT_ID) --zone $(ZONE) -- \
+		"sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 if [ -f /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak ]; then \
+		   sudo mv /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml.bak /home/ubuntu/otel-memory/otel-collector/otel-collector.yaml; \
+		 fi && \
+		 cd /home/ubuntu/otel-memory && sudo docker compose up -d --force-recreate otel-collector"; \
+	echo "✅ Scenario $(1) completed."
+endef
+
+scenario-tail-sampling-buffered: wait-collector prepare-telemetrygen
+	$(call run_remote_scenario_buffered,Tail Sampling Buffered,$(SCENARIO_FILE_TAIL),$(LOAD_CMD_TAIL),$(POST_LOAD_BUFFER_TAIL))
+
+scenario-tail-sampling-buffered-optimized: wait-collector prepare-telemetrygen
+	$(call run_remote_scenario_buffered,Tail Sampling Buffered Optimized,$(SCENARIO_FILE_TAIL_OPT),$(LOAD_CMD_TAIL),$(POST_LOAD_BUFFER_TAIL))

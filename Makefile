@@ -6,28 +6,7 @@ SHELL := /bin/bash
 # 変数定義
 # =====================================
 
-# === Python 実行環境 ===
-# .venv が存在すればそちらを優先（ローカル venv 対応）
-PYTHON := $(shell [ -x .venv/bin/python3 ] && echo .venv/bin/python3 || echo python3)
-
-# === 基本設定 ===
-ENDPOINT := localhost:4317
-RESTART_COLLECTOR := docker compose up -d --force-recreate otel-collector
-COMPOSE_BQ := docker compose -f docker-compose.yaml -f docker-compose.batch-queue.yaml
-
-SCENARIO_FILE_SPANMETRICS := otel-collector/scenarios/high-cardinality-spanmetrics.yaml
-SCENARIO_FILE_SPANMETRICS_OPT := otel-collector/scenarios/high-cardinality-spanmetrics-optimized.yaml
-SCENARIO_FILE_TAIL := otel-collector/scenarios/tail-sampling.yaml
-SCENARIO_FILE_BQ := otel-collector/scenarios/batch-queue-amplification.yaml
-SCENARIO_FILE_BQ_OPT := otel-collector/scenarios/batch-queue-amplification-optimized.yaml
-
-# === telemetrygen設定 ===
-TELEMETRYGEN_IMAGE := ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
-TGEN := docker run --rm --network host $(TELEMETRYGEN_IMAGE)
-
-# === telemetrygen シナリオレート設定（config.mk から読み込み） ===
 include config.mk
-TGEN_BQ_ATTRS := --telemetry-attributes 'padding="$(TGEN_BQ_PADDING)"'
 
 # === メトリクスエクスポート設定 ===
 DURATION ?= 15
@@ -54,6 +33,7 @@ SCENARIO ?= scenario-tail-sampling
 SYNC ?= 1
 RESTART ?= 1
 APPLY ?= 1
+DESTROY ?= 1
 
 # === pprof-peak-diff 位置引数対応 ===
 ifneq (,$(filter pprof-peak-diff,$(MAKECMDGOALS)))
@@ -65,105 +45,41 @@ endif
 endif
 
 # =====================================
-# マクロ定義
-# =====================================
-
-# telemetrygen シナリオ実行マクロ
-# $(1): シナリオ名, $(2): メッセージ, $(3): telemetrygenコマンド（完全形）
-# $(4): Jaeger停止秒, $(5): 観察秒, $(6): シナリオファイルパス
-define run_scenario
-	@echo "========================================"
-	@echo "シナリオ $(1): $(2) [telemetrygen]"
-	@echo "========================================"
-	@echo "📌 シナリオ用設定を適用中..."
-	@cp $(if $(6),$(6),otel-collector/scenarios/scenario-$(1).yaml) otel-collector/otel-collector.yaml
-	@$(RESTART_COLLECTOR)
-	@echo "✅ 設定ファイル適用完了"
-	@echo ""
-	@if [ "$(4)" -gt 0 ]; then \
-		$(3) & PID=$$!; \
-		echo "⏳ $(4)秒後にJaeger停止..."; sleep $(4); \
-		echo "🛑 Jaeger停止"; docker compose stop jaeger; \
-		echo "⏳ $(5)秒間観察..."; sleep $(5); \
-		echo "🔄 Jaeger復旧"; docker compose start jaeger; \
-		wait $$PID 2>/dev/null || true; \
-		git restore otel-collector/otel-collector.yaml; \
-		$(RESTART_COLLECTOR); \
-		echo "✅ シナリオ完了"; \
-	else \
-		($(3)) ; \
-		EXIT_CODE=$$? ; \
-		echo "" ; \
-		echo "📌 設定をベストプラクティスに復元中..." ; \
-		git restore otel-collector/otel-collector.yaml ; \
-		$(RESTART_COLLECTOR) ; \
-		echo "✅ 設定の復元完了" ; \
-		exit $$EXIT_CODE; \
-	fi
-endef
-
-# =====================================
 # Help
 # =====================================
-.PHONY: help help-env help-scenario help-config help-util help-pprof
+.PHONY: help help-run help-util help-pprof
 
 help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "詳細: make help-<section>"
-	@echo "  help-env       環境操作"
-	@echo "  help-scenario  シナリオテスト"
-	@echo "  help-config    設定管理"
+	@echo "  help-run       GCP 実行"
 	@echo "  help-util      ユーティリティ"
 	@echo "  help-pprof     プロファイリング"
 	@echo ""
 	@echo "=== 主要ターゲット ==="
-	@echo "  up/down/restart     環境操作"
-	@echo "  scenario-*          シナリオ実行"
-	@echo "  run-*               GCP統合シナリオ実行"
-	@echo "  pprof-heap          メモリプロファイル"
+	@echo "  run-*               GCP 統合シナリオ実行"
+	@echo "  pprof-*             プロファイル取得・比較"
+	@echo "  export-metrics      Grafana メトリクスと画像をエクスポート"
 	@echo ""
-	@echo "=== URL ==="
-	@echo "  Grafana:    http://localhost:3000"
-	@echo "  Prometheus: http://localhost:9090"
-	@echo "  Jaeger:     http://localhost:16686"
-	@echo "  pprof:      http://localhost:1777/debug/pprof/"
 
-help-env:
-	@echo "=== 環境操作 ==="
-	@echo "  up                  全サービス起動 (Collector, Prometheus, Jaeger, Grafana)"
-	@echo "  down                全サービス停止"
-	@echo "  restart             全サービス再起動"
-	@echo "  restart-collector   Collector のみ再起動（設定変更後に使用）"
-	@echo "  logs                Collector のログを表示"
-	@echo "  logs-f              Collector のログをフォロー"
-	@echo "  status              サービス状態を表示"
-
-help-scenario:
-	@echo "=== シナリオテスト ==="
-	@echo "  scenario-tail-sampling           [時間軸] Tail Sampling [telemetrygen]"
-	@echo "  scenario-tail-sampling-optimized  [時間軸] Tail Sampling 最適化版 [telemetrygen]"
-	@echo "  scenario-spanmetrics                       [空間軸] spanmetrics 高カーディナリティ [Python + OTel SDK]"
-	@echo "  scenario-spanmetrics-optimized              [空間軸] spanmetrics 最適化版 [Python + OTel SDK]"
-	@echo "  scenario-batch-queue              [流量軸] Batch × Queue メモリ増幅 [telemetrygen]"
-	@echo "  scenario-batch-queue-optimized    [流量軸] Batch × Queue 最適化版 [telemetrygen]"
-
-help-config:
-	@echo "=== 設定管理 ==="
-	@echo "  reset-config        設定ファイルをデフォルトに戻す"
-	@echo "  show-config         現在の設定ファイルの内容を表示"
+help-run:
+	@echo "=== GCP 統合実行 ==="
+	@echo "  run-scenario                       全自動実行 (SCENARIO=... PROJECT_ID=...)"
+	@echo "  run-tail-sampling                  Tail Sampling を実行"
+	@echo "  run-tail-sampling-optimized        Tail Sampling 最適化版を実行"
+	@echo "  run-scenario-spanmetrics           SpanMetrics 高カーディナリティを実行"
+	@echo "  run-scenario-spanmetrics-optimized SpanMetrics 最適化版を実行"
+	@echo "  run-batch-queue                    Batch × Queue を実行"
+	@echo "  run-batch-queue-optimized          Batch × Queue 最適化版を実行"
 
 help-util:
 	@echo "=== ユーティリティ ==="
-	@echo "  check-memory        現在のメモリ消費量とRefusedを確認"
-	@echo "  metrics             Collector の内部メトリクス一覧を表示"
 	@echo "  export-metrics      Grafanaダッシュボードのメトリクスをエクスポート"
 	@echo "  clean-metrics       メトリクスエクスポートディレクトリを削除"
-	@echo "  jaeger-stop         Jaeger を停止"
-	@echo "  jaeger-start        Jaeger を起動"
 
 help-pprof:
-	@echo "=== pprof 基本 ==="
+	@echo "=== pprof 基本（ポートフォワード前提） ==="
 	@echo "  pprof-heap          ヒーププロファイルを取得してブラウザで開く"
 	@echo "  pprof-cpu           CPUプロファイルを取得（30秒）してブラウザで開く"
 	@echo "  pprof-allocs        allocsプロファイルを取得してブラウザで開く"
@@ -183,9 +99,6 @@ help-pprof:
 	@echo "  pprof-ui            単一のプロファイルを表示 (FILE=...)"
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
 	@echo ""
-	@echo "=== ローカル統合実行 ==="
-	@echo "  run-local SCENARIO=scenario-xxx    ローカルでシナリオ実行 + pprof + メトリクス自動収集"
-	@echo ""
 	@echo "=== シナリオ統合実行 ==="
 	@echo "  run-scenario                全自動実行 (SCENARIO=scenario-tail-sampling SYNC=1 RESTART=1)"
 	@echo "  run-tail-sampling           tail-sampling を実行"
@@ -194,186 +107,6 @@ help-pprof:
 	@echo "  run-scenario-spanmetrics-optimized    scenario-spanmetrics 最適化版を実行"
 	@echo "  run-batch-queue             batch-queue メモリ増幅を実行"
 	@echo "  run-batch-queue-optimized   batch-queue 最適化版を実行"
-
-# =====================================
-# 環境操作
-# =====================================
-.PHONY: up down restart restart-collector logs logs-f status
-
-up:
-	docker compose up -d
-	@echo ""
-	@echo "✅ Services started"
-	@echo "   Grafana:    http://localhost:3000"
-	@echo "   Prometheus: http://localhost:9090"
-	@echo "   Jaeger:     http://localhost:16686"
-	@echo "   pprof:      http://localhost:1777/debug/pprof/"
-
-down:
-	docker compose down
-
-restart:
-	docker compose restart
-
-restart-collector:
-	$(RESTART_COLLECTOR)
-	@echo "✅ Collector restarted"
-
-logs:
-	docker compose logs otel-collector --tail=100
-
-logs-f:
-	docker compose logs -f otel-collector
-
-status:
-	docker compose ps
-
-# =====================================
-# 負荷テスト (telemetrygen)
-# =====================================
-.PHONY: tgen-traces tgen-metrics tgen-logs tgen-burst tgen-sustained tgen-all tgen-help
-
-tgen-traces:
-	$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 100 --duration 60s --workers 1
-
-tgen-metrics:
-	$(TGEN) metrics --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 100 --duration 60s --workers 1
-
-tgen-logs:
-	$(TGEN) logs --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 100 --duration 60s --workers 1
-
-tgen-burst:
-	$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 10000 --duration 120s --workers 10 --span-duration 100ms --child-spans 5
-
-tgen-sustained:
-	$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 5000 --duration 180s --workers 5 --child-spans 3
-
-tgen-all:
-	@$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 1000 --duration 60s --workers 2 &
-	@$(TGEN) metrics --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 500 --duration 60s --workers 2 &
-	@$(TGEN) logs --otlp-endpoint $(ENDPOINT) --otlp-insecure --rate 500 --duration 60s --workers 2 &
-	@echo "✅ telemetrygen started in background"
-
-tgen-help:
-	$(TGEN) traces --help
-
-# =====================================
-# シナリオテスト
-# =====================================
-.PHONY: scenario-tail-sampling scenario-tail-sampling-optimized scenario-spanmetrics scenario-spanmetrics-optimized scenario-batch-queue scenario-batch-queue-optimized
-
-# Tail Sampling（時間軸: 保持遅延型）
-# telemetrygen 1500 traces/s × (1 root + 5 child) = 約9,000 spans/s
-scenario-tail-sampling:
-	$(call run_scenario,tail-sampling,Tail Sampling（時間軸の罠）,\
-		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
-		--rate $(TGEN_TAIL_RATE) --duration $(TGEN_TAIL_DURATION) \
-		--workers $(TGEN_TAIL_WORKERS) --child-spans $(TGEN_TAIL_CHILD_SPANS),0,0,$(SCENARIO_FILE_TAIL))
-
-# Tail Sampling 最適化版（decision_wait短縮）
-scenario-tail-sampling-optimized:
-	$(call run_scenario,tail-sampling-optimized,Tail Sampling 最適化版,\
-		$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
-		--rate $(TGEN_TAIL_RATE) --duration $(TGEN_TAIL_DURATION) \
-		--workers $(TGEN_TAIL_WORKERS) --child-spans $(TGEN_TAIL_CHILD_SPANS),0,0,otel-collector/scenarios/tail-sampling-optimized.yaml)
-
-# 高カーディナリティ spanmetrics [Python + OTel SDK]
-# telemetrygen ではランダム属性生成ができないため Python を使用
-scenario-spanmetrics:
-	$(call run_scenario,2,高カーディナリティ spanmetrics [Python],\
-		$(PYTHON) pyloadgen/high_cardinality_traces.py \
-		--endpoint $(ENDPOINT) --rate $(TGEN_SM_RATE) --duration $(TGEN_SM_DURATION) \
-		--workers $(TGEN_SM_WORKERS) --attr-count $(TGEN_SM_ATTR_COUNT),0,0,$(SCENARIO_FILE_SPANMETRICS))
-
-# 高カーディナリティ spanmetrics 最適化版 [Python + OTel SDK]
-# 問題版と同じ負荷だが、dimensions から高カーディナリティ属性を除外
-scenario-spanmetrics-optimized:
-	$(call run_scenario,2-optimized,高カーディナリティ spanmetrics 最適化版 [Python],\
-		$(PYTHON) pyloadgen/high_cardinality_traces.py \
-		--endpoint $(ENDPOINT) --rate $(TGEN_SM_RATE) --duration $(TGEN_SM_DURATION) \
-		--workers $(TGEN_SM_WORKERS) --attr-count $(TGEN_SM_ATTR_COUNT),0,0,$(SCENARIO_FILE_SPANMETRICS_OPT))
-
-# Jaeger に CPU 制限をかけてバックエンドのスローダウンを模擬
-scenario-batch-queue:
-	@echo "========================================"
-	@echo "シナリオ batch-queue: Batch × Queue メモリ増幅（流量軸の罠） [telemetrygen]"
-	@echo "========================================"
-	@echo "📌 Collector 設定を適用中..."
-	@cp $(SCENARIO_FILE_BQ) otel-collector/otel-collector.yaml
-	@$(RESTART_COLLECTOR)
-	@echo "✅ Collector 設定適用完了"
-	@echo "📌 Jaeger CPU 制限を適用中（バックエンドスローダウン模擬）..."
-	@$(COMPOSE_BQ) up -d jaeger
-	@echo "✅ Jaeger CPU 制限適用完了"
-	@echo ""
-	@$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
-		--rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) \
-		--workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) \
-		$(TGEN_BQ_ATTRS) || true
-	@echo ""
-	@echo "📌 設定を復元中..."
-	@docker compose up -d jaeger
-	@git restore otel-collector/otel-collector.yaml
-	@$(RESTART_COLLECTOR)
-	@echo "✅ 設定の復元完了"
-
-# Batch × Queue 最適化版（send_batch_size + queue_size 縮小）
-# 同じ Jaeger CPU 制限下で最適化版の設定がメモリ内に収まることを示す
-scenario-batch-queue-optimized:
-	@echo "========================================"
-	@echo "シナリオ batch-queue-optimized: Batch × Queue 最適化版 [telemetrygen]"
-	@echo "========================================"
-	@echo "📌 Collector 設定を適用中..."
-	@cp $(SCENARIO_FILE_BQ_OPT) otel-collector/otel-collector.yaml
-	@$(RESTART_COLLECTOR)
-	@echo "✅ Collector 設定適用完了"
-	@echo "📌 Jaeger CPU 制限を適用中（バックエンドスローダウン模擬）..."
-	@$(COMPOSE_BQ) up -d jaeger
-	@echo "✅ Jaeger CPU 制限適用完了"
-	@echo ""
-	@$(TGEN) traces --otlp-endpoint $(ENDPOINT) --otlp-insecure \
-		--rate $(TGEN_BQ_RATE) --duration $(TGEN_BQ_DURATION) \
-		--workers $(TGEN_BQ_WORKERS) --child-spans $(TGEN_BQ_CHILD_SPANS) \
-		$(TGEN_BQ_ATTRS) || true
-	@echo ""
-	@echo "📌 設定を復元中..."
-	@docker compose up -d jaeger
-	@git restore otel-collector/otel-collector.yaml
-	@$(RESTART_COLLECTOR)
-	@echo "✅ 設定の復元完了"
-
-# =====================================
-# 設定管理
-# =====================================
-.PHONY: reset-config show-config
-
-reset-config:
-	@git restore otel-collector/otel-collector.yaml
-	@docker compose restart otel-collector
-	@echo "✅ Config restored to best-practice (Git HEAD) and Collector restarted"
-
-show-config:
-	@cat otel-collector/otel-collector.yaml
-
-# =====================================
-# ユーティリティ
-# =====================================
-.PHONY: check-memory metrics jaeger-stop jaeger-start
-
-check-memory:
-	@echo "=== Heap Memory ==="
-	@curl -s "http://localhost:9090/api/v1/query?query=otelcol_process_runtime_heap_alloc_bytes" | jq -r '.data.result[0].value[1] | tonumber / 1024 / 1024 | round | tostring + " MiB"'
-	@echo "=== Receiver Refused ==="
-	@curl -s "http://localhost:9090/api/v1/query?query=sum(otelcol_receiver_refused_spans_total)" | jq -r '.data.result[0].value[1]'
-
-metrics:
-	curl -s http://localhost:8888/metrics | grep -E "^otelcol_" | cut -d'{' -f1 | sort -u
-
-jaeger-stop:
-	docker compose stop jaeger
-
-jaeger-start:
-	docker compose start jaeger
 
 # =====================================
 # メトリクスエクスポート
@@ -572,54 +305,9 @@ pprof-report:
 	@go tool pprof -tree -nodecount=30 --diff_base $(BASE) $(NEW)
 
 # =====================================
-# ローカル統合実行 (run-local)
-# =====================================
-
-run-local:
-	@echo "=== Start pprof capture (background) ==="; \
-	$(MAKE) pprof-capture-bg || { \
-		echo "❌ pprof capture failed to start"; \
-		exit 1; \
-	}; \
-	$(MAKE) pprof-capture-wait || { \
-		echo "❌ pprof capture not ready"; \
-		$(MAKE) pprof-capture-stop; \
-		exit 1; \
-	}; \
-	OUT_FILE="$(CAPTURE_LAST_DIR_FILE)"; \
-	if [ ! -f "$$OUT_FILE" ]; then \
-		echo "❌ pprof output dir file not found: $$OUT_FILE"; \
-		$(MAKE) pprof-capture-stop; \
-		exit 1; \
-	fi; \
-	DIR=$$(cat "$$OUT_FILE"); \
-	if [ -z "$$DIR" ]; then \
-		echo "❌ pprof output dir file is empty: $$OUT_FILE"; \
-		$(MAKE) pprof-capture-stop; \
-		exit 1; \
-	fi; \
-	echo "=== Run $(SCENARIO) ==="; \
-	$(MAKE) "$(SCENARIO)" 2>&1 | tee "$$DIR/scenario.log"; \
-	SCENARIO_EXIT=$${PIPESTATUS[0]}; \
-	if [ "$$SCENARIO_EXIT" -ne 0 ]; then \
-		echo "❌ Scenario failed (exit=$$SCENARIO_EXIT)"; \
-		$(MAKE) pprof-capture-stop; \
-		exit 1; \
-	fi; \
-	echo "=== Stop pprof capture ==="; \
-	$(MAKE) pprof-capture-stop; \
-	echo "=== Export metrics & images ==="; \
-	python3 scripts/export_grafana_metrics.py \
-		--duration $(EXPORT_DURATION) --step 15 --images \
-		--output "$$DIR/metrics" \
-		--image-output "$$DIR/images"; \
-	echo "=== Peak profile ==="; \
-	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
-
-# =====================================
 # シナリオ統合実行 (run-*)
 # =====================================
-.PHONY: run-local run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-batch-queue run-batch-queue-optimized
+.PHONY: run-scenario run-scenario-spanmetrics run-scenario-spanmetrics-optimized run-tail-sampling run-tail-sampling-optimized run-batch-queue run-batch-queue-optimized
 
 run-scenario:
 	@if [ -z "$(PROJECT_ID)" ]; then \
@@ -674,6 +362,10 @@ run-scenario:
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform docker-stats-stop 2>&1 | tee -a "$$DSTATS_LOG" || true; \
 		make pprof-capture-stop; \
 		PROJECT_ID="$(PROJECT_ID)" make -C terraform forward-stop; \
+		if [ "$(DESTROY)" = "1" ]; then \
+			echo "=== Terraform destroy (cleanup after failure) ==="; \
+			PROJECT_ID="$(PROJECT_ID)" make -C terraform destroy || true; \
+		fi; \
 		exit 1; \
 	fi; \
 	echo "=== Stop docker stats capture ===" | tee -a "$$DSTATS_LOG"; \
@@ -705,7 +397,16 @@ run-scenario:
 		exit 1; \
 	fi; \
 	echo "=== Peak profile ==="; \
-	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"
+	PRINT_ONLY=1 bash scripts/pprof_peak_diff.sh "$$DIR/pprof"; \
+	echo "=== Generate pprof call graph ==="; \
+	bash scripts/pprof_graph.sh "$$DIR/pprof" "$$DIR/images" || echo "⚠️  pprof graph generation failed (non-fatal)"; \
+	if [ "$(DESTROY)" = "1" ]; then \
+		echo "=== Terraform destroy ==="; \
+		PROJECT_ID="$(PROJECT_ID)" make -C terraform destroy; \
+		echo "✅ Infrastructure destroyed."; \
+	else \
+		echo "=== Skipping Terraform destroy (DESTROY=0) ==="; \
+	fi
 
 run-scenario-spanmetrics:
 	$(MAKE) run-scenario SCENARIO=scenario-spanmetrics
@@ -714,10 +415,10 @@ run-scenario-spanmetrics-optimized:
 	$(MAKE) run-scenario SCENARIO=scenario-spanmetrics-optimized
 
 run-tail-sampling:
-	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling
+	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-buffered EXPORT_DURATION=$(EXPORT_DURATION_TAIL)
 
 run-tail-sampling-optimized:
-	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-optimized
+	$(MAKE) run-scenario SCENARIO=scenario-tail-sampling-buffered-optimized EXPORT_DURATION=$(EXPORT_DURATION_TAIL)
 
 run-batch-queue:
 	$(MAKE) run-scenario SCENARIO=scenario-batch-queue EXPORT_DURATION=$(EXPORT_DURATION_BQ)
