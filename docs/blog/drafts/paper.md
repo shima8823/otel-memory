@@ -207,6 +207,8 @@ pprof により、メモリを保持している起点が `tail_sampling` であ
 
 ### クライアントログで実害を確認
 
+この時点では、Grafana 上の Refused Spans は微量だったため、memory_limiter は発火していても影響は限定的だろうと考えていました。しかし Accepted rate の低下幅が大きく、この見立てだけでは説明がつきません。そこで初めて、Collector の外側で何が起きているかを確認する必要があると判断しました。
+
 クライアント（telemetrygen）のログを確認すると、以下のエラーが記録されていました。
 
 ```
@@ -225,7 +227,7 @@ telemetrygen のログに記録された生成数と、Collector の `otelcol_re
 | Receiver Accepted | ~1,283,233 spans |
 | **到達率** | **78.6%** |
 
-全体の約 21%（~35 万 spans）が Collector に到達していません。Grafana 上の Refused は微量だったにもかかわらず、欠損はクライアント側の gRPC timeout やスループット低下という形で顕在化していました。
+ここで初めて、全体の約 21%（~35 万 spans）が Collector に到達していないことがわかりました。Refused が数百件しか見えていなかったため、ここまで大きな欠損が出ているのはかなり意外でした。欠損はクライアント側の gRPC timeout やスループット低下という形で顕在化しており、Collector の内部メトリクスだけでは実害の規模を読み取れませんでした。
 
 Refused と実際の損失が大きく乖離する背景として、memory_limiter が拒否した瞬間は Refused カウンタに記録される一方、Collector 側のメモリ圧力に伴うクライアント側の timeout やスループット低下は Collector のメトリクスには現れません。さらに Go SDK では、ドロップしたスパン数をメトリクスとして公開する仕組みが未実装です（[Issue #5557](https://github.com/open-telemetry/opentelemetry-go/issues/5557)）。Collector のメトリクスだけを見ていると、損失の規模を見誤る可能性があります。
 
