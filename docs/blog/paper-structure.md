@@ -4,11 +4,8 @@
 
 ## セクションリンク
 
-- ブログ本文: `docs/blog/paper.md`（デバッグ基本技法・ベストプラクティスを含む）
-- シナリオの選定: `docs/blog/scenario-reports/why-these-scenarios.md`
-- 実践検証（Tail Sampling）: `docs/blog/scenario-reports/tail-sampling/report.md`
-- 実践検証（高カーディナリティ）: `docs/blog/scenario-reports/high-cardinality/report.md`
-- 実践検証（Batch × Queue メモリ増幅）: `docs/blog/scenario-reports/batch-queue/report.md`
+- ブログ本文の正本: `docs/blog/drafts/paper.md`
+- Tail Sampling の図版・キャプチャ: `docs/blog/scenario-reports/tail-sampling/captures/`
 
 ## 記事全体の構成
 
@@ -18,14 +15,14 @@
 ### デバッグの基本技法と環境準備
 - 観測方法（internal metrics / pprof）
 - 負荷生成ツール（loadgen / telemetrygen）
-- 環境構築（ローカル / GCP）
+- 環境構築（Google Cloud）
 - 診断の基本フロー
 
 ### シナリオ選定の設計思想
 - なぜ複数シナリオが必要か（原因の切り分け）
 - 選定に使う7つの視点
-- 原因分類（キュー滞留型 / 状態膨張型 / 保持遅延型）
-- 代表シナリオ: Tail Sampling（時間軸）、高カーディナリティ（空間軸）、Batch × Queue メモリ増幅（流量軸）
+- 原因分類
+- 代表シナリオ: Tail Sampling、高カーディナリティ、Batch × Queue メモリ増幅
 
 ### 実践検証: Tail Sampling（保持遅延型）
 1. 再現手順（decision_wait: 30s, always_sample）
@@ -65,26 +62,16 @@
 
 | セクション | ファイル | 状態 |
 |-----------|--------|------|
-| デバッグ基本技法 | `paper.md` セクション2に統合 | 完成 |
+| デバッグ基本技法 | `drafts/paper.md` セクション2に統合 | 完成 |
 | シナリオ選定 | `why-these-scenarios.md` | 完成 |
-| Tail Sampling | `tail-sampling/report.md` | 完成 |
-| 高カーディナリティ | `high-cardinality/report.md` | 完成 |
-| Batch × Queue メモリ増幅 | `batch-queue/report.md` | 完成 |
-| ベストプラクティス | `paper.md` セクション7に統合 | 完成 |
+| Tail Sampling | `drafts/paper.md` に統合、図版は `tail-sampling/captures/` | 完成 |
+| 高カーディナリティ | `drafts/paper.md` への統合は未着手、図版は `high-cardinality/captures/` | 保留 |
+| Batch × Queue メモリ増幅 | `drafts/paper.md` への統合は未着手、図版は `batch-queue/captures/` | 保留 |
+| ベストプラクティス | `drafts/paper.md` セクション7に統合 | 完成 |
 
-## paper.md の方針
+## drafts/paper.md の方針
 
-`docs/blog/paper.md` は各詳細レポートの要約を集約したブログ本文です。
-
-### 現在のスコープ（PR 用）
-
-- **Tail Sampling（保持遅延型）のみ**を記載
-- 高カーディナリティ（状態膨張型）は記載しない
-
-### 理由
-
-PR のレビュー負担を軽減するため、まず Tail Sampling シナリオ単体で完成させてレビューに出す。
-高カーディナリティなど追加シナリオは後続 PR で追加する。
+`docs/blog/scenario-reports/` 配下には図版、pprof、ログなどの素材のみを残し、シナリオごとの本文レポートは持たない。
 
 ### 今後の予定
 
