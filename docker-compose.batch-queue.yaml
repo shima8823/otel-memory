@@ -1,0 +1,19 @@
+# Batch × Queue シナリオ用 Docker Compose オーバーライド
+#
+# Jaeger の CPU を制限して「バックエンドが遅いが完全停止はしない」状態を模擬する。
+#
+# 本番環境でよくある状況:
+#   - Kubernetes の CPU throttle (resources.limits.cpu)
+#   - Noisy Neighbor による CPU 競合
+#   - ストレージ I/O 待ちによる処理遅延
+#
+# 使い方:
+#   docker compose -f docker-compose.yaml -f docker-compose.batch-queue.yaml up -d jaeger
+
+services:
+  jaeger:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 2G

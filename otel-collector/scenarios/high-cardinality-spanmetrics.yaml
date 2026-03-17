@@ -1,0 +1,87 @@
+# 高カーディナリティ spanmetrics シナリオ（組み合わせ爆発）
+#
+# アーキテクチャ:
+#   [Loadgen VM]                         [Collector VM]
+#     pyloadgen (traces)           →     otlp receiver
+#     attr_0〜attr_4 に中カーディナリティ値                ↓
+#     (50, 30, 20, 10, 5 種類)          memory_limiter
+#                                         ↓
+#                                      spanmetrics connector (組み合わせ爆発 → OOM)
+#                                         ↓
+#                                      debug exporter
+#
+# メモリ膨張のメカニズム:
+#   1. loadgen が各スパンに 5 個の中カーディナリティ属性を付与
+#      個々の属性値は妥当（API endpoint 50種, region 30種 等）
+#   2. spanmetrics が 5 属性すべてを dimensions に含めて集計
+#   3. 時系列数 = 50 × 30 × 20 × 10 × 5 = 1,500,000（組み合わせ爆発）
+#   4. CUMULATIVE temporality + metrics_expiration: 0 → エントリは減らない
+#   5. 内部マップが膨張 → OOM
+#
+# 単因子性の確保:
+#   - Jaeger exporter (sending_queue) を除外 → キュー滞留によるメモリ消費を排除
+#   - Prometheus exporter を除外 → メトリクスの二重保持を排除
+#   - spanmetrics の内部マップが唯一のメモリ消費源
+#
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # memory_limiter
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+connectors:
+  # spanmetrics connector
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector
+  # 5 属性すべてを dimensions に含めることで、組み合わせ爆発が発生
+  # 個々の属性のカーディナリティは妥当だが、掛け算で 1,500,000 時系列になる
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s]
+    # 5 属性すべてを dimensions に含める
+    # 個別: 50, 30, 20, 10, 5 → どれも妥当
+    # 掛け算: 50 × 30 × 20 × 10 × 5 = 1,500,000 → 組み合わせ爆発
+    dimensions:
+      - name: attr_0    # API endpoint 相当 (50種類)
+      - name: attr_1    # backend host 相当 (30種類)
+      - name: attr_2    # deploy version 相当 (20種類)
+      - name: attr_3    # client region 相当 (10種類)
+      - name: attr_4    # HTTP method 相当 (5種類)
+    aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
+
+exporters:
+  debug:
+    verbosity: basic
+
+extensions:
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [pprof]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter]
+      exporters: [spanmetrics, debug]
+    metrics:
+      receivers: [spanmetrics]
+      processors: [memory_limiter]
+      exporters: [debug]

@@ -1,5 +1,7 @@
 .DS_Store
 Thumbs.db
+.env
+
 
 .cache/
 .tools/
@@ -13,15 +15,14 @@ coverage.*
 go.work
 go.work.sum
 
-tmp
-notes/
-.cursor/
-AGENTS.md
-.cursorrules
-GEMINI.md
-.agent
-
-# Build binary
-loadgen/loadgen
-
 metrics_export/
+.gcloud/
+
+captures/
+!docs/blog/scenario-reports/*/captures/
+.forward.pid
+.pprof_capture.pid
+
+# Python cache
+__pycache__/
+*.py[cod]

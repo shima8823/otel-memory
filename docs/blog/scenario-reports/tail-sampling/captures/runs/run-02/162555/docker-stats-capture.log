@@ -1,0 +1,12 @@
+=== Start docker stats capture ===
+📊 Starting docker stats capture on VM...
+cat: /tmp/docker-stats.pid: No such file or directory
+PID: , lines: 1
+Connection to 34.84.184.138 closed.
+✅ docker stats capture started
+=== Stop docker stats capture ===
+📊 Stopping docker stats capture on VM...
+Connection to 34.84.184.138 closed.
+✅ docker stats capture stopped
+📊 Fetching docker stats log from VM...
+✅ docker stats log saved to /Users/shima/Project/otel-memory/captures/03-17/162555/docker-stats.log

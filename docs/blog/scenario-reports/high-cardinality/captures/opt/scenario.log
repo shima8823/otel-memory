@@ -1,0 +1,171 @@
+⏳ Waiting for collector VM to be ready...
+✅ Collector VM ready
+⏳ Waiting for loadgen VM to be ready...
+✅ Loadgen VM ready
+🚀 Syncing local project to Loadgen VM...
+COPYFILE_DISABLE=1 COPY_EXTENDED_ATTRIBUTES_DISABLE=1 tar --no-mac-metadata --no-xattrs -czf "/tmp/otel-memory-project.tar.gz" \
+		--exclude='.git' \
+		--exclude='.terraform' \
+		--exclude='*.tfstate*' \
+		--exclude='._*' \
+		-C .. .
+gcloud compute scp "/tmp/otel-memory-project.tar.gz" otel-loadgen:~/project.tar.gz --project otel-memory-debug --zone asia-northeast1-a
+gcloud compute ssh otel-loadgen --project otel-memory-debug --zone asia-northeast1-a -- \
+		"sudo mkdir -p /home/ubuntu/otel-memory && \
+		 sudo tar --warning=no-unknown-keyword -xzf ~/project.tar.gz -C /home/ubuntu/otel-memory && \
+		 sudo chown -R ubuntu:ubuntu /home/ubuntu/otel-memory && \
+		 rm ~/project.tar.gz"
+Connection to 35.243.125.78 closed.
+✅ Loadgen sync completed!
+🐍 Installing Python dependencies on Loadgen VM...
+gcloud compute ssh otel-loadgen --project otel-memory-debug --zone asia-northeast1-a -- \
+		"sudo apt-get install -y python3-pip > /dev/null 2>&1 && \
+		 pip3 install --break-system-packages -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt"
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: opentelemetry-api in ./.local/lib/python3.12/site-packages (from -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (1.40.0)
+Requirement already satisfied: opentelemetry-sdk in ./.local/lib/python3.12/site-packages (from -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 2)) (1.40.0)
+Requirement already satisfied: opentelemetry-exporter-otlp-proto-grpc in ./.local/lib/python3.12/site-packages (from -r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.40.0)
+Requirement already satisfied: importlib-metadata<8.8.0,>=6.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-api->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (8.7.1)
+Requirement already satisfied: typing-extensions>=4.5.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-api->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (4.15.0)
+Requirement already satisfied: opentelemetry-semantic-conventions==0.61b0 in ./.local/lib/python3.12/site-packages (from opentelemetry-sdk->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 2)) (0.61b0)
+Requirement already satisfied: googleapis-common-protos~=1.57 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.73.0)
+Requirement already satisfied: grpcio<2.0.0,>=1.63.2 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.78.0)
+Requirement already satisfied: opentelemetry-exporter-otlp-proto-common==1.40.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.40.0)
+Requirement already satisfied: opentelemetry-proto==1.40.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (1.40.0)
+Requirement already satisfied: protobuf<7.0,>=5.0 in ./.local/lib/python3.12/site-packages (from opentelemetry-proto==1.40.0->opentelemetry-exporter-otlp-proto-grpc->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 3)) (6.33.5)
+Requirement already satisfied: zipp>=3.20 in /usr/local/lib/python3.12/dist-packages (from importlib-metadata<8.8.0,>=6.0->opentelemetry-api->-r /home/ubuntu/otel-memory/pyloadgen/requirements.txt (line 1)) (3.23.0)
+Connection to 35.243.125.78 closed.
+✅ Python loadgen prep completed!
+=== Scenario: SpanMetrics Optimized ===
+1. Applying high-cardinality-spanmetrics-optimized.yaml config to Collector VM (IP: 10.146.0.25)...
+[?25l[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.6s[0m
+[?25h[?25l[2A[0G[+] up 1/1
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mRecreated[0m                           [34m0.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Starting                            [34m0.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Starting                            [34m0.9s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Starting                            [34m1.0s[0m
+[?25h[?25l[2A[0G[+] up 1/1
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m                             [34m1.0s[0m
+[?25hConnection to 34.146.51.92 closed.
+2. Starting load command on Loadgen VM...
+[INFO] ========================================
+[INFO] PyLoadgen (Traces) starting...
+[INFO]   Endpoint:    10.146.0.25:4317
+[INFO]   Rate:        1300 traces/sec
+[INFO]   Duration:    300s
+[INFO]   Workers:     10
+[INFO]   Attr Count:  8
+[INFO]   Depth:       5
+[INFO] ========================================
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 31218 (rate: 6208/sec), Remaining: 294s
+[INFO] [PROGRESS] Spans: 62580 (rate: 6238/sec), Remaining: 289s
+[INFO] [PROGRESS] Spans: 94764 (rate: 6341/sec), Remaining: 284s
+[INFO] [PROGRESS] Spans: 114810 (rate: 3990/sec), Remaining: 279s
+[INFO] [PROGRESS] Spans: 122940 (rate: 1609/sec), Remaining: 274s
+[INFO] [PROGRESS] Spans: 130614 (rate: 1474/sec), Remaining: 269s
+[INFO] [PROGRESS] Spans: 137790 (rate: 1431/sec), Remaining: 264s
+[INFO] [PROGRESS] Spans: 144474 (rate: 1335/sec), Remaining: 259s
+[INFO] [PROGRESS] Spans: 152118 (rate: 1455/sec), Remaining: 254s
+[INFO] [PROGRESS] Spans: 159216 (rate: 1411/sec), Remaining: 249s
+[INFO] [PROGRESS] Spans: 166092 (rate: 1320/sec), Remaining: 244s
+[INFO] [PROGRESS] Spans: 173118 (rate: 1341/sec), Remaining: 238s
+[INFO] [PROGRESS] Spans: 179958 (rate: 1366/sec), Remaining: 233s
+[INFO] [PROGRESS] Spans: 186810 (rate: 1360/sec), Remaining: 228s
+[INFO] [PROGRESS] Spans: 194112 (rate: 1402/sec), Remaining: 223s
+[INFO] [PROGRESS] Spans: 201780 (rate: 1525/sec), Remaining: 218s
+[INFO] [PROGRESS] Spans: 208764 (rate: 1337/sec), Remaining: 213s
+[INFO] [PROGRESS] Spans: 216126 (rate: 1461/sec), Remaining: 208s
+[INFO] [PROGRESS] Spans: 221760 (rate: 1125/sec), Remaining: 203s
+[INFO] [PROGRESS] Spans: 228396 (rate: 1323/sec), Remaining: 198s
+[INFO] [PROGRESS] Spans: 235068 (rate: 1282/sec), Remaining: 193s
+[INFO] [PROGRESS] Spans: 241212 (rate: 1225/sec), Remaining: 188s
+[INFO] [PROGRESS] Spans: 248382 (rate: 1371/sec), Remaining: 182s
+[INFO] [PROGRESS] Spans: 255558 (rate: 1433/sec), Remaining: 177s
+[INFO] [PROGRESS] Spans: 263058 (rate: 1493/sec), Remaining: 172s
+[INFO] [PROGRESS] Spans: 270414 (rate: 1463/sec), Remaining: 167s
+[INFO] [PROGRESS] Spans: 278064 (rate: 1465/sec), Remaining: 162s
+[INFO] [PROGRESS] Spans: 285750 (rate: 1528/sec), Remaining: 157s
+[INFO] [PROGRESS] Spans: 293214 (rate: 1428/sec), Remaining: 152s
+[INFO] [PROGRESS] Spans: 300588 (rate: 1409/sec), Remaining: 147s
+[INFO] [PROGRESS] Spans: 308268 (rate: 1530/sec), Remaining: 142s
+[INFO] [PROGRESS] Spans: 315954 (rate: 1530/sec), Remaining: 137s
+[INFO] [PROGRESS] Spans: 323316 (rate: 1469/sec), Remaining: 132s
+[INFO] [PROGRESS] Spans: 330864 (rate: 1447/sec), Remaining: 126s
+[INFO] [PROGRESS] Spans: 338490 (rate: 1457/sec), Remaining: 121s
+[INFO] [PROGRESS] Spans: 345654 (rate: 1430/sec), Remaining: 116s
+[INFO] [PROGRESS] Spans: 353334 (rate: 1526/sec), Remaining: 111s
+[INFO] [PROGRESS] Spans: 360432 (rate: 1358/sec), Remaining: 106s
+[INFO] [PROGRESS] Spans: 368178 (rate: 1476/sec), Remaining: 101s
+[INFO] [PROGRESS] Spans: 375702 (rate: 1498/sec), Remaining: 96s
+[INFO] [PROGRESS] Spans: 383034 (rate: 1462/sec), Remaining: 91s
+[INFO] [PROGRESS] Spans: 390198 (rate: 1431/sec), Remaining: 86s
+[INFO] [PROGRESS] Spans: 397458 (rate: 1394/sec), Remaining: 80s
+[INFO] [PROGRESS] Spans: 404658 (rate: 1433/sec), Remaining: 75s
+[INFO] [PROGRESS] Spans: 412218 (rate: 1505/sec), Remaining: 70s
+[INFO] [PROGRESS] Spans: 416832 (rate: 887/sec), Remaining: 65s
+[WARNING] Queue full, dropping Span.
+[INFO] [PROGRESS] Spans: 419874 (rate: 605/sec), Remaining: 60s
+[INFO] [PROGRESS] Spans: 423012 (rate: 626/sec), Remaining: 55s
+[INFO] [PROGRESS] Spans: 430176 (rate: 1362/sec), Remaining: 50s
+[INFO] [PROGRESS] Spans: 437826 (rate: 1466/sec), Remaining: 45s
+[INFO] [PROGRESS] Spans: 445020 (rate: 1433/sec), Remaining: 40s
+[INFO] [PROGRESS] Spans: 451674 (rate: 1328/sec), Remaining: 35s
+[INFO] [PROGRESS] Spans: 459024 (rate: 1466/sec), Remaining: 30s
+[INFO] [PROGRESS] Spans: 467028 (rate: 1521/sec), Remaining: 24s
+[INFO] [PROGRESS] Spans: 473718 (rate: 1336/sec), Remaining: 19s
+[INFO] [PROGRESS] Spans: 480768 (rate: 1358/sec), Remaining: 14s
+[INFO] [PROGRESS] Spans: 488550 (rate: 1541/sec), Remaining: 9s
+[INFO] [PROGRESS] Spans: 496176 (rate: 1522/sec), Remaining: 4s
+[INFO] ========================================
+[INFO] PyLoadgen finished
+[INFO]   Total spans sent: 502932
+[INFO] ========================================
+Connection to 35.243.125.78 closed.
+3. Restoring Collector config...
+[?25l[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.7s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Recreate                            [34m0.9s[0m
+[?25h[?25l[2A[0G[+] up 1/1
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mRecreated[0m                           [34m1.0s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠏[0m Container otel-memory-otel-collector-1 Starting                            [34m1.1s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Starting                            [34m1.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠙[0m Container otel-memory-otel-collector-1 Starting                            [34m1.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠹[0m Container otel-memory-otel-collector-1 Starting                            [34m1.4s[0m
+[?25h[?25l[2A[0G[+] up 1/1
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m                             [34m1.4s[0m
+[?25hConnection to 34.146.51.92 closed.
+✅ Scenario SpanMetrics Optimized completed.

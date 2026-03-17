@@ -1,0 +1,93 @@
+# Batch × Queue メモリ増幅シナリオ 最適化版
+#
+# 非最適化版との差分:
+#   - send_batch_size: 8192 → 2048（4倍削減）
+#   - send_batch_max_size: 4096（oversized batch 防止）
+#   - queue_size: 1000 → 50（20倍削減）
+#   - block_on_overflow: false（デフォルト。満杯時はドロップ）
+#   - num_consumers: 10（デフォルト。drain 速度を確保）
+#   - timeout, max_elapsed_time もデフォルトに戻す
+#
+# 最適化後の理論最大メモリ:
+#   - 2048 × 50 × ~580B ≈ 59MB（GC スパイク込みで soft_limit 307MB 以下）
+#   - memory_limiter 発火なし
+#
+# 掛け算の計算（最適化の根拠）:
+#   非最適化: 8192 × 1000 × 580B = 4.75GB → コンテナ超過 → memory_limiter 発火
+#   最適化:   2048 × 50 × 580B = 59MB → soft_limit 以下 → 安全
+#   削減率: 約80倍
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # memory_limiter
+  # https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/memorylimiterprocessor/README.md#best-practices
+  # best practices
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  # batch
+  # https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
+  # default settings
+  # OTel デフォルト値（これ自体は問題ないが queue_size との掛け算が罠）
+  batch:
+    send_batch_size: 2048 # 8192 → 2048（4倍削減）
+    send_batch_max_size: 4096 # oversized batch 防止
+    timeout: 200ms
+
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    # sending_queue
+    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/exporterhelper/README.md#sending-queue
+    # default settings
+    sending_queue:
+      num_consumers: 10
+      queue_size: 50 # 1000 → 50（20倍削減。GC スパイク込みで soft_limit 307MB 以下を維持）
+    retry_on_failure:
+      enabled: true
+
+  prometheus:
+    endpoint: 0.0.0.0:9090
+    namespace: testapp
+
+  debug:
+    verbosity: basic
+
+extensions:
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
+  extensions: [pprof]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]

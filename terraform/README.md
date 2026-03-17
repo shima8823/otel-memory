@@ -17,8 +17,8 @@
 │  │    (e2-small)       │      │       (e2-medium)           │  │
 │  │                     │      │                             │  │
 │  │  ┌───────────────┐  │      │  ┌───────────────────────┐  │  │
-│  │  │   loadgen     │──┼──────┼─▶│   OTel Collector      │  │  │
-│  │  │   binary      │  │ 4317 │  │   (port 4317)         │  │  │
+│  │  │ telemetrygen  │──┼──────┼─▶│   OTel Collector      │  │  │
+│  │  │ / pyloadgen   │  │ 4317 │  │   (port 4317)         │  │  │
 │  │  └───────────────┘  │(内部)│  └───────────┬───────────┘  │  │
 │  │                     │      │              │              │  │
 │  └─────────────────────┘      │  ┌───────────▼───────────┐  │  │
@@ -52,11 +52,11 @@
 | VM | マシンタイプ | 役割 |
 |----|------------|------|
 | **Collector VM** | e2-medium (2vCPU, 4GB) | OTel Collector, Prometheus, Grafana, Jaeger |
-| **Loadgen VM** | e2-small (2vCPU, 2GB) | loadgen バイナリ実行 |
+| **Loadgen VM** | e2-small (2vCPU, 2GB) | telemetrygen / pyloadgen 実行 |
 
 ## 前提条件
 
-### ローカル環境
+### 作業端末の前提条件
 
 1. **Terraform**（v1.14以降）
    ```bash
@@ -96,7 +96,7 @@ terraform plan
 terraform apply
 ```
 
-### 3. Collector VMでサービス起動
+### 3. Collector VMでサービス確認
 
 ```bash
 # Collector VMにSSH接続
@@ -105,12 +105,12 @@ gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=$(terraform
 # ubuntuユーザーに切り替え（スタートアップスクリプトはubuntuユーザーで実行）
 sudo su - ubuntu
 
-# サービス起動
+# サービス確認
 cd ~/otel-memory
-make up
+sudo docker compose ps
 
 # 動作確認
-docker-compose ps
+sudo docker compose up -d --force-recreate
 ```
 
 ### 4. Loadgen VMで負荷テスト実行
@@ -122,9 +122,8 @@ gcloud compute ssh otel-loadgen --zone=asia-northeast1-a --project=$(terraform o
 # ubuntuユーザーに切り替え
 sudo su - ubuntu
 
-# loadgen実行（Collector VMの内部IPに送信）
-cd ~/otel-memory/loadgen
-./loadgen -endpoint <Collectorの内部IP>:4317 -scenario sustained -duration 60s
+# telemetrygen で負荷テスト実行（Collector VMの内部IPに送信）
+telemetrygen traces --otlp-endpoint <Collectorの内部IP>:4317 --otlp-insecure --rate 1500 --duration 120s --workers 10 --child-spans 5
 ```
 
 ### 5. Web UIでモニタリング

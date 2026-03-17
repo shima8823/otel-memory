@@ -80,13 +80,17 @@ fi
 
 # Gitリポジトリのクローン
 GIT_REPO_URL="${git_repo_url}"
-log "Cloning from: $GIT_REPO_URL"
+GIT_BRANCH="${git_branch}"
+log "Cloning from: $GIT_REPO_URL (branch: $GIT_BRANCH)"
 
 if [[ "$GIT_REPO_URL" == *"github.com"* ]] || [[ "$GIT_REPO_URL" == "https://"* ]]; then
-    git clone "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
-        log "WARNING: Failed to clone repository. You may need to manually clone or upload the code."
-        log "Creating placeholder directory..."
-        mkdir -p otel-memory
+    git clone -b "$GIT_BRANCH" "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
+        log "WARNING: Failed to clone specific branch. Attempting default branch..."
+        git clone "$GIT_REPO_URL" otel-memory >> "$LOG_FILE" 2>&1 || {
+            log "WARNING: Failed to clone repository. You may need to manually clone or upload the code."
+            log "Creating placeholder directory..."
+            mkdir -p otel-memory
+        }
     }
 else
     log "WARNING: Invalid or placeholder git_repo_url. Creating empty directory."
@@ -123,7 +127,8 @@ Network Info:
 
 Quick Start:
 1. cd ~/otel-memory
-2. make up          # Start all services (OTel Collector, Prometheus, Grafana, Jaeger)
+2. sudo docker compose ps
+3. 必要なら sudo docker compose up -d --force-recreate
 
 Web UIs (access from browser):
 - Grafana:    http://$EXTERNAL_IP:3000
@@ -158,5 +163,15 @@ log "Python3: $(python3 --version)"
 log "Make: $(make --version | head -1)"
 log "Internal IP: $INTERNAL_IP"
 log "External IP: $EXTERNAL_IP"
+
+# 10. Start services with Docker Compose
+log "Step 10: Starting services with Docker Compose"
+cd /home/ubuntu/otel-memory
+if [ -f "docker-compose.yaml" ]; then
+    sudo -u ubuntu docker-compose up -d >> "$LOG_FILE" 2>&1
+    log "Docker Compose services started successfully"
+else
+    log "ERROR: docker-compose.yaml not found, could not start services"
+fi
 
 exit 0
