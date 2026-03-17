@@ -3,25 +3,13 @@
 ## このリポジトリについて
 - OpenTelemetry Collector のメモリ高騰パターンを再現し、デバッグ手法を検証するための検証環境です。
 - 3つのシナリオ（Tail Sampling / SpanMetrics 高カーディナリティ / Batch × Queue メモリ増幅）を用意しています。
-- ローカル（Docker Compose）と Google Cloud（Terraform, 2VM構成）の両方で実行できます。
+- Google Cloud（Terraform, 2VM構成）で実行できます。
 
 ## 前提条件
-- Docker Compose V2
 - Go（`go tool pprof` が使えること。推奨: 1.21+）
 - Python 3.10+（`scenario-spanmetrics*` 実行時に使用）
-- Google Cloud 利用時:
-  - gcloud CLI
-  - Terraform v1.14+
-
-## クイックスタート（ローカル）
-1. `make up`
-2. `make scenario-tail-sampling`（例）
-3. 監視UIを開く
-   - Grafana: http://localhost:3000
-   - Prometheus: http://localhost:9090
-   - Jaeger: http://localhost:16686
-4. `make pprof-heap`
-5. `make down`
+- gcloud CLI
+- Terraform v1.14+
 
 ## クイックスタート（Google Cloud）
 
@@ -64,11 +52,11 @@ make -C terraform destroy       # 後片付け
 
 ## シナリオ一覧
 
-| シナリオ | 原因 | ローカル | Google Cloud（統合実行） |
-|---------|-----|------|-----|
-| Tail Sampling | `decision_wait` 中のトレースバッファ保持 | `make scenario-tail-sampling` | `make run-tail-sampling PROJECT_ID=...` |
-| SpanMetrics 高カーディナリティ | `spanmetrics` 内部マップのエントリ数膨張 | `make scenario-spanmetrics` | `make run-scenario-spanmetrics PROJECT_ID=...` |
-| Batch × Queue メモリ増幅 | `send_batch_size × queue_size` の掛け算 | `make scenario-batch-queue` | `make run-batch-queue PROJECT_ID=...` |
+| シナリオ | 原因 | 実行コマンド |
+|---------|-----|------|
+| Tail Sampling | `decision_wait` 中のトレースバッファ保持 | `make run-tail-sampling PROJECT_ID=...` |
+| SpanMetrics 高カーディナリティ | `spanmetrics` 内部マップのエントリ数膨張 | `make run-scenario-spanmetrics PROJECT_ID=...` |
+| Batch × Queue メモリ増幅 | `send_batch_size × queue_size` の掛け算 | `make run-batch-queue PROJECT_ID=...` |
 
 ※ 各シナリオに最適化版（`*-optimized`）があります。
 
@@ -76,20 +64,17 @@ make -C terraform destroy       # 後片付け
 
 ### Tail Sampling
 - 何が起きるか: `tail_sampling.decision_wait` の間、スパンを保持するため高スループット時にメモリが急増
-- ローカル実行: `make scenario-tail-sampling`
-- 最適化版: `make scenario-tail-sampling-optimized`（`decision_wait: 30s -> 10s`）
+- 最適化版: `make run-tail-sampling-optimized`（`decision_wait: 30s -> 10s`）
 - 期待される挙動: Heap 上昇、`memory_limiter` 発動、Refused 増加の観察
 
 ### Batch × Queue メモリ増幅
 - 何が起きるか: バックエンド遅延時に exporter queue が滞留し、`batch_size × queue_size` 分のデータがメモリを圧迫
-- ローカル実行: `make scenario-batch-queue`
-- 最適化版: `make scenario-batch-queue-optimized`（`send_batch_size: 8192 -> 2048`, `queue_size: 1000 -> 50`）
+- 最適化版: `make run-batch-queue-optimized`（`send_batch_size: 8192 -> 2048`, `queue_size: 1000 -> 50`）
 - 注意: `docker-compose.batch-queue.yaml` で Jaeger に CPU 制限をかけて遅延を再現
 
 ### SpanMetrics 高カーディナリティ
 - 何が起きるか: `spanmetrics` の `dimensions` に高カーディナリティ属性を入れると組み合わせ爆発で内部マップが膨張
-- ローカル実行: `make scenario-spanmetrics`
-- 最適化版: `make scenario-spanmetrics-optimized`（`attr_0`, `attr_1` を `dimensions` から除外）
+- 最適化版: `make run-scenario-spanmetrics-optimized`（`attr_0`, `attr_1` を `dimensions` から除外）
 - 注意: `pip3 install -r pyloadgen/requirements.txt` が必要
 
 ## pprof の使い方
@@ -97,14 +82,13 @@ make -C terraform destroy       # 後片付け
 - `make pprof-capture-bg` — バックグラウンドで定期キャプチャ開始
 - `make pprof-capture-stop` — キャプチャ停止
 - `make pprof-diff-auto DIR=path/to/captures/XXXXXX` — ベースラインとピークを自動比較
-- `make run-local SCENARIO=scenario-tail-sampling` — ローカル統合実行（シナリオ + pprof + メトリクス自動収集）
 
 ## ディレクトリ構成
 ```text
 .
-├── docker-compose.yaml                    # ローカル検証環境（Collector/Prometheus/Jaeger/Grafana）
+├── docker-compose.yaml                    # 検証環境（Collector/Prometheus/Jaeger/Grafana）
 ├── docker-compose.batch-queue.yaml        # Batch×Queue用オーバーレイ（Jaeger CPU制限）
-├── Makefile                               # ローカル実行 + Google Cloud 統合実行ターゲット
+├── Makefile                               # Google Cloud 統合実行ターゲット
 ├── otel-collector/                        # Collector本体設定とシナリオ設定
 │   └── scenarios/
 ├── pyloadgen/                             # Python 負荷生成（高カーディナリティ属性付きトレース）
