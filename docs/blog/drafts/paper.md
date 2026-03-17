@@ -50,7 +50,7 @@ service:
 
 ```bash
 # heap profile の取得と対話的な解析
-go tool pprof http://localhost:1777/debug/pprof/heap
+go tool pprof http://<collector-host>:1777/debug/pprof/heap
 ```
 
 pprof の出力には、主に **flat** と **cum** という 2 つの指標があります。
@@ -77,20 +77,9 @@ memory_limiter:
 
 受信拒否が始まる実効閾値（soft_limit）は `コンテナメモリ × (limit_percentage - spike_limit_percentage)` で計算されます。本環境では `512 MB × (80% - 20%) = 307 MB` です。Heap がこの値に達すると、Receiver が新規スパンの受信を拒否し始めます。
 
-### 再現環境
+### 検証環境
 
-本記事のデータは Google Cloud 上で取得しました。Loadgen VM と Collector VM の 2 インスタンス構成で、負荷生成と Collector を分離しています。
-
-ローカルでの再現は以下の手順で可能です。
-
-```bash
-git clone https://github.com/shima8823/otel-memory.git
-cd otel-memory
-docker compose up -d    # Collector, Prometheus, Grafana
-make scenario-tail-sampling
-```
-
-pprof extension は Collector 設定で有効化済みです。Grafana は `http://localhost:3000` でアクセスできます。
+本記事のデータは Google Cloud 上で取得しました。Loadgen VM と Collector VM の 2 インスタンス構成で、負荷生成と Collector を分離しています。環境構築手順そのものは本記事では扱わず、取得済みのメトリクス、pprof、クライアントログをもとにデバッグの流れに絞って説明します。
 
 ### 診断フロー
 

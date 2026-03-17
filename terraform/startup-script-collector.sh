@@ -127,7 +127,8 @@ Network Info:
 
 Quick Start:
 1. cd ~/otel-memory
-2. make up          # Start all services (OTel Collector, Prometheus, Grafana, Jaeger)
+2. sudo docker compose ps
+3. 必要なら sudo docker compose up -d --force-recreate
 
 Web UIs (access from browser):
 - Grafana:    http://$EXTERNAL_IP:3000

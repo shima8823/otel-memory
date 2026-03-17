@@ -1,6 +1,6 @@
-# pprof 手順まとめ
+# pprof 手順メモ
 
-OpenTelemetry Collector の pprof 取得・比較手順を、ローカル実行と Terraform/GCP 実行の両方でまとめたドキュメントです。
+OpenTelemetry Collector の pprof 取得・比較手順を、Terraform / Google Cloud 実行前提でまとめたドキュメントです。
 
 ## 出力先
 
@@ -8,36 +8,9 @@ OpenTelemetry Collector の pprof 取得・比較手順を、ローカル実行�
 - キャプチャログ: `captures/logs/pprof_capture.log`
 - ポートフォワードログ: `captures/logs/port_forward.log`
 
-## ローカル（Docker Compose）での基本操作
+## 推奨フロー
 
-```
-# 起動
-make up
-
-# 1回だけ取得（UIで確認）
-make pprof-heap
-make pprof-allocs
-make pprof-cpu
-```
-
-## ローカルでの連続キャプチャ
-
-```
-# フォアグラウンド（5秒間隔）
-make pprof-capture
-
-# バックグラウンド
-make pprof-capture-bg
-make pprof-capture-status
-make pprof-capture-stop
-```
-
-保存先は `captures/<MM-DD>/<RUN_ID>` です。  
-`CAPTURE_INTERVAL`, `CAPTURE_BASE_DIR`, `CAPTURE_MAX` で調整できます。
-
-## Terraform / GCP 統合（推奨）
-
-```
+```bash
 export PROJECT_ID=$(gcloud config get-value project)
 make run-tail-sampling
 ```
@@ -49,33 +22,33 @@ make run-tail-sampling
 3. ポートフォワード
 4. pprof キャプチャ開始
 5. シナリオ実行
-6. キャプチャ停止 + diff 表示
+6. キャプチャ停止
+7. diff 表示
+8. Terraform destroy
 
-`.pprof_last_dir` は作成しません。保存先はログから取得できます。
+## 個別操作
 
+```bash
+make -C terraform apply
+make -C terraform forward-bg
+make pprof-capture-bg
+make pprof-capture-stop
+make -C terraform forward-stop
+make -C terraform destroy
 ```
-grep -m1 "保存先:" captures/logs/pprof_capture.log
-```
 
-### 変数で調整
+## 変数で調整
 
-```
+```bash
 SCENARIO=scenario-spanmetrics SYNC=0 RESTART=0 make run-scenario
 ```
 
 ## pprof の比較
 
-```
-# ピークと直前を自動で diff
+```bash
 make pprof-peak-diff DIR=captures/01-23/175921
 
-# 手動で diff
-make pprof-diff BASE=captures/01-23/175921/pprof/heap_120000.pprof \
-               NEW=captures/01-23/175921/pprof/heap_120010.pprof
+make pprof-diff \
+  BASE=captures/01-23/175921/pprof/heap_120000.pprof \
+  NEW=captures/01-23/175921/pprof/heap_120010.pprof
 ```
-
-## トラブルシュート
-
-- `localhost:1777` が開かない → ポートフォワード未起動
-- `.pprof` が空 → 取得タイミングが早すぎる / Collector が落ちている
-- Grafana が空 → scrape 遅延 or 時刻ずれ

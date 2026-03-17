@@ -56,7 +56,7 @@
 
 ## 前提条件
 
-### ローカル環境
+### 作業端末の前提条件
 
 1. **Terraform**（v1.14以降）
    ```bash
@@ -96,7 +96,7 @@ terraform plan
 terraform apply
 ```
 
-### 3. Collector VMでサービス起動
+### 3. Collector VMでサービス確認
 
 ```bash
 # Collector VMにSSH接続
@@ -105,12 +105,12 @@ gcloud compute ssh otel-collector --zone=asia-northeast1-a --project=$(terraform
 # ubuntuユーザーに切り替え（スタートアップスクリプトはubuntuユーザーで実行）
 sudo su - ubuntu
 
-# サービス起動
+# サービス確認
 cd ~/otel-memory
-make up
+sudo docker compose ps
 
 # 動作確認
-docker-compose ps
+sudo docker compose up -d --force-recreate
 ```
 
 ### 4. Loadgen VMで負荷テスト実行
