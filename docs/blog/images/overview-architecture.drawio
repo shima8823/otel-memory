@@ -1,0 +1,66 @@
+<mxfile host="app.diagrams.net" version="26.0.0" agent="Codex">
+  <diagram id="blog-overview-architecture" name="Blog Overview Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="gcp" value="Google Cloud" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#BDC1C6;strokeWidth=2;fontStyle=1;fontSize=16;verticalAlign=top;spacingTop=10;spacingLeft=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="30" y="20" width="1140" height="620" as="geometry" />
+        </mxCell>
+
+        <mxCell id="subnet" value="VPC Subnet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F0FE;strokeColor=#4285F4;strokeWidth=2;dashed=1;dashPattern=6 6;fontStyle=1;fontSize=13;verticalAlign=top;spacingTop=8;spacingLeft=10;align=left;" vertex="1" parent="1">
+          <mxGeometry x="70" y="80" width="1060" height="520" as="geometry" />
+        </mxCell>
+
+        <mxCell id="loadgen-vm" value="Loadgen VM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D93025;strokeWidth=2;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="120" y="175" width="320" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="telemetrygen" value="telemetrygen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE8E6;strokeColor=#D93025;strokeWidth=2;fontStyle=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="180" y="275" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="loadgen-note" value="負荷生成ツールを実行" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;fontColor=#5F6368;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="170" y="370" width="220" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="collector-vm" value="Collector VM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#188038;strokeWidth=2;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=10;align=center;" vertex="1" parent="1">
+          <mxGeometry x="500" y="120" width="500" height="390" as="geometry" />
+        </mxCell>
+
+        <mxCell id="compose" value="Docker Compose" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F9FA;strokeColor=#9AA0A6;strokeWidth=1;dashed=1;dashPattern=4 4;fontStyle=2;fontSize=11;verticalAlign=top;spacingTop=8;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="550" y="185" width="400" height="220" as="geometry" />
+        </mxCell>
+
+        <mxCell id="collector" value="OTel Collector" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6F4EA;strokeColor=#188038;strokeWidth=2;fontStyle=1;fontSize=14;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="560" y="260" width="120" height="78" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prometheus" value="Prometheus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF7E0;strokeColor=#E37400;strokeWidth=2;fontStyle=1;fontSize=14;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="700" y="260" width="120" height="78" as="geometry" />
+        </mxCell>
+
+        <mxCell id="grafana" value="Grafana" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF7E0;strokeColor=#E37400;strokeWidth=2;fontStyle=1;fontSize=14;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="840" y="260" width="100" height="78" as="geometry" />
+        </mxCell>
+
+        <mxCell id="collector-note" value="Collector の internal metrics / pprof を観測" style="text;html=1;strokeColor=none;fillColor=none;fontSize=11;fontColor=#5F6368;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="560" y="365" width="370" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow1" value="OTLP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#4285F4;fontSize=11;fontColor=#4285F4;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="telemetrygen" target="collector" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow3" value="scrape" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#E37400;fontSize=11;fontColor=#E37400;fontStyle=1;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;verticalLabelPosition=top;verticalAlign=bottom;spacingBottom=20;" edge="1" source="collector" target="prometheus" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arrow4" value="query" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#E37400;fontSize=11;fontColor=#E37400;fontStyle=1;labelBackgroundColor=#FFFFFF;endArrow=classic;endFill=1;verticalLabelPosition=top;verticalAlign=bottom;spacingBottom=20;" edge="1" source="prometheus" target="grafana" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

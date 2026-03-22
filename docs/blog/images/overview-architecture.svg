@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" role="img" aria-labelledby="title desc">
+  <title id="title">検証環境の簡易構成図</title>
+  <desc id="desc">Google Cloud の VPC Subnet 内に Loadgen VM と Collector VM を配置し、Loadgen VM の telemetrygen が OTel Collector に OTLP で負荷を送り、Collector VM では Docker Compose 上で OTel Collector、Prometheus、Grafana が動作する構成図。</desc>
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#4285F4" />
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#E37400" />
+    </marker>
+    <style>
+      text { font-family: "Helvetica Neue", Arial, sans-serif; fill: #202124; }
+      .title { font-size: 16px; font-weight: 700; }
+      .label { font-size: 14px; font-weight: 700; }
+      .small { font-size: 12px; fill: #5F6368; }
+      .center { text-anchor: middle; dominant-baseline: middle; }
+      .box { rx: 16; ry: 16; }
+      .outer { fill: #F8F9FA; stroke: #BDC1C6; stroke-width: 2; }
+      .subnet { fill: #E8F0FE; stroke: #4285F4; stroke-width: 2; stroke-dasharray: 8 6; }
+      .vm-load { fill: #FFFFFF; stroke: #D93025; stroke-width: 2; }
+      .vm-collector { fill: #FFFFFF; stroke: #188038; stroke-width: 2; }
+      .compose { fill: #F8F9FA; stroke: #9AA0A6; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .tool-load { fill: #FCE8E6; stroke: #D93025; stroke-width: 2; }
+      .tool-collector { fill: #E6F4EA; stroke: #188038; stroke-width: 2; }
+      .tool-observe { fill: #FEF7E0; stroke: #E37400; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect class="outer box" x="20" y="20" width="1060" height="580" />
+  <text class="title" x="44" y="48">Google Cloud</text>
+
+  <rect class="subnet box" x="60" y="80" width="980" height="500" />
+  <text class="label" x="84" y="108">VPC Subnet</text>
+
+  <rect class="vm-load box" x="100" y="175" width="300" height="250" />
+  <text class="label center" x="250" y="207">Loadgen VM</text>
+
+  <rect class="tool-load box" x="150" y="265" width="200" height="68" />
+  <text class="label center" x="250" y="299">telemetrygen</text>
+
+  <text class="small center" x="250" y="375">負荷生成ツールを実行</text>
+
+  <rect class="vm-collector box" x="500" y="120" width="500" height="390" />
+  <text class="label center" x="750" y="152">Collector VM</text>
+
+  <rect class="compose box" x="550" y="185" width="400" height="220" />
+  <text class="small" x="572" y="200">Docker Compose</text>
+
+  <rect class="tool-collector box" x="560" y="260" width="120" height="78" />
+  <text class="label center" x="620" y="299">OTel Collector</text>
+
+  <rect class="tool-observe box" x="700" y="260" width="120" height="78" />
+  <text class="label center" x="760" y="299">Prometheus</text>
+
+  <rect class="tool-observe box" x="840" y="260" width="100" height="78" />
+  <text class="label center" x="890" y="299">Grafana</text>
+
+  <text class="small center" x="745" y="376">internal metrics / pprof を観測</text>
+
+  <line x1="350" y1="299" x2="560" y2="299" stroke="#4285F4" stroke-width="3" marker-end="url(#arrow-blue)" />
+  <text class="small center" x="455" y="282" fill="#4285F4">OTLP</text>
+
+  <line x1="680" y1="299" x2="700" y2="299" stroke="#E37400" stroke-width="3" marker-end="url(#arrow-orange)" />
+  <text class="small center" x="690" y="250" fill="#E37400">scrape</text>
+
+  <line x1="820" y1="299" x2="840" y2="299" stroke="#E37400" stroke-width="3" marker-end="url(#arrow-orange)" />
+  <text class="small center" x="830" y="250" fill="#E37400">query</text>
+</svg>
