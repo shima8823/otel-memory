@@ -157,15 +157,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "otelcol_process_runtime_total_alloc_bytes_total{job=\"otel-collector-self\"}",
-          "legendFormat": "Total Alloc (cumulative)",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
           "expr": "vector(321912832)",
           "legendFormat": "soft_limit (307 MB)",
           "refId": "C"
