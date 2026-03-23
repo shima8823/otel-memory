@@ -18,6 +18,9 @@ scenario-reports/
 
 ```
 non-opt/ または opt/
+├── docker-stats-capture.log # docker stats 取得処理の実行ログ
+├── docker-stats.log         # 各コンテナの CPU / メモリ使用量の記録
+├── scenario.log             # シナリオ実行ログ
 ├── pprof/                # heap profile（5秒間隔で取得）
 │   ├── heap_HHMMSS.pprof
 │   └── ...
@@ -32,6 +35,8 @@ non-opt/ または opt/
     ├── pprof-graph.png
     └── ...
 ```
+
+`pprof/`、`metrics/`、`images/` が主要な分析対象で、ルート直下の `*.log` は「どの条件で取得したデータか」を補う補助ログです。
 
 ### pprof/
 
@@ -73,6 +78,43 @@ Grafana ダッシュボードのスクリーンショットです。主なファ
 | `exporter_queue_usage.png` | Exporter キューの使用率 |
 | `pprof-graph.png` | pprof のコールグラフ（Heap 使用量ピーク時） |
 
+### docker-stats.log
+
+`docker stats` を一定間隔で採取したログです。Collector だけでなく、Prometheus、Grafana など同じ VM 上の他コンテナも含めた CPU / メモリ使用量を確認できます。
+
+```text
+NAME                           CPU %     MEM USAGE / LIMIT     MEM %
+otel-memory-otel-collector-1   46.00%    63.84MiB / 512MiB     12.47%
+```
+
+Grafana の内部メトリクスは Collector 自身の観測が中心ですが、`docker-stats.log` は「コンテナ全体としてどこまでメモリ制限に近づいていたか」や「Collector 以外のプロセスが影響していないか」を横断的に確認するために使います。
+
+### docker-stats-capture.log
+
+`docker-stats.log` を取得する補助スクリプトの実行ログです。主に、収集が開始・停止できたか、最終的にどのパスへ保存されたかを確認するために使います。
+
+```text
+=== Start docker stats capture ===
+✅ docker stats capture started
+=== Stop docker stats capture ===
+✅ docker stats log saved to /Users/shima/Project/otel-memory/captures/03-23/124249/docker-stats.log
+```
+
+分析の主役ではありませんが、`docker-stats.log` の欠落や取得失敗を切り分けるときに参照します。
+
+### scenario.log
+
+シナリオ実行全体のログです。Collector へ適用した設定、負荷投入開始、`telemetrygen` の生成量、後処理の待機や設定戻しまでが時系列で記録されます。
+
+```text
+=== Scenario: Tail Sampling Buffered Optimized ===
+1. Applying tail-sampling-optimized.yaml config to Collector VM...
+2. Starting load command on Loadgen VM...
+2026-03-23T03:53:33.203Z INFO traces/worker.go:180 traces generated {"worker": 5, "traces": 54344}
+3. Waiting 90s for tail_sampling buffer to drain...
+```
+
+本文中で引用している「負荷条件」「実際の生成量」「後処理で待機した時間」は、この `scenario.log` をもとに確認できます。
 
 ## ブログ本文との対応
 
