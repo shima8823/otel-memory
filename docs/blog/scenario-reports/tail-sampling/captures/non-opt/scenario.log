@@ -1,64 +1,57 @@
 ⏳ Waiting for collector VM to be ready...
 ✅ Collector VM ready
 ⏳ Waiting for loadgen VM to be ready...
-  ...waiting (1/30)
-  ...waiting (2/30)
-  ...waiting (3/30)
-  ...waiting (4/30)
-  ...waiting (5/30)
-  ...waiting (6/30)
-  ...waiting (7/30)
-  ...waiting (8/30)
-  ...waiting (9/30)
-  ...waiting (10/30)
-  ...waiting (11/30)
-  ...waiting (12/30)
-  ...waiting (13/30)
-  ...waiting (14/30)
-  ...waiting (15/30)
-  ...waiting (16/30)
-  ...waiting (17/30)
-  ...waiting (18/30)
-  ...waiting (19/30)
 ✅ Loadgen VM ready
 📦 Ensuring telemetrygen is installed on Loadgen VM...
 ✅ telemetrygen already installed
-Connection to 34.104.175.117 closed.
+Connection to 34.84.162.199 closed.
 === Scenario: Tail Sampling Buffered ===
-1. Applying tail-sampling.yaml config to Collector VM (IP: 10.146.0.52)...
+1. Applying tail-sampling.yaml config to Collector VM (IP: 10.146.0.2)...
 [?25l[0G[+] up 0/1
- [33m⠋[0m Container otel-memory-otel-collector-1 Recreate            [34m0.0s[0m
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.1s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠙[0m Container otel-memory-otel-collector-1 Recreate            [34m0.1s[0m
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.2s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠹[0m Container otel-memory-otel-collector-1 Recreate            [34m0.2s[0m
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.3s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠸[0m Container otel-memory-otel-collector-1 Recreate            [34m0.3s[0m
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.4s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠼[0m Container otel-memory-otel-collector-1 Recreate            [34m0.4s[0m
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.7s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.9s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠏[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.0s[0m
 [?25h[?25l[2A[0G[+] up 1/1
- [32m✔[0m Container otel-memory-otel-collector-1 [32mRecreated[0m           [34m0.5s[0m
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mRecreated[0m                             [34m1.1s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠴[0m Container otel-memory-otel-collector-1 Starting            [34m0.6s[0m
+ [33m⠋[0m Container otel-memory-otel-collector-1 Starting                              [34m1.2s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠦[0m Container otel-memory-otel-collector-1 Starting            [34m0.7s[0m
+ [33m⠙[0m Container otel-memory-otel-collector-1 Starting                              [34m1.3s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠧[0m Container otel-memory-otel-collector-1 Starting            [34m0.8s[0m
+ [33m⠹[0m Container otel-memory-otel-collector-1 Starting                              [34m1.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Starting                              [34m1.5s[0m
 [?25h[?25l[2A[0G[+] up 1/1
- [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m             [34m0.9s[0m
-[?25hConnection to 34.85.95.208 closed.
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m                               [34m1.5s[0m
+[?25hConnection to 104.198.114.4 closed.
 2. Starting load command on Loadgen VM...
-2026-03-16T07:28:15.703Z	INFO	traces/traces.go:53	starting gRPC exporter
-2026-03-16T07:28:15.704Z	INFO	grpclog/component.go:69	[core] original dial target is: "10.146.0.52:4317"	{"grpc_log": true}
-2026-03-16T07:28:15.704Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel created for target "10.146.0.52:4317"	{"grpc_log": true}
-2026-03-16T07:28:15.704Z	INFO	channelz/trace.go:200	[core] [Channel #1] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"dns", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/10.146.0.52:4317", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}	{"grpc_log": true}
-2026-03-16T07:28:15.704Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel authority set to "10.146.0.52:4317"	{"grpc_log": true}
-2026-03-16T07:28:15.704Z	INFO	traces/traces.go:125	generation of traces is limited	{"per-second": 2500}
-2026-03-16T07:28:15.712Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel Connectivity change to CONNECTING	{"grpc_log": true}
-2026-03-16T07:28:15.712Z	INFO	channelz/trace.go:200	[core] [Channel #1] Resolver state updated: {
+2026-03-23T05:40:44.586Z	INFO	traces/traces.go:53	starting gRPC exporter
+2026-03-23T05:40:44.586Z	INFO	grpclog/component.go:69	[core] original dial target is: "10.146.0.2:4317"	{"grpc_log": true}
+2026-03-23T05:40:44.586Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel created for target "10.146.0.2:4317"	{"grpc_log": true}
+2026-03-23T05:40:44.586Z	INFO	channelz/trace.go:200	[core] [Channel #1] parsed dial target is: resolver.Target{URL:url.URL{Scheme:"dns", Opaque:"", User:(*url.Userinfo)(nil), Host:"", Path:"/10.146.0.2:4317", RawPath:"", OmitHost:false, ForceQuery:false, RawQuery:"", Fragment:"", RawFragment:""}}	{"grpc_log": true}
+2026-03-23T05:40:44.586Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel authority set to "10.146.0.2:4317"	{"grpc_log": true}
+2026-03-23T05:40:44.586Z	INFO	traces/traces.go:125	generation of traces is limited	{"per-second": 2500}
+2026-03-23T05:40:44.594Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel Connectivity change to CONNECTING	{"grpc_log": true}
+2026-03-23T05:40:44.595Z	INFO	channelz/trace.go:200	[core] [Channel #1] Resolver state updated: {
   "Addresses": [
     {
-      "Addr": "10.146.0.52:4317",
+      "Addr": "10.146.0.2:4317",
       "ServerName": "",
       "Attributes": null,
       "BalancerAttributes": null,
@@ -69,7 +62,7 @@ Connection to 34.104.175.117 closed.
     {
       "Addresses": [
         {
-          "Addr": "10.146.0.52:4317",
+          "Addr": "10.146.0.2:4317",
           "ServerName": "",
           "Attributes": null,
           "BalancerAttributes": null,
@@ -82,13 +75,13 @@ Connection to 34.104.175.117 closed.
   "ServiceConfig": null,
   "Attributes": null
 } (resolver returned new addresses)	{"grpc_log": true}
-2026-03-16T07:28:15.713Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel switches to new LB policy "pick_first"	{"grpc_log": true}
-2026-03-16T07:28:15.713Z	INFO	grpclog/prefix_logger.go:42	[pick-first-leaf-lb] [pick-first-leaf-lb 0xc000123950] Received new config {
+2026-03-23T05:40:44.595Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel switches to new LB policy "pick_first"	{"grpc_log": true}
+2026-03-23T05:40:44.595Z	INFO	grpclog/prefix_logger.go:42	[pick-first-leaf-lb] [pick-first-leaf-lb 0xc0001bb950] Received new config {
   "shuffleAddressList": false
 }, resolver state {
   "Addresses": [
     {
-      "Addr": "10.146.0.52:4317",
+      "Addr": "10.146.0.2:4317",
       "ServerName": "",
       "Attributes": null,
       "BalancerAttributes": null,
@@ -99,7 +92,7 @@ Connection to 34.104.175.117 closed.
     {
       "Addresses": [
         {
-          "Addr": "10.146.0.52:4317",
+          "Addr": "10.146.0.2:4317",
           "ServerName": "",
           "Attributes": null,
           "BalancerAttributes": null,
@@ -112,74 +105,91 @@ Connection to 34.104.175.117 closed.
   "ServiceConfig": null,
   "Attributes": null
 }	{"grpc_log": true}
-2026-03-16T07:28:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel created	{"grpc_log": true}
-2026-03-16T07:28:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel exiting idle mode	{"grpc_log": true}
-2026-03-16T07:28:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to CONNECTING	{"grpc_log": true}
-2026-03-16T07:28:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel picks a new address "10.146.0.52:4317" to connect	{"grpc_log": true}
-2026-03-16T07:28:15.717Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to READY	{"grpc_log": true}
-2026-03-16T07:28:15.717Z	INFO	grpclog/prefix_logger.go:42	[pick-first-leaf-lb] [pick-first-leaf-lb 0xc000123950] SubConn 0xc0000cedc0 reported connectivity state READY and the health listener is disabled. Transitioning SubConn to READY.	{"grpc_log": true}
-2026-03-16T07:28:15.717Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel Connectivity change to READY	{"grpc_log": true}
-2026/03/16 07:28:56 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
-2026-03-16T07:30:15.705Z	INFO	traces/worker.go:180	traces generated	{"worker": 0, "traces": 14847}
-2026-03-16T07:30:15.705Z	INFO	traces/worker.go:180	traces generated	{"worker": 2, "traces": 14842}
-2026-03-16T07:30:15.706Z	INFO	traces/worker.go:180	traces generated	{"worker": 3, "traces": 14849}
-2026-03-16T07:30:15.706Z	INFO	traces/worker.go:180	traces generated	{"worker": 6, "traces": 14844}
-2026-03-16T07:30:15.706Z	INFO	traces/worker.go:180	traces generated	{"worker": 8, "traces": 14857}
-2026-03-16T07:30:15.707Z	INFO	traces/worker.go:180	traces generated	{"worker": 4, "traces": 14848}
-2026-03-16T07:30:15.710Z	INFO	traces/worker.go:180	traces generated	{"worker": 7, "traces": 14850}
-2026-03-16T07:30:15.710Z	INFO	traces/worker.go:180	traces generated	{"worker": 1, "traces": 14850}
-2026-03-16T07:30:15.711Z	INFO	traces/worker.go:180	traces generated	{"worker": 9, "traces": 14846}
-2026-03-16T07:30:15.711Z	INFO	traces/worker.go:180	traces generated	{"worker": 5, "traces": 14849}
-2026-03-16T07:30:15.711Z	INFO	traces/traces.go:75	stop the batch span processor
-2026-03-16T07:30:15.713Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel Connectivity change to SHUTDOWN	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1] Closing the name resolver	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1] ccBalancerWrapper: closing	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to SHUTDOWN	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel deleted	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	grpclog/prefix_logger.go:42	[transport] [client-transport 0xc0000dc908] Closing: rpc error: code = Canceled desc = grpc: the client connection is closing	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	grpclog/prefix_logger.go:42	[transport] [client-transport 0xc0000dc908] loopyWriter exiting with error: rpc error: code = Canceled desc = grpc: the client connection is closing	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel deleted	{"grpc_log": true}
-2026-03-16T07:30:15.714Z	INFO	traces/traces.go:65	stopping the exporter
-Connection to 34.104.175.117 closed.
+2026-03-23T05:40:44.595Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel created	{"grpc_log": true}
+2026-03-23T05:40:44.596Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel exiting idle mode	{"grpc_log": true}
+2026-03-23T05:40:44.596Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to CONNECTING	{"grpc_log": true}
+2026-03-23T05:40:44.596Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel picks a new address "10.146.0.2:4317" to connect	{"grpc_log": true}
+2026-03-23T05:40:44.600Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to READY	{"grpc_log": true}
+2026-03-23T05:40:44.600Z	INFO	grpclog/prefix_logger.go:42	[pick-first-leaf-lb] [pick-first-leaf-lb 0xc0001bb950] SubConn 0xc000162f50 reported connectivity state READY and the health listener is disabled. Transitioning SubConn to READY.	{"grpc_log": true}
+2026-03-23T05:40:44.600Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel Connectivity change to READY	{"grpc_log": true}
+2026/03/23 05:41:23 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:41:37 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:42:11 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:43:00 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:44:36 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:44:56 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:46:06 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:47:46 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:48:21 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:48:43 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:49:04 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026/03/23 05:49:47 traces export: exporter export timeout: rpc error: code = Unavailable desc = data refused due to high memory usage
+2026-03-23T05:50:44.587Z	INFO	traces/worker.go:180	traces generated	{"worker": 2, "traces": 95365}
+2026-03-23T05:50:44.588Z	INFO	traces/worker.go:180	traces generated	{"worker": 5, "traces": 95357}
+2026-03-23T05:50:44.588Z	INFO	traces/worker.go:180	traces generated	{"worker": 3, "traces": 95360}
+2026-03-23T05:50:44.588Z	INFO	traces/worker.go:180	traces generated	{"worker": 1, "traces": 95349}
+2026-03-23T05:50:44.588Z	INFO	traces/worker.go:180	traces generated	{"worker": 0, "traces": 95365}
+2026-03-23T05:50:44.589Z	INFO	traces/worker.go:180	traces generated	{"worker": 7, "traces": 95354}
+2026-03-23T05:50:44.591Z	INFO	traces/worker.go:180	traces generated	{"worker": 9, "traces": 95352}
+2026-03-23T05:50:44.591Z	INFO	traces/worker.go:180	traces generated	{"worker": 4, "traces": 95358}
+2026-03-23T05:50:44.591Z	INFO	traces/worker.go:180	traces generated	{"worker": 6, "traces": 95353}
+2026-03-23T05:50:44.591Z	INFO	traces/worker.go:180	traces generated	{"worker": 8, "traces": 95353}
+2026-03-23T05:50:44.591Z	INFO	traces/traces.go:75	stop the batch span processor
+2026-03-23T05:50:44.593Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel Connectivity change to SHUTDOWN	{"grpc_log": true}
+2026-03-23T05:50:44.593Z	INFO	channelz/trace.go:200	[core] [Channel #1] Closing the name resolver	{"grpc_log": true}
+2026-03-23T05:50:44.593Z	INFO	channelz/trace.go:200	[core] [Channel #1] ccBalancerWrapper: closing	{"grpc_log": true}
+2026-03-23T05:50:44.594Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to SHUTDOWN	{"grpc_log": true}
+2026-03-23T05:50:44.594Z	INFO	channelz/trace.go:200	[core] [Channel #1 SubChannel #2] Subchannel deleted	{"grpc_log": true}
+2026-03-23T05:50:44.594Z	INFO	grpclog/prefix_logger.go:42	[transport] [client-transport 0xc000170908] Closing: rpc error: code = Canceled desc = grpc: the client connection is closing	{"grpc_log": true}
+2026-03-23T05:50:44.594Z	INFO	grpclog/prefix_logger.go:42	[transport] [client-transport 0xc000170908] loopyWriter exiting with error: rpc error: code = Canceled desc = grpc: the client connection is closing	{"grpc_log": true}
+2026-03-23T05:50:44.594Z	INFO	channelz/trace.go:200	[core] [Channel #1] Channel deleted	{"grpc_log": true}
+2026-03-23T05:50:44.594Z	INFO	traces/traces.go:65	stopping the exporter
+Connection to 34.84.162.199 closed.
 3. Waiting 90s for tail_sampling buffer to drain...
 4. Restoring Collector config...
 [?25l[0G[+] up 0/1
- [33m⠋[0m Container otel-memory-otel-collector-1 Recreate            [34m0.0s[0m
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.0s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠙[0m Container otel-memory-otel-collector-1 Recreate            [34m0.1s[0m
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.1s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠹[0m Container otel-memory-otel-collector-1 Recreate            [34m0.2s[0m
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.2s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠸[0m Container otel-memory-otel-collector-1 Recreate            [34m0.3s[0m
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.3s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠼[0m Container otel-memory-otel-collector-1 Recreate            [34m0.4s[0m
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.4s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠴[0m Container otel-memory-otel-collector-1 Recreate            [34m0.5s[0m
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.5s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠦[0m Container otel-memory-otel-collector-1 Recreate            [34m0.6s[0m
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.6s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠧[0m Container otel-memory-otel-collector-1 Recreate            [34m0.7s[0m
+ [33m⠧[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.7s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠇[0m Container otel-memory-otel-collector-1 Recreate            [34m0.8s[0m
+ [33m⠇[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.8s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠏[0m Container otel-memory-otel-collector-1 Recreate            [34m0.9s[0m
+ [33m⠏[0m Container otel-memory-otel-collector-1 Recreate                              [34m0.9s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠋[0m Container otel-memory-otel-collector-1 Recreate            [34m1.0s[0m
+ [33m⠋[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.0s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠙[0m Container otel-memory-otel-collector-1 Recreate            [34m1.1s[0m
+ [33m⠙[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.1s[0m
 [?25h[?25l[2A[0G[+] up 0/1
- [33m⠹[0m Container otel-memory-otel-collector-1 Recreate            [34m1.2s[0m
+ [33m⠹[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.2s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠸[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.3s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠼[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.4s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠴[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.5s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠦[0m Container otel-memory-otel-collector-1 Recreate                              [34m1.6s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠧[0m Container otel-memory-otel-collector-1 Starting                              [34m1.7s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠇[0m Container otel-memory-otel-collector-1 Starting                              [34m1.8s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠏[0m Container otel-memory-otel-collector-1 Starting                              [34m1.9s[0m
+[?25h[?25l[2A[0G[+] up 0/1
+ [33m⠋[0m Container otel-memory-otel-collector-1 Starting                              [34m2.0s[0m
 [?25h[?25l[2A[0G[+] up 1/1
- [32m✔[0m Container otel-memory-otel-collector-1 [32mRecreated[0m           [34m1.3s[0m
-[?25h[?25l[2A[0G[+] up 0/1
- [33m⠸[0m Container otel-memory-otel-collector-1 Starting            [34m1.4s[0m
-[?25h[?25l[2A[0G[+] up 0/1
- [33m⠼[0m Container otel-memory-otel-collector-1 Starting            [34m1.5s[0m
-[?25h[?25l[2A[0G[+] up 0/1
- [33m⠴[0m Container otel-memory-otel-collector-1 Starting            [34m1.6s[0m
-[?25h[?25l[2A[0G[+] up 0/1
- [33m⠦[0m Container otel-memory-otel-collector-1 Starting            [34m1.7s[0m
-[?25h[?25l[2A[0G[+] up 1/1
- [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m             [34m1.7s[0m
-[?25hConnection to 34.85.95.208 closed.
+ [32m✔[0m Container otel-memory-otel-collector-1 [32mStarted[0m                               [34m2.1s[0m
+[?25hConnection to 104.198.114.4 closed.
 ✅ Scenario Tail Sampling Buffered completed.
