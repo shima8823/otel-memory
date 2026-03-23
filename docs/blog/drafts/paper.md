@@ -79,7 +79,7 @@ memory_limiter:
 
 ### 検証環境
 
-本記事のデータは Google Cloud 上で取得しました。Loadgen VM と Collector VM の 2 インスタンス構成で、負荷生成と Collector を分離しています。環境構築手順そのものは本記事では扱わず、取得済みのメトリクス、pprof、クライアントログをもとにデバッグの流れに絞って説明します。
+本記事のデータは Google Cloud 上で取得しました。Loadgen VM と Collector VM の 2 インスタンス構成で、負荷生成と Collector を分離しています。Collector VM では OTel Collector、Prometheus、Grafana を `docker compose` で起動しています。負荷生成には **telemetrygen**（OpenTelemetry 公式）を使用しています。telemetrygen は OpenTelemetry Collector のデモや動作確認でも使われているテスト用ツールで、gRPC/OTLP プロトコルで Collector にトレースを送信します。実アプリケーションでは各言語の **OpenTelemetry SDK** を組み込んでトレースを生成・送信しますが、OTel SDK を直接使った負荷生成は本記事では使用していません。環境構築手順そのものは本記事では扱わず、取得済みのメトリクス、pprof、クライアントログをもとにデバッグの流れに絞って説明します。
 
 ### 診断フロー
 
@@ -146,7 +146,7 @@ Heap の高止まりだけでは、データに影響が出ているかまでは
 
 このグラフの縦軸は `spans/sec` です。一方、負荷条件で指定している `telemetrygen --rate 2500` は `traces/sec` なので、単位は一致していません。今回は 1 トレースあたり `1 root + 10 child = 11 spans` を生成しているため、投入量を同じ単位に揃えると理論値は `2,500 traces/sec × 11 = 27,500 spans/sec` になります。したがって、このパネルでは「2,500」と直接比較するのではなく、「27,500 spans/sec に対して実際に何 spans/sec 受信できているか」を見ています。
 
-ただし、telemetrygen は今回の環境では `--rate 2500` の指定どおりのレートを実行しておらず、ログ上の生成量は 148,482 traces（= 1,633,302 spans）でした。理論値 300,000 traces（= 3,300,000 spans）に対して約 49.5% で、`child_spans=10` による生成コスト増加が一因と考えられます。
+ただし、telemetrygen は今回の環境では `--rate 2500` の指定どおりのレートを実行しておらず、ログ上の生成量は 953,566 traces（= 10,489,226 spans）でした。理論値 1,500,000 traces（= 16,500,000 spans）に対して約 6 割で、`child_spans=10` による生成コスト増加が一因と考えられます。
 
 それでも Receiver の受信レートは実送信量に対しても低い水準で推移しており、投入したスパンの多くが受信されていないことがわかります。同じグラフに表示されている Refused Spans は非ゼロですが微量で、この数値だけでは損失の規模を説明できません。
 
@@ -166,34 +166,34 @@ go tool pprof -inuse_space heap.pprof
 Showing nodes accounting for 227.18MB, 89.54% of 253.71MB total
 Dropped 92 nodes (cum <= 1.27MB)
 Showing top 10 nodes out of 84
-      flat  flat%   sum%        cum   cum%
-101.52MB 40.01% 40.01%   101.52MB 40.01%  go.opentelemetry.io/collector/pdata/internal.NewSpan (inline)
-32.50MB 12.81% 52.83%    48.50MB 19.12%  go.opentelemetry.io/collector/pdata/internal.CopyKeyValueSlice
-21.50MB  8.47% 61.30%       40MB 15.77%  go.opentelemetry.io/collector/pdata/internal.(*KeyValue).UnmarshalProto
-18.50MB  7.29% 68.59%    18.50MB  7.29%  go.opentelemetry.io/collector/pdata/internal.(*AnyValue).UnmarshalProto
-16MB  6.31% 74.90%       16MB  6.31%  go.opentelemetry.io/collector/pdata/internal.CopyAnyValue
-11MB  4.34% 79.23%       51MB 20.10%  go.opentelemetry.io/collector/pdata/internal.(*Span).UnmarshalProto
-8.50MB  3.35% 82.58%     8.50MB  3.35%  go.opentelemetry.io/collector/pdata/internal.NewScopeSpans
-8MB  3.15% 85.74%        8MB  3.15%  go.opentelemetry.io/collector/pdata/internal.NewResourceSpans
-5MB  1.97% 87.71%   106.52MB 41.99%  go.opentelemetry.io/collector/pdata/ptrace.SpanSlice.AppendEmpty
-4.66MB  1.84% 89.54%     4.66MB  1.84%  github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor/internal/idbatcher.(*batcher).CloseCurrentAndTakeFirstBatch
+total: 280.98 MB、上位 10 関数を flat 順に整理しました（パッケージパスは短縮表記）。
 ```
+
+| flat | flat% | cum | cum% | 関数 |
+|---:|---:|---:|---:|---|
+| 117.53 MB | 41.83% | 117.53 MB | 41.83% | `pdata/internal.NewSpan` |
+| 37 MB | 13.17% | 52.50 MB | 18.69% | `pdata/internal.CopyKeyValueSlice` |
+| 16.50 MB | 5.87% | 29 MB | 10.32% | `pdata/internal.(*KeyValue).UnmarshalProto` |
+| 15.50 MB | 5.52% | 15.50 MB | 5.52% | `pdata/internal.CopyAnyValue` |
+| 14.50 MB | 5.16% | 14.50 MB | 5.16% | `pdata/internal.NewResourceSpans` |
+| 13 MB | 4.63% | 13 MB | 4.63% | `pdata/internal.NewScopeSpans` |
+| 12.50 MB | 4.45% | 12.50 MB | 4.45% | `pdata/internal.(*AnyValue).UnmarshalProto` |
+| 6 MB | 2.14% | 35 MB | 12.46% | `pdata/internal.(*Span).UnmarshalProto` |
+| 5.50 MB | 1.96% | 119.02 MB | 42.36% | `pdata/ptrace.SpanSlice.AppendEmpty` |
+| **5 MB** | **1.78%** | **214.53 MB** | **76.35%** | **`tailsampling.processTraces`** |
 
 上位の大半は `pdata/internal` パッケージの関数です。pdata は OTel Collector の内部データ表現で、受信した Protocol Buffers メッセージを Go の構造体にデシリアライズしたものです。ここからわかるのは「どこでメモリが確保されたか」であり、パイプライン内のどの processor がそれを保持しているかまでは判断できません。`batch` が原因なのか `tail_sampling` が原因なのか、flat だけでは切り分けられない状態です。
 
 そこで `top -cum` に切り替えます。cum（cumulative）は、その関数と呼び出し先を含めた累積のメモリ使用量です。上位には gRPC フレームワーク層の関数も並びますが、ここでは `tail_sampling` に関係する行だけを抜粋します。
 
-```
-(pprof) top -cum
+そこで `top -cum` に切り替えます。`tail_sampling` に関係する行を抜粋します（パッケージパスは短縮表記）。
 
-Showing nodes accounting for 3MB, 1.18% of 253.71MB total
-Showing top 10 nodes out of 84
-...
-flat  flat%   sum%        cum   cum%
-3MB  1.18%  1.18%   180.03MB 70.96%  tailsamplingprocessor.processTraces
-```
+| flat | flat% | cum | cum% | 関数 |
+|---:|---:|---:|---:|---|
+| 0 | 0% | 214.53 MB | 76.35% | `tailsampling.(*tailSamplingSpanProcessor).ConsumeTraces` |
+| **5 MB** | **1.78%** | **214.53 MB** | **76.35%** | **`tailsampling.(*tailSamplingSpanProcessor).processTraces`** |
 
-`processTraces` の flat はわずか 3 MB ですが、cum は 180.03 MB（全体の 71%）に達しています。先ほど flat で上位に並んでいた `NewSpan` や `CopyKeyValueSlice` は、この `processTraces` の呼び出し経路上で確保されたメモリでした。つまり、pdata のメモリを保持し続けている起点は `tail_sampling` です。
+`processTraces` の flat はわずか 5 MB ですが、cum は 214.53 MB（全体の 76%）に達しています。先ほど flat で上位に並んでいた `NewSpan` や `CopyKeyValueSlice` は、この `processTraces` の呼び出し経路上で確保されたメモリでした。つまり、pdata のメモリを保持し続けている起点は `tail_sampling` です。
 
 コールグラフで視覚的に確認します。
 
@@ -222,12 +222,14 @@ telemetrygen のログに記録された生成数と、Collector の `otelcol_re
 
 | 指標 | 値 |
 |------|-----|
-| telemetrygen 生成トレース数 | 148,482 traces |
-| 生成スパン数（× 11 spans/trace） | 1,633,302 spans |
-| Receiver Accepted | ~1,283,233 spans |
-| **到達率** | **78.6%** |
+| telemetrygen 生成トレース数 | 約95万 traces |
+| 生成スパン数 | 約1,049万 spans |
+| Receiver Accepted | 約611万 spans |
+| **到達率** | **約58%** |
 
-ここで初めて、全体の約 21%（~35 万 spans）が Collector に到達していないことがわかりました。Refused が数百件しか見えていなかったため、ここまで大きな欠損が出ているのはかなり意外でした。欠損はクライアント側の gRPC timeout やスループット低下という形で顕在化しており、Collector の内部メトリクスだけでは実害の規模を読み取れませんでした。
+> **注記**: これらの値は telemetrygen のログと Collector のメトリクスから算出した概算値です。集計タイミングのずれや丸めの影響があるため、厳密な一致ではなく傾向を見るための値として扱ってください。
+
+ここで初めて、全体の約 42%（~約437 万 spans）が Collector に到達していないことがわかりました。Refused が数百件しか見えていなかったため、ここまで大きな欠損が出ているのはかなり意外でした。欠損はクライアント側の gRPC timeout やスループット低下という形で顕在化しており、Collector の内部メトリクスだけでは実害の規模を読み取れませんでした。
 
 Refused と実際の損失が大きく乖離する背景として、memory_limiter が拒否した瞬間は Refused カウンタに記録される一方、Collector 側のメモリ圧力に伴うクライアント側の timeout やスループット低下は Collector のメトリクスには現れません。さらに Go SDK では、ドロップしたスパン数をメトリクスとして公開する仕組みが未実装です（[Issue #5557](https://github.com/open-telemetry/opentelemetry-go/issues/5557)）。Collector のメトリクスだけを見ていると、損失の規模を見誤る可能性があります。
 
@@ -258,35 +260,32 @@ Non-opt と同様にクライアント側を確認すると、gRPC エラーは 
 
 | 指標 | Non-opt (30s) | Opt (5s) |
 |------|--------------|----------|
-| 生成スパン数 | 1,633,302 | 1,771,077 |
-| Receiver Accepted | ~1,283,233 | ~1,771,077 |
-| 到達率 | 78.6% | ~100% |
+| 生成スパン数 | 約1,049万 | 約733万 |
+| Receiver Accepted | 約611万 | 約732万 |
+| 到達率 | 約58% | ほぼ100% |
 | クライアント gRPC エラー | あり | なし |
 
-Non-opt で 21% あった欠損が、`decision_wait` の短縮により解消されています。Collector のメモリ問題を修正したことで、クライアント側の損失も同時になくなりました。
+non-opt で 42% あった欠損が、`decision_wait` の短縮により解消されています。Collector のメモリ問題を修正したことで、クライアント側の損失も同時になくなりました。
 
 ただし、5s はこの検証環境で有効だった値であり、すべての環境に適用できるわけではありません。`decision_wait` を短縮すると late-arriving span を取りこぼす可能性があるため、サービス間のレイテンシを考慮した調整が必要です。
 
 pprof でも改善を確認します。`tail_sampling` に関係する行のみ抜粋します。
 
-```
-(pprof) top -cum
+`tail_sampling` に関係する行を抜粋します（パッケージパスは短縮表記）。
 
-Showing nodes accounting for 7.50MB, 7.94% of 94.47MB total
-Showing top 10 nodes out of 205
-...
-      flat  flat%   sum%        cum   cum%
-    7.50MB  7.94%  7.94%    58.51MB 61.93%  tailsamplingprocessor.processTraces
-```
+| flat | flat% | cum | cum% | 関数 |
+|---:|---:|---:|---:|---|
+| 0 | 0% | 72.01 MB | 70.67% | `tailsampling.(*tailSamplingSpanProcessor).ConsumeTraces` |
+| **14 MB** | **13.74%** | **72.01 MB** | **70.67%** | **`tailsampling.(*tailSamplingSpanProcessor).processTraces`** |
 
 Non-opt と対比します。
 
 | 指標 | Non-opt (30s) | Opt (5s) |
 |------|--------------|----------|
-| processTraces cum | 180.03 MB (71%) | 58.51 MB (62%) |
-| total | 253.71 MB | 94.47 MB |
+| processTraces cum | 214.53 MB (76%) | 72.01 MB (71%) |
+| total heap | 280.98 MB | 101.90 MB |
 
-cum の割合は依然として高いですが、絶対量は 180 MB から 58 MB と 3 分の 1 以下に減少しています。total も 253 MB から 94 MB に縮小しました。バッファの保持期間が短くなったことで、同時にメモリ上に存在するトレース数が減った結果です。
+cum の割合は依然として高いですが、絶対量は 214 MB から 72 MB と 3 分の 1 以下に減少しています。total も 280 MB から 101 MB に縮小しました。バッファの保持期間が短くなったことで、同時にメモリ上に存在するトレース数が減った結果です。
 
 ### 要点
 
@@ -298,7 +297,7 @@ cum の割合は依然として高いですが、絶対量は 180 MB から 58 M
 
 最終的な修正は `decision_wait: 30s` を `5s` に変えるだけでした。しかし、そこに至るまでには Grafana、pprof、クライアントログという 3 つの異なるレイヤーを横断する必要がありました。
 
-Grafana の Heap パネルで異常に気づくことはできます。しかし、Collector 内部のどの processor がメモリを圧迫しているかは Grafana だけではわかりません。pprof の `top -cum` で初めて `processTraces` が保持の起点だと特定できました。さらに、Collector のメトリクス上は Refused が微量であるにもかかわらず、クライアント側では 21% のデータが消失していました。Collector の内部メトリクスだけを見ていたら、この損失には気づけなかったはずです。
+Grafana の Heap パネルで異常に気づくことはできます。しかし、Collector 内部のどの processor がメモリを圧迫しているかは Grafana だけではわかりません。pprof の `top -cum` で初めて `processTraces` が保持の起点だと特定できました。さらに、Collector のメトリクス上は Refused が微量であるにもかかわらず、クライアント側では約 4 割のデータが消失していました。Collector の内部メトリクスだけを見ていたら、この損失には気づけなかったはずです。
 
 メモリ高騰のデバッグは、単一のダッシュボードや単一のツールで完結するものではありません。Collector の外側まで含めて全体を俯瞰して初めて、影響の実態が見えてきます。
 
