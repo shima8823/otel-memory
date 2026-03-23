@@ -1,0 +1,14 @@
+## Processor_Batch_Timeout_Trigger_Rate
+ラベル: instance=otel-collector:8888, job=otel-collector-self, otel_scope_name=go.opentelemetry.io/collector/processor/batchprocessor, processor=batch
+説明: Batch Processor: タイムアウトトリガー送信レート
+単位: ops
+
+時間, 値, フォーマット済み
+------------------------------------------------------------
+2026-03-17 17:48:02, 0, 0.00/s
+2026-03-17 17:48:17, 0, 0.00/s
+2026-03-17 17:48:32, 0, 0.00/s
+2026-03-17 17:48:47, 0, 0.00/s
+2026-03-17 17:49:02, 0, 0.00/s
+2026-03-17 17:49:17, 0, 0.00/s
+2026-03-17 17:49:32, 0, 0.00/s

@@ -1,0 +1,8 @@
+## Processor_Batch_Metadata_Cardinality
+ラベル: instance=otel-collector:8888, job=otel-collector-self, otel_scope_name=go.opentelemetry.io/collector/processor/batchprocessor, processor=batch
+説明: Batch Processor: Metadata Cardinality
+単位: count
+
+時間, 値, フォーマット済み
+------------------------------------------------------------
+2026-03-09 17:54:02, 3, 3
