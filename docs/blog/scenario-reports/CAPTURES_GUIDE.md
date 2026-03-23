@@ -18,6 +18,7 @@ scenario-reports/
 
 ```
 non-opt/ または opt/
+├── .ready                  # 最初の pprof 取得成功を示すマーカー
 ├── docker-stats-capture.log # docker stats 取得処理の実行ログ
 ├── docker-stats.log         # 各コンテナの CPU / メモリ使用量の記録
 ├── scenario.log             # シナリオ実行ログ
@@ -37,6 +38,12 @@ non-opt/ または opt/
 ```
 
 `pprof/`、`metrics/`、`images/` が主要な分析対象で、ルート直下の `*.log` は「どの条件で取得したデータか」を補う補助ログです。
+
+### .ready
+
+pprof 自動キャプチャが、そのディレクトリで少なくとも 1 回は `heap_*.pprof` の取得に成功したことを示すマーカーです。
+
+空のディレクトリが先に作られても、実データがまだ取得できていない場合があります。`.ready` はその区別のために使われ、後続処理が「pprof 取得済みのキャプチャ」として扱ってよいかを判定する補助ファイルです。
 
 ### pprof/
 
