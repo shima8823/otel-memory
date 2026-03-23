@@ -297,6 +297,7 @@ def format_output(name: str, info: dict, data: list, raw_values: bool = False) -
     lines = [
         f"## {name}",
         f"説明: {info['description']}",
+        f"クエリ: {info['query']}",
         f"単位: {info['unit']}",
         "",
         "時間, 値" + ("" if raw_values else ", フォーマット済み"),
