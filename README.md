@@ -20,10 +20,11 @@ export PROJECT_ID=$(gcloud config get-value project)
 最短で実行する場合は `run-*` コマンドだけで完結します。
 
 ```bash
-make run-tail-sampling          # Tail Sampling シナリオを実行
+make run-tail-sampling                    # Tail Sampling シナリオを実行
+make run-tail-sampling-optimized          # 最適化版を実行
 ```
 
-> **注意**: `run-*` コマンドは内部で Terraform apply（`-auto-approve`）→ VM同期 → サービス再起動 → シナリオ実行 → pprofキャプチャ → メトリクス収集を自動で行います。初回はインフラが確認なしで作成されるため、意図せずリソースが作成されないよう `PROJECT_ID` を確認してから実行してください。
+> **注意**: `run-*` コマンドは内部で Terraform apply（`-auto-approve`）→ VM同期 → サービス再起動 → シナリオ実行 → pprofキャプチャ → メトリクス収集 → インフラ削除を自動で行います。初回はインフラが確認なしで作成されるため、意図せずリソースが作成されないよう `PROJECT_ID` を確認してから実行してください。インフラを残したい場合は `DESTROY=0` を付けてください。
 
 結果は `captures/<MM-DD>/<HHMMSS>/` 以下に保存されます（pprof: `pprof/`、メトリクス: `metrics/`、Grafana画像: `images/`）。
 
@@ -35,28 +36,17 @@ make -C terraform forward       # ポートフォワード（Grafana: :3000、Pr
 make -C terraform destroy       # 後片付け
 ```
 
-### Google Cloud アーキテクチャ（terraform/README.md より）
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                 Google Cloud VPC (default)                      │
-│                                                                 │
-│  ┌─────────────────────┐      ┌─────────────────────────────┐  │
-│  │    Loadgen VM       │      │       Collector VM          │  │
-│  │    (e2-small)       │      │       (e2-medium)           │  │
-│  │  telemetrygen       │      │  OTel Collector (4317)      │  │
-│  │  / pyloadgen        │ ───▶ │  Prometheus / Grafana       │  │
-│  └─────────────────────┘      │  Jaeger / pprof             │  │
-│                               └─────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
+### Google Cloud アーキテクチャ
+
+![Google Cloud アーキテクチャ](docs/blog/images/overview-architecture.svg)
 
 ## シナリオ一覧
 
-| シナリオ | 原因 | 実行コマンド |
-|---------|-----|------|
-| Tail Sampling | `decision_wait` 中のトレースバッファ保持 | `make run-tail-sampling PROJECT_ID=...` |
-| SpanMetrics 高カーディナリティ | `spanmetrics` 内部マップのエントリ数膨張 | `make run-scenario-spanmetrics PROJECT_ID=...` |
-| Batch × Queue メモリ増幅 | `send_batch_size × queue_size` の掛け算 | `make run-batch-queue PROJECT_ID=...` |
+| シナリオ | 原因 | 実行コマンド | ブログ記事 |
+|---------|-----|------|------|
+| Tail Sampling | `decision_wait` 中のトレースバッファ保持 | `make run-tail-sampling PROJECT_ID=...` | 公開済み |
+| SpanMetrics 高カーディナリティ | `spanmetrics` 内部マップのエントリ数膨張 | `make run-scenario-spanmetrics PROJECT_ID=...` | 別シナリオ（続編予定） |
+| Batch × Queue メモリ増幅 | `send_batch_size × queue_size` の掛け算 | `make run-batch-queue PROJECT_ID=...` | 別シナリオ（続編予定） |
 
 ※ 各シナリオに最適化版（`*-optimized`）があります。
 
@@ -64,7 +54,7 @@ make -C terraform destroy       # 後片付け
 
 ### Tail Sampling
 - 何が起きるか: `tail_sampling.decision_wait` の間、スパンを保持するため高スループット時にメモリが急増
-- 最適化版: `make run-tail-sampling-optimized`（`decision_wait: 30s -> 10s`）
+- 最適化版: `make run-tail-sampling-optimized`（`decision_wait: 30s -> 5s`）
 - 期待される挙動: Heap 上昇、`memory_limiter` 発動、Refused 増加の観察
 
 ### Batch × Queue メモリ増幅
