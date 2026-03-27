@@ -6,8 +6,8 @@
 - Google Cloud（Terraform, 2VM構成）で実行できます。
 
 ## 前提条件
-- Go（`go tool pprof` が使えること。推奨: 1.21+）
-- Python 3.10+（`scenario-spanmetrics*` 実行時に使用）
+- Go（`go tool pprof` が使えること）
+- Python 3.10+（メトリクスエクスポートと `scenario-spanmetrics*` 実行時に使用）
 - gcloud CLI
 - Terraform v1.14+
 
