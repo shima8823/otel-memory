@@ -94,7 +94,6 @@ help-pprof:
 	@echo "  pprof-diff          2つのプロファイルを比較 (BASE=... NEW=...)"
 	@echo "  pprof-diff-stop     diff UIを停止"
 	@echo "  pprof-list          キャプチャ一覧表示 (DIR=...)"
-	@echo "  pprof-diff-auto     ベースラインとピークを自動検出して比較 (DIR=...)"
 	@echo "  pprof-peak-diff     ピークと直前を比較 (DIR=...)"
 	@echo "  pprof-ui            単一のプロファイルを表示 (FILE=...)"
 	@echo "  pprof-report        テキストレポート出力 (BASE=... NEW=...)"
@@ -251,7 +250,7 @@ pprof-capture-status:
 # =====================================
 # pprof - 分析
 # =====================================
-.PHONY: pprof-diff pprof-diff-stop pprof-list pprof-diff-auto pprof-peak-diff pprof-ui pprof-report
+.PHONY: pprof-diff pprof-diff-stop pprof-list pprof-peak-diff pprof-ui pprof-report
 
 pprof-ui:
 	@if [ -z "$(FILE)" ]; then echo "❌ Usage: make pprof-ui FILE=path/to/captures/MM-DD/HHMMSS/pprof/profile.pprof"; exit 1; fi
@@ -290,9 +289,6 @@ pprof-list:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-list DIR=path/to/captures/XXXXXX"; exit 1; fi
 	@python3 scripts/pprof_list.py "$(DIR)/pprof"
 
-pprof-diff-auto:
-	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-diff-auto DIR=path/to/captures/XXXXXX"; exit 1; fi
-	@bash scripts/pprof_diff_auto.sh "$(DIR)"
 
 pprof-peak-diff:
 	@if [ -z "$(DIR)" ]; then echo "❌ Usage: make pprof-peak-diff DIR=path/to/captures/XXXXXX"; exit 1; fi

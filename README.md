@@ -71,7 +71,7 @@ make -C terraform destroy       # 後片付け
 - `make pprof-heap` — ヒーププロファイルを取得してブラウザ表示
 - `make pprof-capture-bg` — バックグラウンドで定期キャプチャ開始
 - `make pprof-capture-stop` — キャプチャ停止
-- `make pprof-diff-auto DIR=path/to/captures/XXXXXX` — ベースラインとピークを自動比較
+- `make pprof-list DIR=path/to/captures/XXXXXX` — キャプチャ一覧とピークを表示
 
 ## ディレクトリ構成
 ```text
