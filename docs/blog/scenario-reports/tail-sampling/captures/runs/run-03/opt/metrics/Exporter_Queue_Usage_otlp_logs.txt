@@ -1,0 +1,20 @@
+## Exporter_Queue_Usage
+ラベル: data_type=logs, exporter=otlp, instance=otel-collector:8888, job=otel-collector-self, otel_scope_name=go.opentelemetry.io/collector/exporter/exporterhelper
+説明: Exporter: キュー使用率
+クエリ: otelcol_exporter_queue_size{job="otel-collector-self"} / otelcol_exporter_queue_capacity{job="otel-collector-self"}
+単位: ratio
+
+時間, 値, フォーマット済み
+------------------------------------------------------------
+2026-03-27 16:53:35, 0, 0.00%
+2026-03-27 16:53:50, 0, 0.00%
+2026-03-27 16:54:05, 0, 0.00%
+2026-03-27 16:54:20, 0, 0.00%
+2026-03-27 16:54:35, 0, 0.00%
+2026-03-27 16:54:50, 0, 0.00%
+2026-03-27 16:55:05, 0, 0.00%
+2026-03-27 16:55:20, 0, 0.00%
+2026-03-27 16:55:35, 0, 0.00%
+2026-03-27 16:55:50, 0, 0.00%
+2026-03-27 16:56:05, 0, 0.00%
+2026-03-27 17:08:05, 0, 0.00%
